@@ -1,0 +1,22 @@
+{
+  "name": "@open-prompt-os/adapters",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@google/genai": "^1.30.0",
+    "@open-prompt-os/adapter-kit": "workspace:*",
+    "@open-prompt-os/contracts": "workspace:*",
+    "@open-prompt-os/core": "workspace:*"
+  },
+  "devDependencies": {
+    "vitest": "^3.0.5"
+  }
+}

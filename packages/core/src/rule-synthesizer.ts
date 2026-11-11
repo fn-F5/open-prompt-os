@@ -15,6 +15,10 @@ const FRAMEWORK_LABELS: Record<string, string> = {
   none: "Direct Operational Specification",
 };
 
+export function describeFramework(framework: string | undefined): string {
+  return FRAMEWORK_LABELS[framework ?? "costar"] ?? FRAMEWORK_LABELS.none ?? "Direct";
+}
+
 export function generateFollowUpQuestions(draft: ComposerDraft): string[] {
   const questions: string[] = [];
   if (!draft.goal && draft.rawInput.trim().length < 50) {
@@ -29,7 +33,9 @@ export function generateFollowUpQuestions(draft: ComposerDraft): string[] {
     } else if (draft.mode === "video") {
       questions.push("What camera movement, shot duration, and pacing style do you need?");
     } else {
-      questions.push("Should the output be structured as a Markdown table, JSON schema, or executive memo?");
+      questions.push(
+        "Should the output be structured as a Markdown table, JSON schema, or executive memo?",
+      );
     }
   }
   return questions.slice(0, 3);
@@ -65,8 +71,7 @@ export function synthesizeCompiledPrompt(
         : "Staff Systems Architect & Domain Strategist");
 
   const goal =
-    draft.goal ||
-    `Execute the primary instruction with high precision: "${draft.rawInput.trim()}"`;
+    draft.goal || `Execute the primary instruction with high precision: "${draft.rawInput.trim()}"`;
 
   const audience =
     draft.audience ||
@@ -76,7 +81,9 @@ export function synthesizeCompiledPrompt(
 
   const tone =
     draft.tone ||
-    (draft.mode === "text" ? "Analytical, direct, zero-fluff" : "Photorealistic, high dynamic range");
+    (draft.mode === "text"
+      ? "Analytical, direct, zero-fluff"
+      : "Photorealistic, high dynamic range");
 
   const format =
     draft.format ||
@@ -232,8 +239,7 @@ export function diagnoseAndRefinePrompt(input: RefinePromptInput): RefinePromptO
       title: "Weak Output Format Specification",
       severity: "warning",
       evidence: "Output structure is left to model defaults, causing inconsistent formatting.",
-      recommendation:
-        "Specify exact section headers, schema keys, or Markdown layout constraints.",
+      recommendation: "Specify exact section headers, schema keys, or Markdown layout constraints.",
       changedSection: "## Output Schema",
     });
   }
