@@ -122,7 +122,8 @@ const CURATED_TEMPLATES: PromptTemplate[] = [
   {
     slug: "staff-architecture-rfc-review",
     title: "Staff Architecture RFC & Trade-off Matrix",
-    useCase: "Stress-test system designs for failure modes, data consistency, and operational cost.",
+    useCase:
+      "Stress-test system designs for failure modes, data consistency, and operational cost.",
     category: "Engineering",
     mode: "text",
     framework: "costar",
@@ -185,14 +186,14 @@ const CURATED_TEMPLATES: PromptTemplate[] = [
   {
     slug: "editorial-monochrome-product-keyframe",
     title: "Industrial Monochrome Hardware Keyframe",
-    useCase: "Generate studio-grade architectural and industrial design renders with physical optics.",
+    useCase:
+      "Generate studio-grade architectural and industrial design renders with physical optics.",
     category: "Design & Visuals",
     mode: "image",
     framework: "care",
     frameworkBadge: "Inspired by CARE",
     compatibleModels: ["imagen-3-pro", "flux-1.1-pro", "gemini-2.5-pro"],
-    preview:
-      "Brushed anodized aluminum [Product_Form] on matte basalt surface with rim lighting.",
+    preview: "Brushed anodized aluminum [Product_Form] on matte basalt surface with rim lighting.",
     compiledTemplate: `# VISUAL GENERATION SPECIFICATION (Inspired by CARE)\nSubject: [Product_Form] crafted from [Material_Finish] under low-key rim lighting.`,
     defaultDraft: {
       rawInput:
@@ -215,14 +216,14 @@ const CURATED_TEMPLATES: PromptTemplate[] = [
   {
     slug: "cinematic-orbital-product-reveal",
     title: "Continuous 24fps Orbital Tracking Shot",
-    useCase: "Direct temporally coherent AI video prompts with explicit camera physics and lighting cues.",
+    useCase:
+      "Direct temporally coherent AI video prompts with explicit camera physics and lighting cues.",
     category: "Motion & Video",
     mode: "video",
     framework: "cot",
     frameworkBadge: "Inspired by Chain-of-Thought",
     compatibleModels: ["veo-2-cinema", "sora-turbo", "gemini-2.5-pro"],
-    preview:
-      "Slow dolly push-in toward [Hero_Object] as volumetric light sweeps across the frame.",
+    preview: "Slow dolly push-in toward [Hero_Object] as volumetric light sweeps across the frame.",
     compiledTemplate: `# MOTION & TEMPORAL PROMPT SPECIFICATION (Inspired by Chain-of-Thought)\nCamera: Slow 24fps dolly push-in on [Hero_Object] transitioning to [Reveal_State].`,
     defaultDraft: {
       rawInput:
@@ -231,7 +232,10 @@ const CURATED_TEMPLATES: PromptTemplate[] = [
       modelId: "veo-2-cinema",
       goal: "Maintain consistent object geometry and smooth inertia across 6 seconds",
       audience: "Launch Film & Social Motion Pipeline",
-      constraints: ["Single continuous take without jump cuts", "Realistic motion blur at 180-degree shutter"],
+      constraints: [
+        "Single continuous take without jump cuts",
+        "Realistic motion blur at 180-degree shutter",
+      ],
       format: "24fps, 16:9 cinema scope, 6-second continuous tracking shot",
       persona: "Director of Photography",
       tone: "Atmospheric, deliberate, architectural",
@@ -287,6 +291,97 @@ export function setGuestRemainingQuotaForTest(remaining: number): void {
   guestRemainingQuota = remaining;
 }
 
+function remoteApiUrl(): string | undefined {
+  const value = import.meta.env.VITE_API_URL;
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim().replace(/\/$/, "");
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function apiErrorCode(status: number, code: string | undefined): ApiErrorCode {
+  if (
+    code === "VALIDATION_ERROR" ||
+    code === "UNAUTHENTICATED" ||
+    code === "FORBIDDEN" ||
+    code === "QUOTA_EXCEEDED" ||
+    code === "PROVIDER_UNAVAILABLE" ||
+    code === "RATE_LIMITED" ||
+    code === "INTERNAL_ERROR"
+  ) {
+    return code;
+  }
+  if (status === 400) return "VALIDATION_ERROR";
+  if (status === 401) return "UNAUTHENTICATED";
+  if (status === 403) return "FORBIDDEN";
+  if (status === 429) return "RATE_LIMITED";
+  return "INTERNAL_ERROR";
+}
+
+async function throwApiError(response: Response, fallbackRequestId: string): Promise<never> {
+  let payload: { code?: string; message?: string; requestId?: string } = {};
+  try {
+    payload = (await response.json()) as typeof payload;
+  } catch {
+    payload = {};
+  }
+  throw new OrpcClientError(
+    apiErrorCode(response.status, payload.code),
+    payload.message ?? "Request failed",
+    payload.requestId ?? response.headers.get("x-request-id") ?? fallbackRequestId,
+  );
+}
+
+async function postRpc<T>(
+  path: string,
+  input: unknown,
+  signal: AbortSignal | undefined,
+  headers: { readonly "x-request-id": string; readonly traceparent: string },
+): Promise<T> {
+  const base = remoteApiUrl();
+  const response = await fetch(`${base}${path}`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-request-id": headers["x-request-id"],
+      traceparent: headers.traceparent,
+    },
+    body: JSON.stringify({ json: input }),
+    signal,
+  });
+  if (!response.ok) await throwApiError(response, headers["x-request-id"]);
+  const payload = (await response.json()) as { json?: T };
+  if (!payload.json) {
+    throw new OrpcClientError("INTERNAL_ERROR", "Response was empty", headers["x-request-id"]);
+  }
+  return payload.json;
+}
+
+async function readServerSentEvents(
+  response: Response,
+  onEvent: (event: string, data: string) => void,
+): Promise<void> {
+  const reader = response.body?.getReader();
+  if (!reader) return;
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const chunks = buffer.split("\n\n");
+    buffer = chunks.pop() ?? "";
+    for (const chunk of chunks) {
+      let event = "message";
+      const dataLines: string[] = [];
+      for (const line of chunk.split("\n")) {
+        if (line.startsWith("event:")) event = line.slice(6).trim();
+        else if (line.startsWith("data:")) dataLines.push(line.slice(5).trim());
+      }
+      if (dataLines.length > 0) onEvent(event, dataLines.join("\n"));
+    }
+  }
+}
+
 export const orpcClient = {
   health: {
     async call() {
@@ -325,6 +420,57 @@ export const orpcClient = {
 
       if (options?.signal?.aborted) {
         throw new DOMException("Aborted", "AbortError");
+      }
+
+      const remote = remoteApiUrl();
+      if (remote) {
+        const result = options?.onChunk
+          ? await (async () => {
+              const response = await fetch(`${remote}/api/prompts/compose/stream`, {
+                method: "POST",
+                headers: {
+                  "content-type": "application/json",
+                  "x-request-id": headers["x-request-id"],
+                  traceparent: headers.traceparent,
+                },
+                body: JSON.stringify(input),
+                signal: options.signal,
+              });
+              if (!response.ok) await throwApiError(response, headers["x-request-id"]);
+              let accumulated = "";
+              let done: ComposePromptOutput | undefined;
+              await readServerSentEvents(response, (event, data) => {
+                if (event === "text-delta") {
+                  const payload = JSON.parse(data) as { text?: string };
+                  accumulated += payload.text ?? "";
+                  options.onChunk?.(accumulated);
+                } else if (event === "done") {
+                  done = JSON.parse(data) as ComposePromptOutput;
+                }
+              });
+              if (!done) {
+                throw new OrpcClientError(
+                  "INTERNAL_ERROR",
+                  "Stream ended before completion",
+                  headers["x-request-id"],
+                );
+              }
+              return done;
+            })()
+          : await postRpc<ComposePromptOutput>(
+              "/rpc/prompts/compose",
+              input,
+              options?.signal,
+              headers,
+            );
+        if (!session.isAuthenticated) {
+          guestRemainingQuota = Math.max(0, guestRemainingQuota - 1);
+        }
+        return {
+          ...result,
+          remainingDailyPrompts: session.isAuthenticated ? 48 : guestRemainingQuota,
+          requestId: result.requestId || headers["x-request-id"],
+        };
       }
 
       const synthesized = synthesizeCompiledPrompt(
@@ -373,6 +519,9 @@ export const orpcClient = {
           "Failed output is required in Autopsy mode so we can diagnose structural drift.",
           headers["x-request-id"],
         );
+      }
+      if (remoteApiUrl()) {
+        return postRpc<RefinePromptOutput>("/rpc/prompts/refine", input, undefined, headers);
       }
       const res = diagnoseAndRefinePrompt(input);
       return {
@@ -506,7 +655,8 @@ export const orpcClient = {
       savedPromptsStore = savedPromptsStore.map((item) =>
         item.id === input.id ? { ...item, isShared: true, shareId } : item,
       );
-      const origin = typeof window !== "undefined" ? window.location.origin : "https://openprompt.os";
+      const origin =
+        typeof window !== "undefined" ? window.location.origin : "https://openprompt.os";
       return {
         shareId,
         shareUrl: `${origin}/share/${shareId}`,
@@ -514,7 +664,11 @@ export const orpcClient = {
     },
 
     async getShared(input: { shareId: string }): Promise<SavedPromptItem | null> {
-      return savedPromptsStore.find((item) => item.shareId === input.shareId) ?? savedPromptsStore[0] ?? null;
+      return (
+        savedPromptsStore.find((item) => item.shareId === input.shareId) ??
+        savedPromptsStore[0] ??
+        null
+      );
     },
   },
 
@@ -529,7 +683,12 @@ export const orpcClient = {
         { providerId: "anthropic", circuit: "closed", recentFailureRate: 0.002, lastErrorAt: null },
         { providerId: "openai", circuit: "closed", recentFailureRate: 0.004, lastErrorAt: null },
         { providerId: "gemini", circuit: "closed", recentFailureRate: 0.001, lastErrorAt: null },
-        { providerId: "rule-synthesizer", circuit: "closed", recentFailureRate: 0, lastErrorAt: null },
+        {
+          providerId: "rule-synthesizer",
+          circuit: "closed",
+          recentFailureRate: 0,
+          lastErrorAt: null,
+        },
       ];
     },
   },

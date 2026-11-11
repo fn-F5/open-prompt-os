@@ -1,0 +1,27 @@
+{
+  "name": "@open-prompt-os/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=../../.env src/index.ts",
+    "start": "tsx --env-file-if-exists=../../.env src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@hono/node-server": "2.1.5",
+    "@open-prompt-os/adapter-kit": "workspace:*",
+    "@open-prompt-os/adapters": "workspace:*",
+    "@open-prompt-os/contracts": "workspace:*",
+    "@open-prompt-os/core": "workspace:*",
+    "@orpc/server": "1.16.2",
+    "hono": "4.13.14",
+    "tsx": "^4.19.3",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.4",
+    "vitest": "^3.0.5"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "@open-prompt-os/adapter-kit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@open-prompt-os/contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "vitest": "^3.0.5"
+  }
+}
