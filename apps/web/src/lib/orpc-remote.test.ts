@@ -1,6 +1,6 @@
 import type { ComposePromptOutput } from "@open-prompt-os/contracts";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { authClient } from "./auth-client.js";
+import { authClient, setAuthSessionForTest } from "./auth-client.js";
 import { OrpcClientError, orpcClient, resetOrpcTestState } from "./orpc.js";
 
 const input = {
@@ -74,17 +74,28 @@ describe("remote compose client", () => {
 
   it("dispatches remote RPC calls with auth headers for library operations", async () => {
     vi.stubEnv("VITE_API_URL", "http://127.0.0.1:3001");
-    await authClient.signInWithEmail({
+    setAuthSessionForTest({
+      id: "usr_engineercompanycom",
       email: "engineer@company.com",
       name: "Lead Engineer",
+      spaceId: "spc_engineercompanycom",
+      spaceName: "Lead Engineer's Workspace",
+      plan: "free",
+      hasPasskey: false,
     });
 
-    const calls: Array<{ url: string; body: unknown; headers: HeadersInit | undefined }> = [];
+    const calls: Array<{
+      url: string;
+      body: unknown;
+      headers: HeadersInit | undefined;
+      credentials: RequestCredentials | undefined;
+    }> = [];
     vi.spyOn(globalThis, "fetch").mockImplementation(async (url, init) => {
       calls.push({
         url: String(url),
         body: init?.body ? JSON.parse(String(init.body)) : null,
         headers: init?.headers,
+        credentials: init?.credentials,
       });
 
       const urlStr = String(url);
@@ -181,9 +192,10 @@ describe("remote compose client", () => {
     });
     expect(saved.id).toBe("prm_123");
     expect(calls[0]?.url).toBe("http://127.0.0.1:3001/rpc/prompts/save");
+    expect(calls[0]?.credentials).toBe("include");
     const saveHeaders = calls[0]?.headers as Record<string, string>;
-    expect(saveHeaders["x-user-id"]).toBeDefined();
-    expect(saveHeaders["x-space-id"]).toBeDefined();
+    expect(saveHeaders["x-user-id"]).toBeUndefined();
+    expect(saveHeaders["x-space-id"]).toBeUndefined();
 
     const del = await orpcClient.prompts.delete({ id: "prm_123" });
     expect(del.deleted).toBe(true);

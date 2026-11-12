@@ -8,8 +8,20 @@ export interface AuthSessionState {
   readonly isAuthenticated: boolean;
   readonly isLoading: boolean;
   readonly user: AuthenticatedUser | null;
-  readonly signInWithEmail: (input: { email: string; name?: string }) => Promise<AuthenticatedUser>;
+  readonly sendEmailCode: (input: { email: string }) => Promise<void>;
+  readonly verifyEmailCode: (input: {
+    email: string;
+    otp: string;
+    name?: string;
+  }) => Promise<AuthenticatedUser>;
+  readonly signInWithGoogle: () => Promise<void>;
+  readonly signInWithGitHub: () => Promise<void>;
   readonly signInWithPasskey: () => Promise<AuthenticatedUser>;
+  readonly registerPasskey: () => Promise<void>;
+  readonly listPasskeys: () => Promise<
+    Array<{ id: string; name: string; createdAt: string | null }>
+  >;
+  readonly deletePasskey: (id: string) => Promise<void>;
   readonly signOut: () => Promise<void>;
 }
 
@@ -20,6 +32,10 @@ export function useAuthSession(): AuthSessionState {
     () => authClient.getSession(),
     () => authClient.getSession(),
   );
+
+  React.useEffect(() => {
+    authClient.ensureInitialized();
+  }, []);
 
   const signOut = React.useCallback(async () => {
     await authClient.signOut();
@@ -33,8 +49,14 @@ export function useAuthSession(): AuthSessionState {
     isAuthenticated: snapshot.isAuthenticated,
     isLoading: snapshot.isLoading,
     user: snapshot.user,
-    signInWithEmail: authClient.signInWithEmail,
-    signInWithPasskey: authClient.signInWithPasskey,
+    sendEmailCode: authClient.sendEmailCode.bind(authClient),
+    verifyEmailCode: authClient.verifyEmailCode.bind(authClient),
+    signInWithGoogle: authClient.signInWithGoogle.bind(authClient),
+    signInWithGitHub: authClient.signInWithGitHub.bind(authClient),
+    signInWithPasskey: authClient.signInWithPasskey.bind(authClient),
+    registerPasskey: authClient.registerPasskey.bind(authClient),
+    listPasskeys: authClient.listPasskeys.bind(authClient),
+    deletePasskey: authClient.deletePasskey.bind(authClient),
     signOut,
   };
 }

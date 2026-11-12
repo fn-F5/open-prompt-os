@@ -1,4 +1,5 @@
 import type { PromptOrchestrator } from "@open-prompt-os/adapter-kit";
+import type { Auth } from "@open-prompt-os/auth";
 import { ComposePromptInputSchema } from "@open-prompt-os/contracts";
 import { redactSecrets } from "@open-prompt-os/core";
 import type { Context, Hono } from "hono";
@@ -10,12 +11,13 @@ export interface ComposeStreamDeps {
   orchestrator: PromptOrchestrator;
   allowRequest: (key: string) => boolean;
   trustProxy: boolean;
+  auth?: Auth;
 }
 
 export function registerComposeStream(app: Hono<ApiEnv>, deps: ComposeStreamDeps): void {
   app.post("/api/prompts/compose/stream", async (c) => {
     const requestId = c.get("requestId");
-    const actor = await resolveActor(c, deps.trustProxy);
+    const actor = await resolveActor(c, deps.trustProxy, deps.auth);
 
     if (!deps.allowRequest(actor.clientKey)) {
       return c.json({ code: "RATE_LIMITED", message: "Too many requests.", requestId }, 429);

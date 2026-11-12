@@ -13,6 +13,7 @@
     "@hono/node-server": "2.1.5",
     "@open-prompt-os/adapter-kit": "workspace:*",
     "@open-prompt-os/adapters": "workspace:*",
+    "@open-prompt-os/auth": "workspace:*",
     "@open-prompt-os/contracts": "workspace:*",
     "@open-prompt-os/core": "workspace:*",
     "@open-prompt-os/db": "workspace:*",
