@@ -1,5 +1,10 @@
 import "@testing-library/jest-dom/vitest";
 
+// Default VITE_API_URL to empty in component unit tests so offline synthesizer is tested unless explicitly stubbed
+if (typeof import.meta.env === "object") {
+  import.meta.env.VITE_API_URL = "";
+}
+
 // Ensure standard Web Storage API methods exist in Node 26 + jsdom test environment
 if (typeof window !== "undefined" && typeof window.localStorage?.clear !== "function") {
   const store = new Map<string, string>();

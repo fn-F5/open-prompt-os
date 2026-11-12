@@ -5,6 +5,7 @@ import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
 import type { ApiEnv } from "./app-env.js";
+import { resolveActor } from "./auth/session-resolver.js";
 import { clientKey } from "./client-key.js";
 import { createRouter } from "./router.js";
 import { registerComposeStream } from "./routes/compose-stream.js";
@@ -19,7 +20,10 @@ export interface AppOptions {
 
 export function createApp(options: AppOptions) {
   const app = new Hono<ApiEnv>();
-  const router = createRouter({ orchestrator: options.orchestrator });
+  const router = createRouter({
+    orchestrator: options.orchestrator,
+    webOrigins: options.webOrigins,
+  });
   const rpc = new RPCHandler(router);
   const log = options.log ?? ((line: string) => console.log(line));
 
@@ -39,6 +43,8 @@ export function createApp(options: AppOptions) {
     cors({
       origin: [...options.webOrigins],
       allowMethods: ["GET", "POST", "OPTIONS"],
+      allowHeaders: ["content-type", "x-request-id", "traceparent", "x-user-id", "x-space-id"],
+      exposeHeaders: ["x-request-id"],
     }),
   );
   app.use("*", bodyLimit({ maxSize: 32 * 1024 }));
@@ -74,21 +80,39 @@ export function createApp(options: AppOptions) {
 
   app.use("/rpc/*", async (c) => {
     const requestId = c.get("requestId");
+    const actor = await resolveActor(c, options.trustProxy);
     const { matched, response } = await rpc.handle(c.req.raw, {
       prefix: "/rpc",
       context: {
         requestId,
-        clientKey: clientKey(c, options.trustProxy),
+        actor,
         signal: c.req.raw.signal,
       },
     });
     if (!matched || !response)
       return c.json({ code: "INTERNAL_ERROR", message: "Not found", requestId }, 404);
     if (response.status === 400) {
-      return c.json(
-        { code: "VALIDATION_ERROR", message: "Request failed validation.", requestId },
-        400,
-      );
+      const text = await response.text();
+      let parsed: {
+        code?: string;
+        message?: string;
+        json?: { code?: string; message?: string };
+      } | null = null;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        // ignore
+      }
+      const err = parsed?.json ?? parsed;
+      const message = err?.message ?? "Request failed validation.";
+      const code =
+        err?.code && err.code !== "BAD_REQUEST"
+          ? err.code
+          : message.toLowerCase().includes("validation") || message.toLowerCase().includes("failed")
+            ? "VALIDATION_ERROR"
+            : (err?.code ?? "VALIDATION_ERROR");
+
+      return c.json({ code, message, requestId }, 400);
     }
     const headers = new Headers(response.headers);
     headers.set("x-request-id", requestId);

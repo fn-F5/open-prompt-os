@@ -1,0 +1,394 @@
+// Open Prompt OS — PostgreSQL schema
+// Tenant-scoped tables carry `space_id` and are protected by Row-Level Security
+// (see migrations/*_rls). The app sets `app.space_id` / `app.user_id` per transaction.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────── Enums ───────────────────────────────
+
+enum PlanTier {
+  free
+  pro
+  team
+}
+
+enum BillingInterval {
+  monthly
+  yearly
+}
+
+enum SubscriptionStatus {
+  active
+  trialing
+  past_due
+  canceled
+}
+
+enum SpaceRole {
+  owner
+  admin
+  member
+}
+
+enum ComposerMode {
+  text
+  image
+  video
+}
+
+enum PromptFramework {
+  costar
+  rise
+  care
+  cot
+  none
+}
+
+enum GenerationKind {
+  compose
+  refine
+  autopsy
+  guest_import
+}
+
+enum UsageAction {
+  compose
+  refine
+  autopsy
+  reverse_engineer
+}
+
+enum CircuitStateKind {
+  closed
+  open
+  half_open
+}
+
+// ───────────────────────── Identity (Better Auth) ─────────────────────────
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String?
+  image         String?
+  emailVerified Boolean  @default(false) @map("email_verified")
+  locale        String   @default("en")
+  /// { dismissedHotspots: Record<string,string>, completedTours: Record<string,string> }
+  preferences   Json     @default("{\"dismissedHotspots\":{},\"completedTours\":{}}")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  sessions          Session[]
+  accounts          Account[]
+  passkeys          Passkey[]
+  memberships       SpaceMember[]
+  promptGenerations PromptGeneration[]
+  savedPrompts      SavedPrompt[]
+
+  @@map("users")
+}
+
+model Session {
+  id             String   @id @default(cuid())
+  userId         String   @map("user_id")
+  token          String   @unique
+  expiresAt      DateTime @map("expires_at")
+  ipAddress      String?  @map("ip_address")
+  userAgent      String?  @map("user_agent")
+  activeSpaceId  String?  @map("active_space_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  userId                String    @map("user_id")
+  accountId             String    @map("account_id")
+  providerId            String    @map("provider_id")
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  idToken               String?   @map("id_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at")
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at")
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime @map("expires_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([identifier])
+  @@map("verifications")
+}
+
+model Passkey {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id")
+  name         String?
+  publicKey    String   @map("public_key")
+  credentialID String   @unique @map("credential_id")
+  counter      Int
+  deviceType   String   @map("device_type")
+  backedUp     Boolean  @map("backed_up")
+  transports   String?
+  aaguid       String?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("passkeys")
+}
+
+// ─────────────────────────────── Tenancy ───────────────────────────────
+
+model Space {
+  id               String   @id @default(cuid())
+  name             String
+  /// Denormalised cache of the active subscription's plan (source of truth: subscriptions).
+  plan             PlanTier @default(free)
+  stripeCustomerId String?  @unique @map("stripe_customer_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  members            SpaceMember[]
+  subscriptions      Subscription[]
+  promptGenerations  PromptGeneration[]
+  savedPrompts       SavedPrompt[]
+  billingAuditEvents BillingAuditEvent[]
+  usageCounters      UsageCounter[]
+
+  @@map("spaces")
+}
+
+model SpaceMember {
+  spaceId   String    @map("space_id")
+  userId    String    @map("user_id")
+  role      SpaceRole @default(member)
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([spaceId, userId])
+  @@index([userId])
+  @@map("space_members")
+}
+
+// ─────────────────────────────── Prompts ───────────────────────────────
+
+/// RLS: space_id = current_setting('app.space_id')
+model PromptGeneration {
+  id                 String          @id @default(cuid())
+  spaceId            String          @map("space_id")
+  userId             String?         @map("user_id")
+  kind               GenerationKind  @default(compose)
+  rawInput           String          @map("raw_input")
+  compiledPrompt     String          @map("compiled_prompt")
+  /// Full ComposerDraft (goal, audience, constraints, persona, tone, guardrails, advanced…)
+  draft              Json?
+  mode               ComposerMode
+  framework          PromptFramework
+  modelId            String?         @map("model_id")
+  providerId         String          @map("provider_id")
+  latencyMs          Int             @map("latency_ms")
+  /// Set when imported from a guest's local history; makes imports idempotent.
+  guestInteractionId String?         @map("guest_interaction_id")
+  createdAt          DateTime        @default(now()) @map("created_at")
+
+  space        Space         @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  savedPrompts SavedPrompt[]
+
+  @@unique([spaceId, guestInteractionId])
+  @@index([spaceId, createdAt(sort: Desc)])
+  @@map("prompt_generations")
+}
+
+/// RLS: space_id = current_setting('app.space_id'), plus public read when is_shared.
+model SavedPrompt {
+  id                 String          @id @default(cuid())
+  spaceId            String          @map("space_id")
+  authorId           String?         @map("author_id")
+  sourceGenerationId String?         @map("source_generation_id")
+  templateId         String?         @map("template_id")
+  title              String          @db.VarChar(160)
+  rawInput           String          @map("raw_input")
+  compiledPrompt     String          @map("compiled_prompt")
+  mode               ComposerMode
+  framework          PromptFramework @default(costar)
+  modelId            String          @map("model_id")
+  category           String          @default("General")
+  tags               String[]        @default([])
+  detectedVariables  String[]        @default([]) @map("detected_variables")
+  isShared           Boolean         @default(false) @map("is_shared")
+  shareId            String?         @unique @map("share_id")
+  createdAt          DateTime        @default(now()) @map("created_at")
+  updatedAt          DateTime        @updatedAt @map("updated_at")
+
+  space            Space             @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  author           User?             @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  sourceGeneration PromptGeneration? @relation(fields: [sourceGenerationId], references: [id], onDelete: SetNull)
+  template         PromptTemplate?   @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  @@index([spaceId, updatedAt(sort: Desc)])
+  @@index([spaceId, category])
+  @@index([tags], type: Gin)
+  @@map("saved_prompts")
+}
+
+/// Global, publicly readable gallery. Seeded via prisma/seed.ts.
+model PromptTemplate {
+  id               String          @id @default(cuid())
+  slug             String          @unique
+  title            String
+  useCase          String          @map("use_case")
+  category         String
+  mode             ComposerMode
+  framework        PromptFramework
+  frameworkBadge   String          @map("framework_badge")
+  compatibleModels String[]        @map("compatible_models")
+  preview          String
+  compiledTemplate String          @map("compiled_template")
+  defaultDraft     Json            @map("default_draft")
+  popularityScore  Float           @default(0) @map("popularity_score")
+  isPublished      Boolean         @default(true) @map("is_published")
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
+
+  savedPrompts SavedPrompt[]
+
+  @@index([mode, category])
+  @@index([popularityScore(sort: Desc)])
+  @@map("prompt_templates")
+}
+
+// ─────────────────────────── Billing & usage ───────────────────────────
+
+/// RLS: space_id = current_setting('app.space_id'). History kept; at most one active per space.
+model Subscription {
+  id                   String             @id @default(cuid())
+  spaceId              String             @map("space_id")
+  plan                 PlanTier
+  interval             BillingInterval?
+  status               SubscriptionStatus @default(active)
+  seats                Int                @default(1)
+  stripeSubscriptionId String?            @unique @map("stripe_subscription_id")
+  stripePriceId        String?            @map("stripe_price_id")
+  currentPeriodStart   DateTime?          @map("current_period_start")
+  currentPeriodEnd     DateTime?          @map("current_period_end")
+  cancelAtPeriodEnd    Boolean            @default(false) @map("cancel_at_period_end")
+  canceledAt           DateTime?          @map("canceled_at")
+  createdAt            DateTime           @default(now()) @map("created_at")
+  updatedAt            DateTime           @updatedAt @map("updated_at")
+
+  space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+
+  @@index([spaceId, status])
+  @@map("subscriptions")
+}
+
+/// RLS: space_id = current_setting('app.space_id')
+model BillingAuditEvent {
+  id         String   @id @default(cuid())
+  spaceId    String   @map("space_id")
+  /// "checkout.created" | "subscription.synced" | "plan.upgraded" | "webhook.healed"
+  kind       String
+  customerId String?  @map("customer_id")
+  /// Stripe event id; makes webhook processing idempotent.
+  externalId String?  @unique @map("external_id")
+  payload    Json
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+
+  @@index([spaceId, createdAt(sort: Desc)])
+  @@map("billing_audit_events")
+}
+
+/// Daily quota per plan and action. `guest` limits use plan = free with isGuest = true.
+model PlanLimit {
+  plan       PlanTier
+  action     UsageAction
+  isGuest    Boolean     @default(false) @map("is_guest")
+  dailyLimit Int         @map("daily_limit")
+  updatedAt  DateTime    @updatedAt @map("updated_at")
+
+  @@id([plan, action, isGuest])
+  @@map("plan_limits")
+}
+
+/// Daily usage meter. Exactly one of space_id (signed-in) or client_key (guest) is set
+/// (CHECK constraint in migration). Increment with INSERT … ON CONFLICT DO UPDATE.
+model UsageCounter {
+  id        String      @id @default(cuid())
+  spaceId   String?     @map("space_id")
+  /// SHA-256 of the guest client key (never the raw IP / fingerprint).
+  clientKey String?     @map("client_key")
+  usageDate DateTime    @map("usage_date") @db.Date
+  action    UsageAction
+  count     Int         @default(0)
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  space Space? @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+
+  @@unique([spaceId, usageDate, action])
+  @@unique([clientKey, usageDate, action])
+  @@index([usageDate])
+  @@map("usage_counters")
+}
+
+// ─────────────────────────────── System ───────────────────────────────
+
+model ProviderCircuitState {
+  providerId        String           @id @map("provider_id")
+  state             CircuitStateKind @default(closed)
+  consecutiveErrors Int              @default(0) @map("consecutive_errors")
+  lastError         String?          @map("last_error")
+  openedAt          DateTime?        @map("opened_at")
+  nextProbeAt       DateTime?        @map("next_probe_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+
+  @@map("provider_circuit_states")
+}
+
+model SelfHealingIncident {
+  id          String   @id @default(cuid())
+  /// "llm_circuit_tripped" | "job_quarantined" | "billing_drift_healed"
+  kind        String
+  /// "warn" | "error" | "critical"
+  severity    String
+  traceId     String?  @map("trace_id")
+  summary     String
+  remediation String
+  status      String   @default("auto_resolved")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt(sort: Desc)])
+  @@map("self_healing_incidents")
+}

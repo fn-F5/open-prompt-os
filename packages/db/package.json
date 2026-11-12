@@ -1,0 +1,29 @@
+{
+  "name": "@open-prompt-os/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "db:generate": "tsx scripts/prisma.ts generate",
+    "db:migrate": "tsx scripts/prisma.ts migrate dev",
+    "db:rls": "tsx scripts/prisma.ts db execute --schema prisma/schema.prisma --file prisma/sql/rls.sql",
+    "db:seed": "tsx scripts/prisma.ts db seed",
+    "db:studio": "tsx scripts/prisma.ts studio"
+  },
+  "dependencies": {
+    "@open-prompt-os/contracts": "workspace:*",
+    "@prisma/client": "^6.19.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.4",
+    "prisma": "^6.19.0",
+    "tsx": "^4.19.0"
+  }
+}

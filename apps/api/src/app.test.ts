@@ -49,10 +49,11 @@ describe("api", () => {
 
   it("rate limits repeated compose calls", async () => {
     const app = buildApp(2);
+    const key = `ratelimit_${Date.now()}`;
     const call = () =>
       app.request("http://localhost/rpc/prompts/compose", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", "x-client-key": key },
         body: JSON.stringify({ json: draft }),
       });
     expect((await call()).status).toBe(200);
@@ -93,6 +94,7 @@ describe("api", () => {
 
 describe("compose stream", () => {
   it("emits text deltas before the done payload", async () => {
+    const key = `stream_delta_${Date.now()}`;
     const output: ComposePromptOutput = {
       interactionId: "int_test",
       compiledPrompt: "Hello",
@@ -132,7 +134,7 @@ describe("compose stream", () => {
     const app = buildApp(20, orchestrator);
     const response = await app.request("http://localhost/api/prompts/compose/stream", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "x-client-key": key },
       body: JSON.stringify(draft),
     });
     expect(response.headers.get("content-type")).toContain("text/event-stream");
@@ -210,9 +212,10 @@ describe("compose stream", () => {
     };
     const app = buildApp(20, orchestrator);
     const controller = new AbortController();
+    const abortKey = `stream_abort_${Date.now()}`;
     const response = await app.request("http://localhost/api/prompts/compose/stream", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "x-client-key": abortKey },
       body: JSON.stringify(draft),
       signal: controller.signal,
     });

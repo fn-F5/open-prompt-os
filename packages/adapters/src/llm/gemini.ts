@@ -49,7 +49,7 @@ export interface GeminiAdapterOptions {
 async function createDefaultGeminiClient(apiKey: string): Promise<GeminiClient> {
   const { GoogleGenAI } = await import("@google/genai");
   const ai = new GoogleGenAI({ apiKey });
-  return {
+  const client: GeminiClient = {
     async generateContent(request) {
       const response = await ai.models.generateContent({
         model: request.model,
@@ -70,10 +70,11 @@ async function createDefaultGeminiClient(apiKey: string): Promise<GeminiClient> 
     async *generateContentStream(request) {
       // generateContentStream does not resolve for current Gemini 3 models.
       // The unary call does, so the SSE route still delivers the provider text.
-      const response = await this.generateContent(request);
+      const response = await client.generateContent(request);
       if (response.text) yield { text: response.text };
     },
   };
+  return client;
 }
 
 function toResult(

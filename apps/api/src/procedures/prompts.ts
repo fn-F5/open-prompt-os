@@ -7,8 +7,13 @@ import type {
 } from "@open-prompt-os/contracts";
 import { isInputGuardError, redactSecrets } from "@open-prompt-os/core";
 import { ORPCError } from "@orpc/server";
+import type { ResolvedActor } from "../auth/session-resolver.js";
+import { checkQuota, recordPromptGeneration, recordUsage } from "../services/usage-quota.js";
 
 function failure(error: unknown, requestId: string): never {
+  if (error instanceof ORPCError) {
+    throw error;
+  }
   if (isInputGuardError(error)) {
     throw new ORPCError("BAD_REQUEST", {
       message: `VALIDATION_ERROR: ${redactSecrets(error.message)}`,
@@ -25,10 +30,42 @@ function failure(error: unknown, requestId: string): never {
 export async function executeCompose(
   orchestrator: PromptOrchestrator,
   input: ComposePromptInput,
-  ctx: OrchestratorContext,
+  ctx: OrchestratorContext & { actor: ResolvedActor },
 ): Promise<ComposePromptOutput> {
+  const quota = await checkQuota(ctx.actor, "compose");
+  if (!quota.allowed) {
+    throw new ORPCError("FORBIDDEN", {
+      message:
+        "QUOTA_EXCEEDED: Daily limit reached for prompt composition. Upgrade your plan or try again tomorrow.",
+      data: { requestId: ctx.requestId, code: "QUOTA_EXCEEDED" },
+    });
+  }
+
   try {
-    return await orchestrator.compose(input, ctx);
+    const started = Date.now();
+    const result = await orchestrator.compose(input, ctx);
+    const latencyMs = result.latencyMs || Date.now() - started;
+
+    // Atomically increment daily usage counter
+    await recordUsage(ctx.actor, "compose");
+
+    // Persist to prompt_generations if in a tenant workspace
+    await recordPromptGeneration(ctx.actor, {
+      kind: "compose",
+      rawInput: input.draft.rawInput,
+      compiledPrompt: result.compiledPrompt,
+      draft: input.draft,
+      mode: input.draft.mode,
+      framework: input.draft.framework ?? "costar",
+      modelId: input.draft.modelId,
+      providerId: result.providerId,
+      latencyMs,
+    });
+
+    return {
+      ...result,
+      remainingDailyPrompts: Math.max(0, quota.remainingDaily - 1),
+    };
   } catch (error) {
     failure(error, ctx.requestId);
   }
@@ -37,10 +74,38 @@ export async function executeCompose(
 export async function executeRefine(
   orchestrator: PromptOrchestrator,
   input: RefinePromptInput,
-  ctx: OrchestratorContext,
+  ctx: OrchestratorContext & { actor: ResolvedActor; kind?: "refine" | "autopsy" },
 ): Promise<RefinePromptOutput> {
+  const action = ctx.kind === "autopsy" ? "autopsy" : "refine";
+  const quota = await checkQuota(ctx.actor, action);
+  if (!quota.allowed) {
+    throw new ORPCError("FORBIDDEN", {
+      message: `QUOTA_EXCEEDED: Daily limit reached for ${action}. Upgrade your plan or try again tomorrow.`,
+      data: { requestId: ctx.requestId, code: "QUOTA_EXCEEDED" },
+    });
+  }
+
   try {
-    return await orchestrator.refine(input, ctx);
+    const started = Date.now();
+    const result = await orchestrator.refine(input, ctx);
+    const latencyMs = result.latencyMs || Date.now() - started;
+
+    // Atomically increment daily usage counter
+    await recordUsage(ctx.actor, action);
+
+    // Persist to prompt_generations if in a tenant workspace
+    await recordPromptGeneration(ctx.actor, {
+      kind: action,
+      rawInput: input.originalPrompt,
+      compiledPrompt: result.optimizedPrompt,
+      mode: "text",
+      framework: "costar",
+      modelId: result.modelId,
+      providerId: result.providerId,
+      latencyMs,
+    });
+
+    return result;
   } catch (error) {
     failure(error, ctx.requestId);
   }
