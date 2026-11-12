@@ -16,6 +16,7 @@ import type {
   RefinePromptOutput,
   SavePromptInput,
   SavedPromptItem,
+  SystemHealth,
   UpdateOnboardingInput,
 } from "@open-prompt-os/contracts";
 import {
@@ -131,7 +132,8 @@ const CURATED_TEMPLATES: PromptTemplate[] = [
     compatibleModels: ["claude-3-7-sonnet", "gpt-4.1", "gemini-2.5-pro"],
     preview:
       "Evaluates [System_Proposal] across latency budgets, multi-region failover, and blast radius.",
-    compiledTemplate: `# OPERATIONAL PROMPT SPECIFICATION (Inspired by COSTAR)\nRole: You are a Principal Distributed Systems Architect.\n\n## Context & Objective\nEvaluate [System_Proposal] targeting [Scale_Target] under [Compliance_Regime].`,
+    compiledTemplate:
+      "# OPERATIONAL PROMPT SPECIFICATION (Inspired by COSTAR)\nRole: You are a Principal Distributed Systems Architect.\n\n## Context & Objective\nEvaluate [System_Proposal] targeting [Scale_Target] under [Compliance_Regime].",
     defaultDraft: {
       rawInput:
         "Review our distributed architecture proposal for [System_Proposal] handling [Scale_Target] requests per second and identify failure modes.",
@@ -164,7 +166,8 @@ const CURATED_TEMPLATES: PromptTemplate[] = [
     compatibleModels: ["claude-3-7-sonnet", "gpt-4.1"],
     preview:
       "Synthesizes [Strategic_Initiative] with clear counter-arguments, unit economics, and ask.",
-    compiledTemplate: `# OPERATIONAL PROMPT SPECIFICATION (Inspired by RISE)\nRole: Chief Product Strategist.\n\n## Objective\nDraft a high-signal decision brief for [Strategic_Initiative] addressing [Key_Metric_Goal].`,
+    compiledTemplate:
+      "# OPERATIONAL PROMPT SPECIFICATION (Inspired by RISE)\nRole: Chief Product Strategist.\n\n## Objective\nDraft a high-signal decision brief for [Strategic_Initiative] addressing [Key_Metric_Goal].",
     defaultDraft: {
       rawInput:
         "Draft an executive decision memo for [Strategic_Initiative] aimed at improving [Key_Metric_Goal] in [Target_Quarter].",
@@ -194,7 +197,8 @@ const CURATED_TEMPLATES: PromptTemplate[] = [
     frameworkBadge: "Inspired by CARE",
     compatibleModels: ["imagen-3-pro", "flux-1.1-pro", "gemini-2.5-pro"],
     preview: "Brushed anodized aluminum [Product_Form] on matte basalt surface with rim lighting.",
-    compiledTemplate: `# VISUAL GENERATION SPECIFICATION (Inspired by CARE)\nSubject: [Product_Form] crafted from [Material_Finish] under low-key rim lighting.`,
+    compiledTemplate:
+      "# VISUAL GENERATION SPECIFICATION (Inspired by CARE)\nSubject: [Product_Form] crafted from [Material_Finish] under low-key rim lighting.",
     defaultDraft: {
       rawInput:
         "Macro studio photograph of [Product_Form] crafted from [Material_Finish] resting on a dark architectural monolith.",
@@ -224,7 +228,8 @@ const CURATED_TEMPLATES: PromptTemplate[] = [
     frameworkBadge: "Inspired by Chain-of-Thought",
     compatibleModels: ["veo-2-cinema", "sora-turbo", "gemini-2.5-pro"],
     preview: "Slow dolly push-in toward [Hero_Object] as volumetric light sweeps across the frame.",
-    compiledTemplate: `# MOTION & TEMPORAL PROMPT SPECIFICATION (Inspired by Chain-of-Thought)\nCamera: Slow 24fps dolly push-in on [Hero_Object] transitioning to [Reveal_State].`,
+    compiledTemplate:
+      "# MOTION & TEMPORAL PROMPT SPECIFICATION (Inspired by Chain-of-Thought)\nCamera: Slow 24fps dolly push-in on [Hero_Object] transitioning to [Reveal_State].",
     defaultDraft: {
       rawInput:
         "Continuous orbital camera movement around [Hero_Object] inside a minimalist gallery space as rim light reveals [Reveal_State].",
@@ -293,9 +298,15 @@ export function setGuestRemainingQuotaForTest(remaining: number): void {
 
 function remoteApiUrl(): string | undefined {
   const value = import.meta.env.VITE_API_URL;
-  if (typeof value !== "string") return undefined;
-  const trimmed = value.trim().replace(/\/$/, "");
-  return trimmed.length > 0 ? trimmed : undefined;
+  if (typeof value === "string") {
+    const trimmed = value.trim().replace(/\/$/, "");
+    if (trimmed.length > 0) return trimmed;
+  }
+  // When running in real browser development (outside Vitest unit tests), default to local API port 3001
+  if (typeof window !== "undefined" && !import.meta.env.VITEST) {
+    return "http://localhost:3001";
+  }
+  return undefined;
 }
 
 function apiErrorCode(status: number, code: string | undefined): ApiErrorCode {
@@ -338,12 +349,20 @@ async function postRpc<T>(
   headers: { readonly "x-request-id": string; readonly traceparent: string },
 ): Promise<T> {
   const base = remoteApiUrl();
+  const session = authClient.getSession();
+  const authHeaders: Record<string, string> = {};
+  if (session.user) {
+    authHeaders["x-user-id"] = session.user.id;
+    authHeaders["x-space-id"] = session.user.spaceId;
+  }
+
   const response = await fetch(`${base}${path}`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
       "x-request-id": headers["x-request-id"],
       traceparent: headers.traceparent,
+      ...authHeaders,
     },
     body: JSON.stringify({ json: input }),
     signal,
@@ -424,6 +443,12 @@ export const orpcClient = {
 
       const remote = remoteApiUrl();
       if (remote) {
+        const authHeaders: Record<string, string> = {};
+        if (session.user) {
+          authHeaders["x-user-id"] = session.user.id;
+          authHeaders["x-space-id"] = session.user.spaceId;
+        }
+
         const result = options?.onChunk
           ? await (async () => {
               const response = await fetch(`${remote}/api/prompts/compose/stream`, {
@@ -432,6 +457,7 @@ export const orpcClient = {
                   "content-type": "application/json",
                   "x-request-id": headers["x-request-id"],
                   traceparent: headers.traceparent,
+                  ...authHeaders,
                 },
                 body: JSON.stringify(input),
                 signal: options.signal,
@@ -531,12 +557,41 @@ export const orpcClient = {
     },
 
     async autopsy(input: RefinePromptInput): Promise<RefinePromptOutput> {
-      return orpcClient.prompts.refine({ ...input, mode: "autopsy" });
+      const headers = createCorrelationHeaders();
+      const enriched = { ...input, mode: "autopsy" as const };
+      if (!enriched.originalPrompt.trim()) {
+        throw new OrpcClientError(
+          "VALIDATION_ERROR",
+          "Original prompt is required for optimization.",
+          headers["x-request-id"],
+        );
+      }
+      if (!enriched.failedOutput || !enriched.failedOutput.trim()) {
+        throw new OrpcClientError(
+          "VALIDATION_ERROR",
+          "Failed output is required in Autopsy mode so we can diagnose structural drift.",
+          headers["x-request-id"],
+        );
+      }
+      if (remoteApiUrl()) {
+        return postRpc<RefinePromptOutput>("/rpc/prompts/autopsy", enriched, undefined, headers);
+      }
+      return orpcClient.prompts.refine(enriched);
     },
 
     async importGuestInteraction(
       input: ImportGuestInteractionInput,
     ): Promise<ImportGuestInteractionOutput> {
+      const headers = createCorrelationHeaders();
+      if (remoteApiUrl()) {
+        return postRpc<ImportGuestInteractionOutput>(
+          "/rpc/prompts/importGuestInteraction",
+          input,
+          undefined,
+          headers,
+        );
+      }
+
       const session = authClient.getSession();
       const userId = session.user?.id ?? "anonymous";
       const idempotencyKey = `${userId}:${input.interactionId}`;
@@ -590,6 +645,16 @@ export const orpcClient = {
       cursor?: string;
       limit?: number;
     }): Promise<{ items: SavedPromptItem[]; nextCursor: string | null }> {
+      const headers = createCorrelationHeaders();
+      if (remoteApiUrl()) {
+        return postRpc<{ items: SavedPromptItem[]; nextCursor: string | null }>(
+          "/rpc/prompts/history",
+          filters ?? {},
+          undefined,
+          headers,
+        );
+      }
+
       let items = [...savedPromptsStore];
       if (filters?.mode) {
         items = items.filter((item) => item.mode === filters.mode);
@@ -623,6 +688,9 @@ export const orpcClient = {
           headers["x-request-id"],
         );
       }
+      if (remoteApiUrl()) {
+        return postRpc<SavedPromptItem>("/rpc/prompts/save", input, undefined, headers);
+      }
       const vars = analyzePromptVariables(input.compiledPrompt).detectedVariables;
       const now = new Date().toISOString();
       const created: SavedPromptItem = {
@@ -646,11 +714,24 @@ export const orpcClient = {
     },
 
     async delete(input: { id: string }): Promise<{ deleted: boolean }> {
+      const headers = createCorrelationHeaders();
+      if (remoteApiUrl()) {
+        return postRpc<{ deleted: boolean }>("/rpc/prompts/delete", input, undefined, headers);
+      }
       savedPromptsStore = savedPromptsStore.filter((i) => i.id !== input.id);
       return { deleted: true };
     },
 
     async share(input: { id: string }): Promise<{ shareId: string; shareUrl: string }> {
+      const headers = createCorrelationHeaders();
+      if (remoteApiUrl()) {
+        return postRpc<{ shareId: string; shareUrl: string }>(
+          "/rpc/prompts/share",
+          input,
+          undefined,
+          headers,
+        );
+      }
       const shareId = `shr_${input.id.replace(/[^a-zA-Z0-9]/g, "").slice(-10)}`;
       savedPromptsStore = savedPromptsStore.map((item) =>
         item.id === input.id ? { ...item, isShared: true, shareId } : item,
@@ -664,6 +745,10 @@ export const orpcClient = {
     },
 
     async getShared(input: { shareId: string }): Promise<SavedPromptItem | null> {
+      const headers = createCorrelationHeaders();
+      if (remoteApiUrl()) {
+        return postRpc<SavedPromptItem | null>("/rpc/prompts/getShared", input, undefined, headers);
+      }
       return (
         savedPromptsStore.find((item) => item.shareId === input.shareId) ??
         savedPromptsStore[0] ??
@@ -674,11 +759,48 @@ export const orpcClient = {
 
   models: {
     async listProviders(input?: { mode?: ComposerMode }): Promise<ModelOption[]> {
-      if (!input?.mode) return DEFAULT_MODELS;
-      return DEFAULT_MODELS.filter((m) => m.modes.includes(input.mode!));
+      const headers = createCorrelationHeaders();
+      if (remoteApiUrl()) {
+        try {
+          const remoteList = await postRpc<ModelOption[]>(
+            "/rpc/models/listProviders",
+            input ?? {},
+            undefined,
+            headers,
+          );
+          if (remoteList && remoteList.length > 0) {
+            return remoteList.map((remoteModel) => {
+              const matched = DEFAULT_MODELS.find((m) => m.id === remoteModel.id);
+              return {
+                ...remoteModel,
+                capabilities: matched?.capabilities ?? remoteModel.capabilities ?? [],
+                latencyLabel: matched?.latencyLabel ?? remoteModel.latencyLabel ?? "live",
+              };
+            });
+          }
+        } catch {
+          // fallback to DEFAULT_MODELS
+        }
+      }
+      const requestedMode = input?.mode;
+      if (!requestedMode) return DEFAULT_MODELS;
+      return DEFAULT_MODELS.filter((m) => m.modes.includes(requestedMode));
     },
 
     async healthStatus(): Promise<ProviderHealth[]> {
+      const headers = createCorrelationHeaders();
+      if (remoteApiUrl()) {
+        try {
+          return await postRpc<ProviderHealth[]>(
+            "/rpc/models/healthStatus",
+            {},
+            undefined,
+            headers,
+          );
+        } catch {
+          // fallback
+        }
+      }
       return [
         { providerId: "anthropic", circuit: "closed", recentFailureRate: 0.002, lastErrorAt: null },
         { providerId: "openai", circuit: "closed", recentFailureRate: 0.004, lastErrorAt: null },
@@ -700,6 +822,10 @@ export const orpcClient = {
       category?: string;
       search?: string;
     }): Promise<PromptTemplate[]> {
+      const headers = createCorrelationHeaders();
+      if (remoteApiUrl()) {
+        return postRpc<PromptTemplate[]>("/rpc/templates/list", filters ?? {}, undefined, headers);
+      }
       let list = [...CURATED_TEMPLATES];
       if (filters?.mode) {
         list = list.filter((t) => t.mode === filters.mode);
@@ -723,16 +849,38 @@ export const orpcClient = {
     },
 
     async getBySlug(input: { slug: string }): Promise<PromptTemplate | null> {
+      const headers = createCorrelationHeaders();
+      if (remoteApiUrl()) {
+        return postRpc<PromptTemplate | null>(
+          "/rpc/templates/getBySlug",
+          input,
+          undefined,
+          headers,
+        );
+      }
       return CURATED_TEMPLATES.find((t) => t.slug === input.slug) ?? null;
     },
   },
 
   userPreferences: {
     async get(): Promise<OnboardingPreferences> {
+      const headers = createCorrelationHeaders();
+      if (remoteApiUrl()) {
+        return postRpc<OnboardingPreferences>("/rpc/userPreferences/get", {}, undefined, headers);
+      }
       return onboardingPrefsStore;
     },
 
     async updateOnboarding(input: UpdateOnboardingInput): Promise<OnboardingPreferences> {
+      const headers = createCorrelationHeaders();
+      if (remoteApiUrl()) {
+        return postRpc<OnboardingPreferences>(
+          "/rpc/userPreferences/updateOnboarding",
+          input,
+          undefined,
+          headers,
+        );
+      }
       onboardingPrefsStore = {
         dismissedHotspots: input.hotspotId
           ? { ...onboardingPrefsStore.dismissedHotspots, [input.hotspotId]: input.timestamp }
@@ -747,6 +895,10 @@ export const orpcClient = {
 
   billing: {
     async status(): Promise<BillingStatus> {
+      const headers = createCorrelationHeaders();
+      if (remoteApiUrl()) {
+        return postRpc<BillingStatus>("/rpc/billing/status", {}, undefined, headers);
+      }
       const session = authClient.getSession();
       const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
       if (session.isAuthenticated) {
@@ -770,6 +922,14 @@ export const orpcClient = {
         seats: 1,
         currentPeriodEnd: null,
       };
+    },
+
+    async refresh(): Promise<BillingStatus> {
+      const headers = createCorrelationHeaders();
+      if (remoteApiUrl()) {
+        return postRpc<BillingStatus>("/rpc/billing/refresh", {}, undefined, headers);
+      }
+      return orpcClient.billing.status();
     },
 
     async checkout(input: CheckoutInput): Promise<{ url: string }> {

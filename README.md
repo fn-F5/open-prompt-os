@@ -75,3 +75,47 @@ Open Prompt OS aims to become the definitive **system of record for prompts**.
 | **Ratings & Comments** | Community feedback system rolling out star/quality ratings first, followed by comment threads. | Ratings are low-cost and enhance gallery quality; comments require active moderation. |
 | **MCP Server & Desktop App** | Model Context Protocol (MCP) server for developer workflows, alongside a dedicated desktop utility with global keyboard shortcuts. | *Absorbs:* MCP server, desktop app (MCP is lightweight for developers; desktop app secondary to extension). |
 | **Drift Alarm** | Weekly scheduled automated re-runs of saved test prompts with alerts when output behavior shifts. | Strong retention hook; requires underlying automated testing ("Test Drive") infrastructure as a prerequisite. |
+
+---
+
+## Local Development Setup
+
+### PostgreSQL Database
+
+1. Install PostgreSQL (macOS, via Homebrew) and start the service:
+
+   ```bash
+   brew install postgres
+   brew services start postgresql
+   ```
+
+2. Open the default `postgres` database as your superuser:
+
+   ```bash
+   psql postgres
+   ```
+
+3. Create the application user and database (replace `*******` with your own password):
+
+   ```sql
+   CREATE USER admin WITH PASSWORD '*******';
+   ALTER USER admin CREATEDB;
+   CREATE DATABASE open_prompt_os OWNER admin;
+   GRANT ALL PRIVILEGES ON DATABASE open_prompt_os TO admin;
+   \q
+   ```
+
+4. Verify you can connect as the new user:
+
+   ```bash
+   psql -U admin -d open_prompt_os
+   ```
+
+### Database Schema, Migrations & Seed
+
+```bash
+cp .env.example .env                            # set POSTGRES_PASSWORD
+pnpm --filter @open-prompt-os/db db:migrate     # create tables (prisma migrate dev)
+pnpm --filter @open-prompt-os/db db:rls         # row-level security + extra constraints
+pnpm --filter @open-prompt-os/db db:seed        # plan limits + gallery templates
+```

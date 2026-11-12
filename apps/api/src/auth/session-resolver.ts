@@ -1,0 +1,131 @@
+import { createHash } from "node:crypto";
+import { prisma, runAsSystem } from "@open-prompt-os/db";
+import type { Context } from "hono";
+import { clientKey } from "../client-key.js";
+
+export interface ResolvedActor {
+  readonly clientKey: string;
+  readonly hashedClientKey: string;
+  readonly userId?: string;
+  readonly spaceId?: string;
+}
+
+export function hashClientKey(rawKey: string): string {
+  return createHash("sha256").update(rawKey).digest("hex");
+}
+
+async function ensureDevUserAndSpace(userId: string, spaceId: string): Promise<void> {
+  try {
+    await runAsSystem(async (tx) => {
+      await tx.space.upsert({
+        where: { id: spaceId },
+        update: {},
+        create: {
+          id: spaceId,
+          name: "Workspace",
+          plan: "free",
+        },
+      });
+
+      await tx.user.upsert({
+        where: { id: userId },
+        update: {},
+        create: {
+          id: userId,
+          email: `${userId.replace(/[^a-zA-Z0-9]/g, "")}@openprompt.local`,
+          name: "User",
+        },
+      });
+
+      await tx.spaceMember.upsert({
+        where: { spaceId_userId: { spaceId, userId } },
+        update: {},
+        create: {
+          spaceId,
+          userId,
+          role: "owner",
+        },
+      });
+    });
+  } catch {
+    // Best-effort in development / tests
+  }
+}
+
+function parseCookie(cookieHeader: string | undefined, name: string): string | undefined {
+  if (!cookieHeader) return undefined;
+  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`));
+  return match?.[1] ? decodeURIComponent(match[1]) : undefined;
+}
+
+/**
+ * Resolves the acting user and space from the request context.
+ * Prioritizes:
+ * 1. Explicit internal/test headers (`x-user-id`, `x-space-id`)
+ * 2. Bearer token in `Authorization` header or `session_token` cookie against the `sessions` table
+ * 3. Anonymous guest identified by hashed clientKey
+ */
+export async function resolveActor(c: Context, trustProxy: boolean): Promise<ResolvedActor> {
+  const rawKey = clientKey(c, trustProxy);
+  const hashedClientKey = hashClientKey(rawKey);
+
+  // 1. Direct header overrides (useful in testing and trusted service-to-service calls)
+  const headerUserId = c.req.header("x-user-id")?.trim();
+  const headerSpaceId = c.req.header("x-space-id")?.trim();
+  if (headerUserId || headerSpaceId) {
+    if (headerUserId && headerSpaceId) {
+      await ensureDevUserAndSpace(headerUserId, headerSpaceId);
+    }
+    return {
+      clientKey: rawKey,
+      hashedClientKey,
+      userId: headerUserId || undefined,
+      spaceId: headerSpaceId || undefined,
+    };
+  }
+
+  // 2. Session token from Authorization header or cookie
+  const authHeader = c.req.header("authorization")?.trim();
+  const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : undefined;
+  const cookieToken = parseCookie(c.req.header("cookie"), "session_token");
+  const token = bearerToken || cookieToken;
+
+  if (token) {
+    try {
+      const session = await prisma.session.findUnique({
+        where: { token },
+        select: {
+          userId: true,
+          activeSpaceId: true,
+          expiresAt: true,
+        },
+      });
+
+      if (session && session.expiresAt > new Date()) {
+        let spaceId = session.activeSpaceId ?? undefined;
+        if (!spaceId) {
+          const membership = await prisma.spaceMember.findFirst({
+            where: { userId: session.userId },
+            select: { spaceId: true },
+            orderBy: { createdAt: "asc" },
+          });
+          spaceId = membership?.spaceId;
+        }
+
+        return {
+          clientKey: rawKey,
+          hashedClientKey,
+          userId: session.userId,
+          spaceId,
+        };
+      }
+    } catch {
+      // In case DB is temporarily unreachable or erroring, fall back to guest actor
+    }
+  }
+
+  return {
+    clientKey: rawKey,
+    hashedClientKey,
+  };
+}

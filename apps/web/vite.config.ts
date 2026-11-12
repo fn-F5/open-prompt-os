@@ -7,6 +7,16 @@ export default defineConfig({
   envDir: "../..",
   server: {
     port: 5173,
+    proxy: {
+      "/api": {
+        target: "http://localhost:3001",
+        changeOrigin: true,
+      },
+      "/rpc": {
+        target: "http://localhost:3001",
+        changeOrigin: true,
+      },
+    },
   },
   build: {
     rollupOptions: {

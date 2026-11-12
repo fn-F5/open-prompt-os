@@ -15,6 +15,7 @@
     "@open-prompt-os/adapters": "workspace:*",
     "@open-prompt-os/contracts": "workspace:*",
     "@open-prompt-os/core": "workspace:*",
+    "@open-prompt-os/db": "workspace:*",
     "@orpc/server": "1.16.2",
     "hono": "4.13.14",
     "tsx": "^4.19.3",
