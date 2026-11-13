@@ -36,23 +36,23 @@ const MODE_OPTIONS: Array<{ readonly value: ComposerMode; readonly label: string
 
 const MODE_PLACEHOLDERS: Record<ComposerMode, readonly string[]> = {
   text: [
-    "For engineers: Design a zero-downtime Postgres migration plan with rollback checks and load-test gates...",
-    "For content creators: Turn a YouTube video outline into a hook-driven newsletter and 5 short-form posts...",
-    "For recruiters: Draft personalized candidate outreach and a structured interview rubric for a Staff Engineer...",
-    "For product leads: Synthesize customer interviews into a 1-page launch brief with risks and metrics...",
-    "For marketers: Write high-converting landing page hero copy with 3 angle variants and objection handlers...",
-    "For founders & ops: Turn messy meeting notes into an executive decision memo with owners and deadlines...",
+    "Engineers: Design a zero-downtime Postgres migration plan with rollback checks and load-test gates...",
+    "Content creators: Turn a YouTube video outline into a hook-driven newsletter and 5 short-form posts...",
+    "Recruiters: Draft personalized candidate outreach and a structured interview rubric for a Staff Engineer...",
+    "Product leads: Synthesize customer interviews into a 1-page launch brief with risks and metrics...",
+    "Marketers: Write high-converting landing page hero copy with 3 angle variants and objection handlers...",
+    "Founders & ops: Turn messy meeting notes into an executive decision memo with owners and deadlines...",
   ],
   image: [
-    "For content creators: Bold YouTube thumbnail portrait with rim lighting and clean negative space for title...",
-    "For product designers: Studio macro photo of a matte-black synthesizer on dark basalt, 85mm f/2.0 light...",
-    "For marketers: Minimalist sunlit architectural workspace editorial photo, 35mm lens, warm natural depth...",
-    "For concept artists: Isometric cyberpunk repair workshop glowing with neon cyan reflections and rich detail...",
+    "Content creators: Bold YouTube thumbnail portrait with rim lighting and clean negative space for title...",
+    "Product designers: Studio macro photo of a matte-black synthesizer on dark basalt, 85mm f/2.0 light...",
+    "Marketers: Minimalist sunlit architectural workspace editorial photo, 35mm lens, warm natural depth...",
+    "Concept artists: Isometric cyberpunk repair workshop glowing with neon cyan reflections and rich detail...",
   ],
   video: [
-    "For content creators: Punchy 15-second vertical product hook with smooth match-cuts and crisp key lighting...",
-    "For product teams: Slow 24fps orbital reveal around a brushed-steel watch as warm rim light sweeps the dial...",
-    "For filmmakers: Continuous 35mm anamorphic dolly push-in through a rain-lit studio at dusk, soft lens flare...",
+    "Content creators: Punchy 15-second vertical product hook with smooth match-cuts and crisp key lighting...",
+    "Product teams: Slow 24fps orbital reveal around a brushed-steel watch as warm rim light sweeps the dial...",
+    "Filmmakers: Continuous 35mm anamorphic dolly push-in through a rain-lit studio at dusk, soft lens flare...",
   ],
 };
 
