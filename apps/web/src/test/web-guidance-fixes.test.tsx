@@ -311,7 +311,7 @@ describe("Modern Web Guidance fixes", () => {
           vi.advanceTimersByTime(26);
         });
       }
-      expect(textarea.placeholder).toMatch(/^For engineers:/);
+      expect(textarea.placeholder).toMatch(/^Engineers:/);
       expect(textarea.placeholder.endsWith("|")).toBe(true);
 
       // Focusing pauses animation without trailing cursor

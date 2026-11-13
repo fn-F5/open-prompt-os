@@ -1,9 +1,9 @@
 import { Badge, Button, Dialog, Input } from "@open-prompt-os/ui-web";
-import { KeyRound, ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import * as React from "react";
 import { useNavigate } from "react-router";
 import { useAuthSession } from "../../hooks/use-auth-session.js";
-import { type OAuthProviderStatus, authClient, isPasskeySupported } from "../../lib/auth-client.js";
+import { type OAuthProviderStatus, authClient } from "../../lib/auth-client.js";
 import {
   type AuthTriggerReason,
   closeAuthDialog,
@@ -43,15 +43,14 @@ const REASON_COPY: Record<
   navbar_signin: {
     title: "Sign in to Open Prompt OS",
     description:
-      "Sync your prompt history, organize templates, and sign in with email or a hardware passkey.",
-    badge: "Passkey Ready",
+      "Sync your prompt history, organize templates, and sign in with email or a linked account.",
+    badge: "Workspace Sign-In",
   },
 };
 
 export function AuthDialog() {
   const { isOpen, reason, intendedRoute } = useAuthDialogStore();
-  const { sendEmailCode, verifyEmailCode, signInWithGoogle, signInWithGitHub, signInWithPasskey } =
-    useAuthSession();
+  const { sendEmailCode, verifyEmailCode, signInWithGoogle, signInWithGitHub } = useAuthSession();
   const navigate = useNavigate();
 
   const [email, setEmail] = React.useState("");
@@ -65,7 +64,6 @@ export function AuthDialog() {
   const [error, setError] = React.useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
-  const passkeyAvailable = isPasskeySupported();
   const hasSocial = providers.google || providers.github;
   const copy = REASON_COPY[reason];
 
@@ -117,21 +115,6 @@ export function AuthDialog() {
     }
   };
 
-  const handlePasskeySignIn = async () => {
-    setError(null);
-    setIsSubmitting(true);
-    try {
-      await signInWithPasskey();
-      handleSuccessPostAuth();
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Passkey verification was canceled or unavailable.",
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const handleSocialSignIn = async (provider: "google" | "github") => {
     setError(null);
     setIsSubmitting(true);
@@ -165,47 +148,32 @@ export function AuthDialog() {
         </span>
       </div>
 
-      {step === "email" && (passkeyAvailable || hasSocial) ? (
+      {step === "email" && hasSocial ? (
         <div className="mb-4 space-y-2.5">
-          {passkeyAvailable ? (
-            <Button
-              type="button"
-              variant="solid"
-              className="w-full"
-              disabled={isSubmitting}
-              onClick={handlePasskeySignIn}
-            >
-              <KeyRound className="w-4 h-4" />
-              <span>Continue with Passkey</span>
-            </Button>
-          ) : null}
-
-          {hasSocial ? (
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {providers.google ? (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="w-full"
-                  disabled={isSubmitting}
-                  onClick={() => void handleSocialSignIn("google")}
-                >
-                  Continue with Google
-                </Button>
-              ) : null}
-              {providers.github ? (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="w-full"
-                  disabled={isSubmitting}
-                  onClick={() => void handleSocialSignIn("github")}
-                >
-                  Continue with GitHub
-                </Button>
-              ) : null}
-            </div>
-          ) : null}
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {providers.google ? (
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full"
+                disabled={isSubmitting}
+                onClick={() => void handleSocialSignIn("google")}
+              >
+                Continue with Google
+              </Button>
+            ) : null}
+            {providers.github ? (
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full"
+                disabled={isSubmitting}
+                onClick={() => void handleSocialSignIn("github")}
+              >
+                Continue with GitHub
+              </Button>
+            ) : null}
+          </div>
 
           <div className="my-4 flex items-center gap-3 text-sm text-[var(--text-secondary)]">
             <span className="h-px flex-1 bg-[var(--border-subtle)]" />
@@ -259,7 +227,7 @@ export function AuthDialog() {
               required
               minLength={6}
               maxLength={6}
-              placeholder="123456"
+              placeholder="6-digit code"
               value={code}
               onChange={(e) => setCode(e.target.value)}
               disabled={isSubmitting}
@@ -275,7 +243,7 @@ export function AuthDialog() {
             id="auth-name-input"
             type="text"
             autoComplete="name"
-            placeholder="Alex Rivera"
+            placeholder="John Doe"
             value={name}
             onChange={(e) => setName(e.target.value)}
             disabled={isSubmitting}
@@ -302,7 +270,7 @@ export function AuthDialog() {
           </Button>
           <Button
             type="submit"
-            variant={passkeyAvailable || hasSocial ? "secondary" : "primary-inverse"}
+            variant={hasSocial ? "secondary" : "primary-inverse"}
             disabled={isSubmitting}
           >
             {isSubmitting ? "Working..." : step === "code" ? "Verify code" : "Email me a code"}

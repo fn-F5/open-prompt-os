@@ -1,5 +1,5 @@
 import { Badge, Button } from "@open-prompt-os/ui-web";
-import { KeyRound, Shield, User } from "lucide-react";
+import { Shield, User } from "lucide-react";
 import { Link, Outlet, useLocation } from "react-router";
 import { useAuthSession } from "../hooks/use-auth-session.js";
 import { openAuthDialog } from "../state/auth-dialog-store.js";
@@ -14,8 +14,7 @@ export function SettingsLayout() {
         <Badge variant="framework">Authenticated Route</Badge>
         <h1 className="text-xl font-semibold">Sign in to manage Workspace Settings</h1>
         <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
-          Profile preferences, passkey security, and workspace configuration require an active
-          session.
+          Profile preferences and workspace configuration require an active session.
         </p>
         <Button
           variant="primary-inverse"
@@ -32,10 +31,7 @@ export function SettingsLayout() {
     );
   }
 
-  const tabs = [
-    { to: "/settings/profile", label: "Profile & Space", icon: User },
-    { to: "/settings/security", label: "Passkeys & Security", icon: KeyRound },
-  ];
+  const tabs = [{ to: "/settings/profile", label: "Profile & Space", icon: User }];
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

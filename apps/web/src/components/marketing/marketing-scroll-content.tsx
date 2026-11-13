@@ -634,7 +634,7 @@ export function MarketingScrollContent() {
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Check className="w-5 h-5 text-[var(--accent-text)] shrink-0" />
-                  <span>Passkey hardware security</span>
+                  <span>Passwordless email OTP & OAuth sign-in</span>
                 </li>
               </ul>
             </div>
