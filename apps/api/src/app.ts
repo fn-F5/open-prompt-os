@@ -1,4 +1,5 @@
 import type { PromptOrchestrator } from "@open-prompt-os/adapter-kit";
+import type { Auth } from "@open-prompt-os/auth";
 import { redactSecrets } from "@open-prompt-os/core";
 import { RPCHandler } from "@orpc/server/fetch";
 import { Hono } from "hono";
@@ -15,6 +16,8 @@ export interface AppOptions {
   webOrigins: readonly string[];
   trustProxy: boolean;
   allowRequest: (key: string) => boolean;
+  auth?: Auth;
+  oauthProviders?: { google: boolean; github: boolean };
   log?: (line: string) => void;
 }
 
@@ -32,6 +35,9 @@ export function createApp(options: AppOptions) {
     c.set("requestId", requestId);
     const started = Date.now();
     await next();
+    c.res.headers.set("x-content-type-options", "nosniff");
+    c.res.headers.set("referrer-policy", "strict-origin-when-cross-origin");
+    c.res.headers.set("x-frame-options", "DENY");
     log(
       redactSecrets(
         `${c.req.method} ${c.req.path} ${c.res.status} ${requestId} ${Date.now() - started}ms`,
@@ -42,9 +48,10 @@ export function createApp(options: AppOptions) {
     "*",
     cors({
       origin: [...options.webOrigins],
-      allowMethods: ["GET", "POST", "OPTIONS"],
+      allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
       allowHeaders: ["content-type", "x-request-id", "traceparent", "x-user-id", "x-space-id"],
       exposeHeaders: ["x-request-id"],
+      credentials: true,
     }),
   );
   app.use("*", bodyLimit({ maxSize: 32 * 1024 }));
@@ -72,15 +79,37 @@ export function createApp(options: AppOptions) {
   app.use("/api/*", async (c, next) => {
     return enforceLimit(c, next, clientKey(c, options.trustProxy));
   });
+  app.get("/api/auth/providers", (c) => {
+    return c.json({
+      google: Boolean(options.oauthProviders?.google),
+      github: Boolean(options.oauthProviders?.github),
+    });
+  });
+
+  app.on(["GET", "POST"], "/api/auth/*", (c) => {
+    if (!options.auth) {
+      return c.json(
+        {
+          code: "INTERNAL_ERROR",
+          message: "Authentication is not configured.",
+          requestId: c.get("requestId"),
+        },
+        503,
+      );
+    }
+    return options.auth.handler(c.req.raw);
+  });
+
   registerComposeStream(app, {
     orchestrator: options.orchestrator,
     allowRequest: () => true,
     trustProxy: options.trustProxy,
+    auth: options.auth,
   });
 
   app.use("/rpc/*", async (c) => {
     const requestId = c.get("requestId");
-    const actor = await resolveActor(c, options.trustProxy);
+    const actor = await resolveActor(c, options.trustProxy, options.auth);
     const { matched, response } = await rpc.handle(c.req.raw, {
       prefix: "/rpc",
       context: {

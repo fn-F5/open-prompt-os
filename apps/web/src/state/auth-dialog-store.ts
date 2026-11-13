@@ -72,6 +72,13 @@ export function consumeSafeReplayAction(): (() => void) | null {
   return action;
 }
 
+export function safeInternalRoute(route?: string): string | undefined {
+  if (!route) return undefined;
+  const trimmed = route.trim();
+  if (!trimmed.startsWith("/") || trimmed.startsWith("//")) return undefined;
+  return trimmed;
+}
+
 export function resetAuthDialogStoreForTest(): void {
   currentState = {
     isOpen: false,

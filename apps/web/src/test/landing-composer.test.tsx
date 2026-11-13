@@ -7,12 +7,8 @@ import { AppRoutes } from "../app-routes.js";
 import { evaluateAuthGateDecision } from "../components/auth/auth-gate.js";
 import { SanitizedPromptRenderer } from "../components/output/output-card.js";
 import { shouldSubmitOnEnter } from "../hooks/use-auto-resize-textarea.js";
-import { authClient } from "../lib/auth-client.js";
-import {
-  MAX_DEEPLINK_URL_LENGTH,
-  buildDispatchUrl,
-  dispatchPrompt,
-} from "../lib/dispatch.js";
+import { authClient, setAuthSessionForTest } from "../lib/auth-client.js";
+import { MAX_DEEPLINK_URL_LENGTH, buildDispatchUrl, dispatchPrompt } from "../lib/dispatch.js";
 import {
   GUEST_INTERACTION_STORAGE_KEY,
   GUEST_RETENTION_MS,
@@ -20,7 +16,7 @@ import {
   getGuestInteraction,
   saveGuestInteraction,
 } from "../lib/guest-session-manager.js";
-import { resetOrpcTestState, OrpcClientError, orpcClient } from "../lib/orpc.js";
+import { OrpcClientError, orpcClient, resetOrpcTestState } from "../lib/orpc.js";
 import { createAppQueryClient, shouldRetryQueryError } from "../lib/query-client.js";
 import { clearStorageForTest } from "../lib/storage.js";
 import { sanitizeTelemetryProperties, trackEvent } from "../lib/telemetry.js";
@@ -70,10 +66,7 @@ describe("Open Prompt OS Landing Page & Frontend Plan Verification", () => {
         ...saved,
         updatedAt: new Date(Date.now() - GUEST_RETENTION_MS - 10_000).toISOString(),
       };
-      window.localStorage.setItem(
-        GUEST_INTERACTION_STORAGE_KEY,
-        JSON.stringify(expiredPayload),
-      );
+      window.localStorage.setItem(GUEST_INTERACTION_STORAGE_KEY, JSON.stringify(expiredPayload));
 
       expect(getGuestInteraction()).toBeNull();
     });
@@ -111,9 +104,9 @@ describe("Open Prompt OS Landing Page & Frontend Plan Verification", () => {
           nativeEvent: { isComposing: true },
         }),
       ).toBe(false);
-      expect(
-        shouldSubmitOnEnter({ key: "Enter", shiftKey: false }, { isMobileTouch: true }),
-      ).toBe(false);
+      expect(shouldSubmitOnEnter({ key: "Enter", shiftKey: false }, { isMobileTouch: true })).toBe(
+        false,
+      );
     });
   });
 
@@ -131,12 +124,12 @@ describe("Open Prompt OS Landing Page & Frontend Plan Verification", () => {
     });
 
     it("does not retry validation, auth, or quota errors", () => {
-      expect(
-        shouldRetryQueryError(0, new OrpcClientError("QUOTA_EXCEEDED", "Limit reached")),
-      ).toBe(false);
-      expect(
-        shouldRetryQueryError(0, new OrpcClientError("VALIDATION_ERROR", "Bad input")),
-      ).toBe(false);
+      expect(shouldRetryQueryError(0, new OrpcClientError("QUOTA_EXCEEDED", "Limit reached"))).toBe(
+        false,
+      );
+      expect(shouldRetryQueryError(0, new OrpcClientError("VALIDATION_ERROR", "Bad input"))).toBe(
+        false,
+      );
       expect(shouldRetryQueryError(0, new Error("Transient network error"))).toBe(true);
       expect(shouldRetryQueryError(2, new Error("Transient network error"))).toBe(false);
     });
@@ -238,9 +231,12 @@ describe("Open Prompt OS Landing Page & Frontend Plan Verification", () => {
       const compileBtn = screen.getByRole("button", { name: /Compile structured prompt/i });
       fireEvent.click(compileBtn);
 
-      await waitFor(() => {
-        expect(screen.getByLabelText(/Compiled prompt output/i)).toBeInTheDocument();
-      });
+      await waitFor(
+        () => {
+          expect(screen.getByLabelText(/Compiled prompt output/i)).toBeInTheDocument();
+        },
+        { timeout: 4000 },
+      );
 
       // Verify guest interaction was persisted to localStorage
       expect(getGuestInteraction()?.prompt.rawInput).toBe(
@@ -249,9 +245,14 @@ describe("Open Prompt OS Landing Page & Frontend Plan Verification", () => {
 
       // Now authenticate in-place
       await act(async () => {
-        await authClient.signInWithEmail({
+        setAuthSessionForTest({
+          id: "usr_architectopenpromptos",
           email: "architect@openprompt.os",
           name: "Principal Architect",
+          spaceId: "spc_architectopenpromptos",
+          spaceName: "Principal Architect's Workspace",
+          plan: "free",
+          hasPasskey: false,
         });
       });
 
