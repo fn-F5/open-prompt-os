@@ -1,6 +1,6 @@
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
-import { type Plugin, defineConfig } from "vite";
+import { type Plugin, defineConfig, loadEnv } from "vite";
 
 function preloadHeroFont(): Plugin {
   return {
@@ -10,7 +10,9 @@ function preloadHeroFont(): Plugin {
       handler(_html, ctx) {
         if (!ctx.bundle) return [];
         const heroFont = Object.keys(ctx.bundle).find(
-          (name) => name.includes("geist-sans-latin-400-normal") && name.endsWith(".woff2"),
+          (name) =>
+            name.includes("geist-sans-latin-400-normal") &&
+            name.endsWith(".woff2"),
         );
         if (!heroFont) return [];
         return [
@@ -47,6 +49,7 @@ export default defineConfig(({ mode }) => {
         "/rpc": {
           target: apiTarget,
           changeOrigin: true,
+        },
       },
     },
     build: {
