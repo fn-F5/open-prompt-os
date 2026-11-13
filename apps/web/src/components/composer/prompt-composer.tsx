@@ -18,6 +18,8 @@ import {
   shouldSubmitOnEnter,
   useAutoResizeTextarea,
 } from "../../hooks/use-auto-resize-textarea.js";
+import { useReducedEffects } from "../../hooks/use-reduced-effects.js";
+import { useTypingPlaceholder } from "../../hooks/use-typing-placeholder.js";
 import { orpcClient } from "../../lib/orpc.js";
 import { queryKeys } from "../../lib/query-client.js";
 import { composerActions, useComposerStore } from "../../state/composer-store.js";
@@ -32,12 +34,26 @@ const MODE_OPTIONS: Array<{ readonly value: ComposerMode; readonly label: string
   { value: "video", label: "Cinema Video" },
 ];
 
-const MODE_PLACEHOLDERS: Record<ComposerMode, string> = {
-  text: "What do you want the AI to write, analyze, or build? (e.g., 'Create a zero-downtime database migration plan for a multi-tenant SaaS app')...",
-  image:
-    "Describe the scene, style, lighting, and camera angle (e.g., 'Studio product photo of a matte-black synthesizer on dark stone with soft rim light')...",
-  video:
-    "Describe the subject, camera motion, and pacing (e.g., 'Slow 24fps orbital camera tracking around a mechanical watch as warm light sweeps the dial')...",
+const MODE_PLACEHOLDERS: Record<ComposerMode, readonly string[]> = {
+  text: [
+    "For engineers: Design a zero-downtime Postgres migration plan with rollback checks and load-test gates...",
+    "For content creators: Turn a YouTube video outline into a hook-driven newsletter and 5 short-form posts...",
+    "For recruiters: Draft personalized candidate outreach and a structured interview rubric for a Staff Engineer...",
+    "For product leads: Synthesize customer interviews into a 1-page launch brief with risks and metrics...",
+    "For marketers: Write high-converting landing page hero copy with 3 angle variants and objection handlers...",
+    "For founders & ops: Turn messy meeting notes into an executive decision memo with owners and deadlines...",
+  ],
+  image: [
+    "For content creators: Bold YouTube thumbnail portrait with rim lighting and clean negative space for title...",
+    "For product designers: Studio macro photo of a matte-black synthesizer on dark basalt, 85mm f/2.0 light...",
+    "For marketers: Minimalist sunlit architectural workspace editorial photo, 35mm lens, warm natural depth...",
+    "For concept artists: Isometric cyberpunk repair workshop glowing with neon cyan reflections and rich detail...",
+  ],
+  video: [
+    "For content creators: Punchy 15-second vertical product hook with smooth match-cuts and crisp key lighting...",
+    "For product teams: Slow 24fps orbital reveal around a brushed-steel watch as warm rim light sweeps the dial...",
+    "For filmmakers: Continuous 35mm anamorphic dolly push-in through a rain-lit studio at dusk, soft lens flare...",
+  ],
 };
 
 const QUICK_EXAMPLES: Record<ComposerMode, readonly { label: string; prompt: string }[]> = {
@@ -104,6 +120,13 @@ export function PromptComposer({
   const [followUpAnswers, setFollowUpAnswers] = React.useState<Record<string, string>>({});
   const [showFollowUps, setShowFollowUps] = React.useState(false);
   const [parametersExpandedManual, setParametersExpandedManual] = React.useState(false);
+  const [isTextareaFocused, setIsTextareaFocused] = React.useState(false);
+
+  const { prefersReducedMotion } = useReducedEffects();
+  const dynamicPlaceholder = useTypingPlaceholder(MODE_PLACEHOLDERS[activeMode], {
+    enabled: !isPending && !isTextareaFocused && activeDraft.rawInput.length === 0,
+    reducedMotion: prefersReducedMotion,
+  });
 
   const textareaRef = useAutoResizeTextarea(activeDraft.rawInput, {
     minHeightPx: 128,
@@ -253,11 +276,17 @@ export function PromptComposer({
             ref={textareaRef}
             value={activeDraft.rawInput}
             disabled={isPending}
-            placeholder={MODE_PLACEHOLDERS[activeMode]}
+            placeholder={dynamicPlaceholder}
             aria-invalid={Boolean(validationError)}
             aria-describedby={validationError ? `${errorId} ${hintId}` : hintId}
-            onFocus={() => onTypingChange?.(true)}
-            onBlur={() => onTypingChange?.(false)}
+            onFocus={() => {
+              setIsTextareaFocused(true);
+              onTypingChange?.(true);
+            }}
+            onBlur={() => {
+              setIsTextareaFocused(false);
+              onTypingChange?.(false);
+            }}
             onChange={(e) => {
               if (validationError) setValidationError(null);
               composerActions.updateActiveDraft({ rawInput: e.target.value });
