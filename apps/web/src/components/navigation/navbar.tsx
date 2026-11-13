@@ -46,6 +46,10 @@ function useThemeMode() {
   React.useEffect(() => {
     if (typeof document !== "undefined") {
       document.documentElement.setAttribute("data-theme", theme);
+      const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+      if (themeColorMeta) {
+        themeColorMeta.setAttribute("content", theme === "light" ? "#F1F5F9" : "#07090E");
+      }
     }
   }, [theme]);
 

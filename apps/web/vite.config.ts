@@ -1,6 +1,37 @@
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
-import { defineConfig, loadEnv } from "vite";
+import { type Plugin, defineConfig, loadEnv } from "vite";
+
+function preloadHeroFont(): Plugin {
+  return {
+    name: "preload-hero-font",
+    transformIndexHtml: {
+      order: "post",
+      handler(_html, ctx) {
+        if (!ctx.bundle) return [];
+        const heroFont = Object.keys(ctx.bundle).find(
+          (name) =>
+            name.includes("geist-sans-latin-400-normal") &&
+            name.endsWith(".woff2"),
+        );
+        if (!heroFont) return [];
+        return [
+          {
+            tag: "link",
+            attrs: {
+              rel: "preload",
+              as: "font",
+              type: "font/woff2",
+              crossorigin: "",
+              href: `/${heroFont}`,
+            },
+            injectTo: "head",
+          },
+        ];
+      },
+    },
+  };
+}
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, "../..", "");

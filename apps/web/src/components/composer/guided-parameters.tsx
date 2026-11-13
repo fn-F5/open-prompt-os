@@ -2,6 +2,7 @@ import type { ComposerDraft } from "@open-prompt-os/contracts";
 import { Button, Input } from "@open-prompt-os/ui-web";
 import { Check, Plus, Sliders, X } from "lucide-react";
 import * as React from "react";
+import { shouldSubmitOnEnter } from "../../hooks/use-auto-resize-textarea.js";
 
 export type ParameterKey =
   | "goal"
@@ -254,7 +255,7 @@ export function GuidedParameters({
                   placeholder={activeDescriptor.placeholder}
                   onChange={(e) => setMultiDraftValue(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") {
+                    if (shouldSubmitOnEnter(e)) {
                       e.preventDefault();
                       addMultiItem(
                         activeDescriptor.key as "constraints" | "guardrails",
