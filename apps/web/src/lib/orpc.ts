@@ -300,11 +300,13 @@ function remoteApiUrl(): string | undefined {
   const value = import.meta.env.VITE_API_URL;
   if (typeof value === "string") {
     const trimmed = value.trim().replace(/\/$/, "");
+    if (trimmed === "same-origin") return "";
     if (trimmed.length > 0) return trimmed;
   }
-  // When running in real browser development (outside Vitest unit tests), default to local API port 3001
+  // Outside Vitest unit tests, talk to local API in dev or same-origin in production
   if (typeof window !== "undefined" && !import.meta.env.VITEST) {
-    return "http://localhost:3001";
+    const host = window.location.hostname;
+    return host === "localhost" || host === "127.0.0.1" ? "http://localhost:3001" : "";
   }
   return undefined;
 }
@@ -348,28 +350,21 @@ async function postRpc<T>(
   signal: AbortSignal | undefined,
   headers: { readonly "x-request-id": string; readonly traceparent: string },
 ): Promise<T> {
-  const base = remoteApiUrl();
-  const session = authClient.getSession();
-  const authHeaders: Record<string, string> = {};
-  if (session.user) {
-    authHeaders["x-user-id"] = session.user.id;
-    authHeaders["x-space-id"] = session.user.spaceId;
-  }
-
+  const base = remoteApiUrl() ?? "";
   const response = await fetch(`${base}${path}`, {
     method: "POST",
+    credentials: "include",
     headers: {
       "content-type": "application/json",
       "x-request-id": headers["x-request-id"],
       traceparent: headers.traceparent,
-      ...authHeaders,
     },
     body: JSON.stringify({ json: input }),
     signal,
   });
   if (!response.ok) await throwApiError(response, headers["x-request-id"]);
   const payload = (await response.json()) as { json?: T };
-  if (!payload.json) {
+  if (payload.json === undefined) {
     throw new OrpcClientError("INTERNAL_ERROR", "Response was empty", headers["x-request-id"]);
   }
   return payload.json;
@@ -442,22 +437,16 @@ export const orpcClient = {
       }
 
       const remote = remoteApiUrl();
-      if (remote) {
-        const authHeaders: Record<string, string> = {};
-        if (session.user) {
-          authHeaders["x-user-id"] = session.user.id;
-          authHeaders["x-space-id"] = session.user.spaceId;
-        }
-
+      if (remote !== undefined) {
         const result = options?.onChunk
           ? await (async () => {
               const response = await fetch(`${remote}/api/prompts/compose/stream`, {
                 method: "POST",
+                credentials: "include",
                 headers: {
                   "content-type": "application/json",
                   "x-request-id": headers["x-request-id"],
                   traceparent: headers.traceparent,
-                  ...authHeaders,
                 },
                 body: JSON.stringify(input),
                 signal: options.signal,
@@ -489,12 +478,8 @@ export const orpcClient = {
               options?.signal,
               headers,
             );
-        if (!session.isAuthenticated) {
-          guestRemainingQuota = Math.max(0, guestRemainingQuota - 1);
-        }
         return {
           ...result,
-          remainingDailyPrompts: session.isAuthenticated ? 48 : guestRemainingQuota,
           requestId: result.requestId || headers["x-request-id"],
         };
       }
@@ -546,7 +531,7 @@ export const orpcClient = {
           headers["x-request-id"],
         );
       }
-      if (remoteApiUrl()) {
+      if (remoteApiUrl() !== undefined) {
         return postRpc<RefinePromptOutput>("/rpc/prompts/refine", input, undefined, headers);
       }
       const res = diagnoseAndRefinePrompt(input);
@@ -573,7 +558,7 @@ export const orpcClient = {
           headers["x-request-id"],
         );
       }
-      if (remoteApiUrl()) {
+      if (remoteApiUrl() !== undefined) {
         return postRpc<RefinePromptOutput>("/rpc/prompts/autopsy", enriched, undefined, headers);
       }
       return orpcClient.prompts.refine(enriched);
@@ -583,7 +568,7 @@ export const orpcClient = {
       input: ImportGuestInteractionInput,
     ): Promise<ImportGuestInteractionOutput> {
       const headers = createCorrelationHeaders();
-      if (remoteApiUrl()) {
+      if (remoteApiUrl() !== undefined) {
         return postRpc<ImportGuestInteractionOutput>(
           "/rpc/prompts/importGuestInteraction",
           input,
@@ -646,7 +631,7 @@ export const orpcClient = {
       limit?: number;
     }): Promise<{ items: SavedPromptItem[]; nextCursor: string | null }> {
       const headers = createCorrelationHeaders();
-      if (remoteApiUrl()) {
+      if (remoteApiUrl() !== undefined) {
         return postRpc<{ items: SavedPromptItem[]; nextCursor: string | null }>(
           "/rpc/prompts/history",
           filters ?? {},
@@ -688,7 +673,7 @@ export const orpcClient = {
           headers["x-request-id"],
         );
       }
-      if (remoteApiUrl()) {
+      if (remoteApiUrl() !== undefined) {
         return postRpc<SavedPromptItem>("/rpc/prompts/save", input, undefined, headers);
       }
       const vars = analyzePromptVariables(input.compiledPrompt).detectedVariables;
@@ -715,7 +700,7 @@ export const orpcClient = {
 
     async delete(input: { id: string }): Promise<{ deleted: boolean }> {
       const headers = createCorrelationHeaders();
-      if (remoteApiUrl()) {
+      if (remoteApiUrl() !== undefined) {
         return postRpc<{ deleted: boolean }>("/rpc/prompts/delete", input, undefined, headers);
       }
       savedPromptsStore = savedPromptsStore.filter((i) => i.id !== input.id);
@@ -724,7 +709,7 @@ export const orpcClient = {
 
     async share(input: { id: string }): Promise<{ shareId: string; shareUrl: string }> {
       const headers = createCorrelationHeaders();
-      if (remoteApiUrl()) {
+      if (remoteApiUrl() !== undefined) {
         return postRpc<{ shareId: string; shareUrl: string }>(
           "/rpc/prompts/share",
           input,
@@ -746,7 +731,7 @@ export const orpcClient = {
 
     async getShared(input: { shareId: string }): Promise<SavedPromptItem | null> {
       const headers = createCorrelationHeaders();
-      if (remoteApiUrl()) {
+      if (remoteApiUrl() !== undefined) {
         return postRpc<SavedPromptItem | null>("/rpc/prompts/getShared", input, undefined, headers);
       }
       return (
@@ -760,7 +745,7 @@ export const orpcClient = {
   models: {
     async listProviders(input?: { mode?: ComposerMode }): Promise<ModelOption[]> {
       const headers = createCorrelationHeaders();
-      if (remoteApiUrl()) {
+      if (remoteApiUrl() !== undefined) {
         try {
           const remoteList = await postRpc<ModelOption[]>(
             "/rpc/models/listProviders",
@@ -789,7 +774,7 @@ export const orpcClient = {
 
     async healthStatus(): Promise<ProviderHealth[]> {
       const headers = createCorrelationHeaders();
-      if (remoteApiUrl()) {
+      if (remoteApiUrl() !== undefined) {
         try {
           return await postRpc<ProviderHealth[]>(
             "/rpc/models/healthStatus",
@@ -823,7 +808,7 @@ export const orpcClient = {
       search?: string;
     }): Promise<PromptTemplate[]> {
       const headers = createCorrelationHeaders();
-      if (remoteApiUrl()) {
+      if (remoteApiUrl() !== undefined) {
         return postRpc<PromptTemplate[]>("/rpc/templates/list", filters ?? {}, undefined, headers);
       }
       let list = [...CURATED_TEMPLATES];
@@ -850,7 +835,7 @@ export const orpcClient = {
 
     async getBySlug(input: { slug: string }): Promise<PromptTemplate | null> {
       const headers = createCorrelationHeaders();
-      if (remoteApiUrl()) {
+      if (remoteApiUrl() !== undefined) {
         return postRpc<PromptTemplate | null>(
           "/rpc/templates/getBySlug",
           input,
@@ -865,7 +850,7 @@ export const orpcClient = {
   userPreferences: {
     async get(): Promise<OnboardingPreferences> {
       const headers = createCorrelationHeaders();
-      if (remoteApiUrl()) {
+      if (remoteApiUrl() !== undefined) {
         return postRpc<OnboardingPreferences>("/rpc/userPreferences/get", {}, undefined, headers);
       }
       return onboardingPrefsStore;
@@ -873,7 +858,7 @@ export const orpcClient = {
 
     async updateOnboarding(input: UpdateOnboardingInput): Promise<OnboardingPreferences> {
       const headers = createCorrelationHeaders();
-      if (remoteApiUrl()) {
+      if (remoteApiUrl() !== undefined) {
         return postRpc<OnboardingPreferences>(
           "/rpc/userPreferences/updateOnboarding",
           input,
@@ -896,7 +881,7 @@ export const orpcClient = {
   billing: {
     async status(): Promise<BillingStatus> {
       const headers = createCorrelationHeaders();
-      if (remoteApiUrl()) {
+      if (remoteApiUrl() !== undefined) {
         return postRpc<BillingStatus>("/rpc/billing/status", {}, undefined, headers);
       }
       const session = authClient.getSession();
@@ -926,7 +911,7 @@ export const orpcClient = {
 
     async refresh(): Promise<BillingStatus> {
       const headers = createCorrelationHeaders();
-      if (remoteApiUrl()) {
+      if (remoteApiUrl() !== undefined) {
         return postRpc<BillingStatus>("/rpc/billing/refresh", {}, undefined, headers);
       }
       return orpcClient.billing.status();
