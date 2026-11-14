@@ -114,8 +114,77 @@ Open Prompt OS aims to become the definitive **system of record for prompts**.
 ### Database Schema, Migrations & Seed
 
 ```bash
-cp .env.example .env                            # set POSTGRES_PASSWORD
+cp .env.example .env                            # set POSTGRES_PASSWORD and BETTER_AUTH_SECRET
 pnpm --filter @open-prompt-os/db db:migrate     # create tables (prisma migrate dev)
 pnpm --filter @open-prompt-os/db db:rls         # row-level security + extra constraints
 pnpm --filter @open-prompt-os/db db:seed        # plan limits + gallery templates
 ```
+
+> **Using Docker for PostgreSQL?** You can run a container instead of Homebrew Postgres:
+>
+> ```bash
+> docker run -d \
+>   --name open-prompt-os-db \
+>   -e POSTGRES_USER=admin \
+>   -e POSTGRES_PASSWORD=yourpassword \
+>   -e POSTGRES_DB=open_prompt_os \
+>   -p 5432:5432 \
+>   postgres:16
+> ```
+>
+> If port `5432` is already in use locally, map another host port (for example `-p 5433:5432`) and set `POSTGRES_PORT=5433` in `.env`.
+
+### Environment & Auth Configuration
+
+1. Generate a Better Auth secret (minimum 32 characters) and set `BETTER_AUTH_SECRET` in `.env`:
+
+   ```bash
+   openssl rand -hex 32
+   ```
+
+2. Optionally add one or more LLM provider keys (`GEMINI_API_KEY`, `OPENAI_API_KEY`, `GROQ_API_KEY`, `OPENROUTER_API_KEY`, `ANTHROPIC_API_KEY`, or `OLLAMA_BASE_URL`). Without external keys, the API boots with the built-in synthesizer adapter.
+3. For email OTP sign-in in local development, keep `MAIL_PROVIDER=console` — sign-in codes are printed to the API terminal.
+
+### Running the Application
+
+Root `pnpm dev` starts only the web frontend (`@open-prompt-os/web`), which proxies `/api` and `/rpc` to `API_PROXY_TARGET` (default `http://127.0.0.1:3001`). Start both the API and web apps together:
+
+```bash
+pnpm install
+pnpm exec turbo run dev
+```
+
+Or run them in separate terminals:
+
+```bash
+pnpm --filter @open-prompt-os/api dev
+pnpm --filter @open-prompt-os/web dev
+```
+
+Open **http://localhost:5173** in your browser.
+
+### Social OAuth (Google & GitHub)
+
+Social sign-in buttons are hidden in the UI until their credentials are configured in `.env`.
+
+> [!IMPORTANT]
+> Better Auth builds OAuth `redirect_uri` values from `BETTER_AUTH_URL`. Make sure `BETTER_AUTH_URL` points to an active local origin (for example `http://localhost:5173` via the Vite `/api` proxy, or your API URL such as `http://localhost:3001`) and matches your provider callback URLs **exactly** to avoid `redirect_uri_mismatch` or connection errors. If you change `PORT`, also update `API_PROXY_TARGET` in `.env` so Vite proxies to the right API port.
+
+1. **Google OAuth:**
+   - In [Google Cloud Console → Credentials](https://console.cloud.google.com/apis/credentials), create an **OAuth client ID** (**Web application**).
+   - Add your local origin under **Authorized JavaScript origins** (e.g. `http://localhost:5173`).
+   - Add `${BETTER_AUTH_URL}/api/auth/callback/google` under **Authorized redirect URIs** (e.g. `http://localhost:5173/api/auth/callback/google`).
+2. **GitHub OAuth:**
+   - In [GitHub → Developer settings → OAuth Apps](https://github.com/settings/developers), create a **New OAuth App**.
+   - Set **Homepage URL** to `http://localhost:5173`.
+   - Set **Authorization callback URL** to `${BETTER_AUTH_URL}/api/auth/callback/github` (e.g. `http://localhost:5173/api/auth/callback/github`).
+3. **Update `.env` and restart the dev server:**
+
+   ```env
+   BETTER_AUTH_URL=http://localhost:5173
+   PASSKEY_ORIGIN=http://localhost:5173
+   GOOGLE_CLIENT_ID=...
+   GOOGLE_CLIENT_SECRET=...
+   GITHUB_CLIENT_ID=...
+   GITHUB_CLIENT_SECRET=...
+   ```

@@ -7,6 +7,7 @@ export interface SemanticTokenSet {
   readonly "--text-primary": string;
   readonly "--text-secondary": string;
   readonly "--text-muted": string;
+  readonly "--text-placeholder": string;
   readonly "--text-inverse": string;
   readonly "--separator-subtle": string;
   readonly "--separator-strong": string;
@@ -45,6 +46,7 @@ export const darkThemeTokens: SemanticTokenSet = {
   "--text-primary": "#F8FAFC",
   "--text-secondary": "#E2E8F0",
   "--text-muted": "#CBD5E1",
+  "--text-placeholder": "#64748B",
   "--text-inverse": "#090D16",
   "--separator-subtle": "rgba(148, 163, 184, 0.20)",
   "--separator-strong": "rgba(99, 102, 241, 0.52)",
@@ -77,6 +79,7 @@ export const lightThemeTokens: SemanticTokenSet = {
   "--text-primary": "#0F172A",
   "--text-secondary": "#1E293B",
   "--text-muted": "#475569",
+  "--text-placeholder": "#94A3B8",
   "--text-inverse": "#FFFFFF",
   "--separator-subtle": "rgba(15, 23, 42, 0.18)",
   "--separator-strong": "rgba(67, 56, 202, 0.52)",

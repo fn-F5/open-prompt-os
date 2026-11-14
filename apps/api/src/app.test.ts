@@ -246,3 +246,75 @@ describe("compose stream", () => {
     expect(stopped.value).toBe(true);
   });
 });
+
+describe("runtime, config, rate-limiter, and clientKey helpers", () => {
+  it("throws when integer config env variables are invalid", () => {
+    expect(() => loadConfig({ PORT: "0" })).toThrow(/Expected a positive integer/);
+    expect(() => loadConfig({ LLM_TIMEOUT_MS: "abc" })).toThrow(/Expected a positive integer/);
+    expect(() => loadConfig({ RATE_LIMIT_PER_MINUTE: "-5" })).toThrow(
+      /Expected a positive integer/,
+    );
+  });
+
+  it("registers configured optional provider adapters in createRuntime", () => {
+    const { orchestrator } = createRuntime(
+      loadConfig({
+        GEMINI_API_KEY: "gem-1",
+        OPENAI_API_KEY: "oai-1",
+        GROQ_API_KEY: "groq-1",
+        OPENROUTER_API_KEY: "or-1",
+        ANTHROPIC_API_KEY: "ant-1",
+        OLLAMA_BASE_URL: "http://127.0.0.1:11434",
+      }),
+    );
+    const ids = orchestrator.healthSnapshot().map((entry) => entry.providerId);
+    expect(ids).toEqual([
+      "rule-synthesizer",
+      "gemini",
+      "openai",
+      "groq",
+      "openrouter",
+      "anthropic",
+      "ollama",
+    ]);
+  });
+
+  it("resets rate limiter counts after windowMs and prunes stale entries above 10k", () => {
+    let clock = 1_000;
+    const allow = createRateLimiter(2, 500, () => clock);
+
+    expect(allow("client-a")).toBe(true);
+    expect(allow("client-a")).toBe(true);
+    expect(allow("client-a")).toBe(false);
+
+    clock += 600;
+    expect(allow("client-a")).toBe(true);
+
+    for (let i = 0; i <= 10_001; i++) {
+      allow(`bulk-${i}`);
+    }
+    clock += 1_000;
+    expect(allow("after-sweep")).toBe(true);
+  });
+
+  it("resolves clientKey from trusted proxy headers and falls back safely", async () => {
+    const { Hono } = await import("hono");
+    const { clientKey } = await import("./client-key.js");
+    const app = new Hono();
+    app.get("/trust", (c) => c.text(clientKey(c, true)));
+    app.get("/untrusted", (c) => c.text(clientKey(c, false)));
+
+    const cfRes = await app.request("/trust", {
+      headers: { "cf-connecting-ip": "203.0.113.9", "x-forwarded-for": "198.51.100.1" },
+    });
+    expect(await cfRes.text()).toBe("203.0.113.9");
+
+    const xffRes = await app.request("/trust", {
+      headers: { "x-forwarded-for": "198.51.100.2, 10.0.0.1" },
+    });
+    expect(await xffRes.text()).toBe("198.51.100.2");
+
+    const fallbackRes = await app.request("/untrusted");
+    expect(await fallbackRes.text()).toBe("unknown");
+  });
+});

@@ -1,4 +1,3 @@
-import { passkeyClient } from "@better-auth/passkey/client";
 import type { AuthenticatedUser } from "@open-prompt-os/contracts";
 import { createAuthClient } from "better-auth/client";
 import { emailOTPClient } from "better-auth/client/plugins";
@@ -43,7 +42,7 @@ function authBaseUrl(): string {
 const betterAuth = createAuthClient({
   baseURL: authBaseUrl(),
   fetchOptions: { credentials: "include" },
-  plugins: [emailOTPClient(), passkeyClient()],
+  plugins: [emailOTPClient()],
 });
 
 function isPlan(value: unknown): value is AuthenticatedUser["plan"] {
@@ -75,11 +74,6 @@ function applyUser(value: unknown) {
     user,
   };
   notifyListeners();
-}
-
-export function isPasskeySupported(): boolean {
-  if (typeof window === "undefined") return false;
-  return typeof window.PublicKeyCredential !== "undefined";
 }
 
 export const authClient = {
@@ -182,43 +176,6 @@ export const authClient = {
       provider: "github",
       callbackURL: window.location.href,
     });
-  },
-
-  async signInWithPasskey(): Promise<AuthenticatedUser> {
-    if (!isPasskeySupported()) {
-      throw new Error("Passkeys are not available in this browser.");
-    }
-    const result = await betterAuth.signIn.passkey();
-    if (result.error) throw new Error("Passkey verification was canceled or unavailable.");
-    await this.refresh();
-    const user = currentSnapshot.user;
-    if (!user) throw new Error("Passkey sign-in did not start a session.");
-    return user;
-  },
-
-  async registerPasskey(): Promise<void> {
-    if (!isPasskeySupported()) {
-      throw new Error("Passkeys are not available in this browser.");
-    }
-    const result = await betterAuth.passkey.addPasskey({ name: "This device" });
-    if (result.error) throw new Error("Passkey registration was canceled or failed.");
-    await this.refresh();
-  },
-
-  async listPasskeys(): Promise<Array<{ id: string; name: string; createdAt: string | null }>> {
-    const result = await betterAuth.passkey.listUserPasskeys();
-    if (result.error || !result.data) return [];
-    return result.data.map((item) => ({
-      id: item.id,
-      name: item.name?.trim() || "Passkey",
-      createdAt: item.createdAt ? new Date(item.createdAt).toISOString() : null,
-    }));
-  },
-
-  async deletePasskey(id: string): Promise<void> {
-    const result = await betterAuth.passkey.deletePasskey({ id });
-    if (result.error) throw new Error("Could not remove passkey.");
-    await this.refresh();
   },
 
   async signOut(): Promise<void> {

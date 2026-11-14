@@ -379,7 +379,7 @@ describe("Cloudflare Turnstile in AuthDialog", () => {
     expect(getAuthDialogState().isOpen).toBe(false);
   });
 
-  it("supports OAuth providers, passkey sign-in, intendedRoute navigation, and guest dismiss", async () => {
+  it("supports OAuth providers, intendedRoute navigation, and guest dismiss", async () => {
     vi.spyOn(authClient, "getOAuthProviders").mockResolvedValue({ google: true, github: true });
     const googleSpy = vi
       .spyOn(authClient, "signInWithGoogle")
@@ -389,16 +389,8 @@ describe("Cloudflare Turnstile in AuthDialog", () => {
       .spyOn(authClient, "signInWithGitHub")
       .mockRejectedValueOnce("raw-error")
       .mockResolvedValueOnce();
-
-    Object.defineProperty(window, "PublicKeyCredential", {
-      value: function MockPublicKeyCredential() {},
-      configurable: true,
-    });
-    const passkeySpy = vi
-      .spyOn(authClient, "signInWithPasskey")
-      .mockRejectedValueOnce(new Error("User canceled passkey"))
-      .mockRejectedValueOnce("non-error-passkey")
-      .mockResolvedValueOnce(sampleUser);
+    vi.spyOn(authClient, "sendEmailCode").mockResolvedValueOnce();
+    const verifySpy = vi.spyOn(authClient, "verifyEmailCode").mockResolvedValueOnce(sampleUser);
 
     openAuthDialog({ reason: "protected_route", intendedRoute: "/library" });
     renderAuthDialog(null);
@@ -407,7 +399,7 @@ describe("Cloudflare Turnstile in AuthDialog", () => {
 
     const googleBtn = await screen.findByRole("button", { name: "Continue with Google" });
     const githubBtn = screen.getByRole("button", { name: "Continue with GitHub" });
-    const passkeyBtn = screen.getByRole("button", { name: "Continue with Passkey" });
+    expect(screen.queryByRole("button", { name: "Continue with Passkey" })).toBeNull();
 
     fireEvent.click(googleBtn);
     await waitFor(() => {
@@ -421,21 +413,20 @@ describe("Cloudflare Turnstile in AuthDialog", () => {
     });
     expect(githubSpy).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(passkeyBtn);
-    await waitFor(() => {
-      expect(screen.getByRole("alert")).toHaveTextContent("User canceled passkey");
+    fireEvent.change(screen.getByLabelText("Email address"), {
+      target: { value: "ada@example.com" },
     });
+    fireEvent.click(screen.getByRole("button", { name: "Email me a code" }));
+    const codeInput = await screen.findByLabelText("Sign-in code");
+    fireEvent.change(codeInput, { target: { value: "123456" } });
+    fireEvent.click(screen.getByRole("button", { name: "Verify code" }));
 
-    fireEvent.click(passkeyBtn);
     await waitFor(() => {
-      expect(screen.getByRole("alert")).toHaveTextContent(
-        "Passkey verification was canceled or unavailable.",
-      );
-    });
-
-    fireEvent.click(passkeyBtn);
-    await waitFor(() => {
-      expect(passkeySpy).toHaveBeenCalledTimes(3);
+      expect(verifySpy).toHaveBeenCalledWith({
+        email: "ada@example.com",
+        otp: "123456",
+        name: undefined,
+      });
     });
     expect(await screen.findByText("Library Destination")).toBeInTheDocument();
     expect(getAuthDialogState().isOpen).toBe(false);

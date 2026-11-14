@@ -150,11 +150,17 @@ describe("AuthGate", () => {
     const initSpy = vi.spyOn(authClient, "ensureInitialized");
     const signOutSpy = vi.spyOn(authClient, "signOut").mockResolvedValue();
     const sendSpy = vi.spyOn(authClient, "sendEmailCode").mockResolvedValue();
+    const verifySpy = vi.spyOn(authClient, "verifyEmailCode").mockResolvedValue({
+      id: "u_1",
+      email: "ada@example.com",
+      name: "Ada",
+      spaceId: "sp_1",
+      spaceName: "Ada's Workspace",
+      plan: "free",
+      hasPasskey: false,
+    });
     const googleSpy = vi.spyOn(authClient, "signInWithGoogle").mockResolvedValue();
     const githubSpy = vi.spyOn(authClient, "signInWithGitHub").mockResolvedValue();
-    const registerSpy = vi.spyOn(authClient, "registerPasskey").mockResolvedValue();
-    const listSpy = vi.spyOn(authClient, "listPasskeys").mockResolvedValue([]);
-    const deleteSpy = vi.spyOn(authClient, "deletePasskey").mockResolvedValue();
 
     let latestSession: ReturnType<typeof useAuthSession> | undefined;
     function Harness() {
@@ -170,17 +176,13 @@ describe("AuthGate", () => {
 
     expect(initSpy).toHaveBeenCalled();
     await latestSession?.sendEmailCode({ email: "ada@example.com", captchaToken: "tok" });
+    await latestSession?.verifyEmailCode({ email: "ada@example.com", otp: "123456" });
     await latestSession?.signInWithGoogle();
     await latestSession?.signInWithGitHub();
-    await latestSession?.registerPasskey();
-    await latestSession?.listPasskeys();
-    await latestSession?.deletePasskey("pk_1");
     expect(sendSpy).toHaveBeenCalledWith({ email: "ada@example.com", captchaToken: "tok" });
+    expect(verifySpy).toHaveBeenCalledWith({ email: "ada@example.com", otp: "123456" });
     expect(googleSpy).toHaveBeenCalledTimes(1);
     expect(githubSpy).toHaveBeenCalledTimes(1);
-    expect(registerSpy).toHaveBeenCalledTimes(1);
-    expect(listSpy).toHaveBeenCalledTimes(1);
-    expect(deleteSpy).toHaveBeenCalledWith("pk_1");
 
     await latestSession?.signOut();
     expect(signOutSpy).toHaveBeenCalledTimes(1);

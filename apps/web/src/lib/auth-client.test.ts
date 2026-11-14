@@ -7,10 +7,6 @@ const hoisted = vi.hoisted(() => ({
   sendVerificationOtpMock: vi.fn(),
   signInEmailOtpMock: vi.fn(),
   signInSocialMock: vi.fn(),
-  signInPasskeyMock: vi.fn(),
-  addPasskeyMock: vi.fn(),
-  listUserPasskeysMock: vi.fn(),
-  deletePasskeyMock: vi.fn(),
   signOutMock: vi.fn(),
 }));
 
@@ -25,19 +21,13 @@ vi.mock("better-auth/client", () => ({
       signIn: {
         emailOtp: hoisted.signInEmailOtpMock,
         social: hoisted.signInSocialMock,
-        passkey: hoisted.signInPasskeyMock,
-      },
-      passkey: {
-        addPasskey: hoisted.addPasskeyMock,
-        listUserPasskeys: hoisted.listUserPasskeysMock,
-        deletePasskey: hoisted.deletePasskeyMock,
       },
       signOut: hoisted.signOutMock,
     };
   },
 }));
 
-import { authClient, isPasskeySupported, setAuthSessionForTest } from "./auth-client.js";
+import { authClient, setAuthSessionForTest } from "./auth-client.js";
 
 const sampleUser: AuthenticatedUser = {
   id: "user_1",
@@ -58,10 +48,9 @@ describe("authClient", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();
-    Reflect.deleteProperty(window, "PublicKeyCredential");
   });
 
-  it("manages subscriptions, loading state, and passkey support detection", () => {
+  it("manages subscriptions and loading state", () => {
     const listener = vi.fn();
     const unsub = authClient.subscribe(listener);
 
@@ -84,13 +73,6 @@ describe("authClient", () => {
     listener.mockClear();
     authClient.setLoading(false);
     expect(listener).not.toHaveBeenCalled();
-
-    expect(isPasskeySupported()).toBe(false);
-    Object.defineProperty(window, "PublicKeyCredential", {
-      value: function MockPublicKeyCredential() {},
-      configurable: true,
-    });
-    expect(isPasskeySupported()).toBe(true);
   });
 
   it("validates email and forwards x-captcha-response on sendEmailCode", async () => {
@@ -186,7 +168,7 @@ describe("authClient", () => {
     });
   });
 
-  it("handles social sign-in and passkey operations", async () => {
+  it("handles social sign-in", async () => {
     hoisted.signInSocialMock.mockResolvedValue({});
     await authClient.signInWithGoogle();
     expect(hoisted.signInSocialMock).toHaveBeenCalledWith({
@@ -199,68 +181,6 @@ describe("authClient", () => {
       provider: "github",
       callbackURL: window.location.href,
     });
-
-    await expect(authClient.signInWithPasskey()).rejects.toThrow(
-      "Passkeys are not available in this browser.",
-    );
-    await expect(authClient.registerPasskey()).rejects.toThrow(
-      "Passkeys are not available in this browser.",
-    );
-
-    Object.defineProperty(window, "PublicKeyCredential", {
-      value: function MockPublicKeyCredential() {},
-      configurable: true,
-    });
-
-    hoisted.signInPasskeyMock.mockResolvedValueOnce({ data: null, error: { code: "CANCELLED" } });
-    await expect(authClient.signInWithPasskey()).rejects.toThrow(
-      "Passkey verification was canceled or unavailable.",
-    );
-
-    hoisted.signInPasskeyMock.mockResolvedValueOnce({ data: { ok: true }, error: null });
-    await expect(authClient.signInWithPasskey()).rejects.toThrow(
-      "Passkey sign-in did not start a session.",
-    );
-
-    setAuthSessionForTest(sampleUser);
-    hoisted.signInPasskeyMock.mockResolvedValueOnce({ data: { ok: true }, error: null });
-    expect(await authClient.signInWithPasskey()).toEqual(sampleUser);
-
-    hoisted.addPasskeyMock.mockResolvedValueOnce({ data: null, error: { code: "FAILED" } });
-    await expect(authClient.registerPasskey()).rejects.toThrow(
-      "Passkey registration was canceled or failed.",
-    );
-
-    hoisted.addPasskeyMock.mockResolvedValueOnce({ data: { id: "pk_1" }, error: null });
-    await expect(authClient.registerPasskey()).resolves.toBeUndefined();
-    expect(hoisted.addPasskeyMock).toHaveBeenLastCalledWith({ name: "This device" });
-
-    hoisted.listUserPasskeysMock.mockResolvedValueOnce({ data: null, error: { code: "ERR" } });
-    expect(await authClient.listPasskeys()).toEqual([]);
-
-    hoisted.listUserPasskeysMock.mockResolvedValueOnce({ data: null, error: null });
-    expect(await authClient.listPasskeys()).toEqual([]);
-
-    hoisted.listUserPasskeysMock.mockResolvedValueOnce({
-      data: [
-        { id: "pk_1", name: "  Laptop  ", createdAt: "2026-01-01T00:00:00.000Z" },
-        { id: "pk_2", name: "  ", createdAt: null },
-        { id: "pk_3", createdAt: null },
-      ],
-      error: null,
-    });
-    expect(await authClient.listPasskeys()).toEqual([
-      { id: "pk_1", name: "Laptop", createdAt: "2026-01-01T00:00:00.000Z" },
-      { id: "pk_2", name: "Passkey", createdAt: null },
-      { id: "pk_3", name: "Passkey", createdAt: null },
-    ]);
-
-    hoisted.deletePasskeyMock.mockResolvedValueOnce({ data: null, error: { code: "ERR" } });
-    await expect(authClient.deletePasskey("pk_1")).rejects.toThrow("Could not remove passkey.");
-    expect(hoisted.deletePasskeyMock).toHaveBeenLastCalledWith({ id: "pk_1" });
-
-    hoisted.deletePasskeyMock.mockResolvedValueOnce({ data: { ok: true }, error: null });
-    await expect(authClient.deletePasskey("pk_1")).resolves.toBeUndefined();
   });
 
   it("refreshes session, fetches OAuth providers, and signs out outside test mode", async () => {
@@ -452,10 +372,7 @@ describe("authClient", () => {
     expect(hoisted.createAuthClientMock).toHaveBeenLastCalledWith({
       baseURL: "https://api.example.com",
       fetchOptions: { credentials: "include" },
-      plugins: [
-        expect.objectContaining({ id: "email-otp" }),
-        expect.objectContaining({ id: "passkey" }),
-      ],
+      plugins: [expect.objectContaining({ id: "email-otp" })],
     });
     await freshClient.getOAuthProviders();
     expect(fetchMock).toHaveBeenCalledWith("https://api.example.com/api/auth/providers", {

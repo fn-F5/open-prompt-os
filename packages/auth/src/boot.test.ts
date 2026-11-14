@@ -84,6 +84,15 @@ describe("production boot", () => {
     expect(() => loadAuthBoot({ ...production, PASSKEY_RP_ID: "localhost" })).toThrow(
       "Refusing to start. PASSKEY_RP_ID must be openpromptos.com.",
     );
+    expect(() => loadAuthBoot({ ...production, WEB_ORIGINS: "http://localhost:5173" })).toThrow(
+      /WEB_ORIGINS/,
+    );
+    expect(() => loadAuthBoot({ ...production, DATABASE_URL: "mysql://db" })).toThrow(
+      /DATABASE_URL must be PostgreSQL/,
+    );
+    expect(() => loadAuthBoot({ ...production, PASSKEY_RP_ID: "localhost" })).toThrow(
+      /PASSKEY_RP_ID/,
+    );
   });
 
   it("does not select a database when local development has none or whitespace", () => {
@@ -202,5 +211,38 @@ describe("production boot", () => {
       trustProxy: false,
       secureCookies: true,
     });
+  });
+
+  it("parses development boot with OAuth credentials, multiple origins, and trailing slash normalization", () => {
+    const boot = loadAuthBoot({
+      NODE_ENV: "development",
+      DATABASE_URL: "postgresql://app@localhost:5433/open_prompt_os",
+      BETTER_AUTH_SECRET: "b".repeat(32),
+      BETTER_AUTH_URL: "http://localhost:5173/",
+      WEB_ORIGINS: "http://localhost:5173, http://localhost:5174",
+      GOOGLE_CLIENT_ID: "google-id",
+      GOOGLE_CLIENT_SECRET: "google-secret",
+      GITHUB_CLIENT_ID: "github-id",
+      GITHUB_CLIENT_SECRET: "github-secret",
+    });
+
+    expect(boot).not.toBeNull();
+    expect(boot?.baseURL).toBe("http://localhost:5173");
+    expect(boot?.secureCookies).toBe(false);
+    expect(boot?.trustedOrigins).toEqual(["http://localhost:5173", "http://localhost:5174"]);
+    expect(boot?.rpID).toBe("localhost");
+    expect(boot?.passkeyOrigin).toBe("http://localhost:5173");
+    expect(boot?.googleClientId).toBe("google-id");
+    expect(boot?.githubClientId).toBe("github-id");
+  });
+
+  it("refuses development boot when DATABASE_URL is set but secret is too short", () => {
+    expect(() =>
+      loadAuthBoot({
+        NODE_ENV: "development",
+        DATABASE_URL: "postgresql://app@localhost:5433/open_prompt_os",
+        BETTER_AUTH_SECRET: "too-short",
+      }),
+    ).toThrow(/BETTER_AUTH_SECRET must be at least 32 characters/);
   });
 });
