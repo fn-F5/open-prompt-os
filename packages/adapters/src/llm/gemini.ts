@@ -1,6 +1,7 @@
 import type {
   LlmCompletionRequest,
   LlmCompletionResult,
+  LlmImageAttachment,
   LlmProviderAdapter,
   LlmStreamEvent,
 } from "@open-prompt-os/adapter-kit";
@@ -22,6 +23,7 @@ export interface GeminiContentRequest {
   readonly model: string;
   readonly systemPrompt: string;
   readonly userPrompt: string;
+  readonly image?: LlmImageAttachment;
   readonly temperature?: number;
   readonly maxOutputTokens?: number;
   readonly signal: AbortSignal;
@@ -51,9 +53,20 @@ async function createDefaultGeminiClient(apiKey: string): Promise<GeminiClient> 
   const ai = new GoogleGenAI({ apiKey });
   const client: GeminiClient = {
     async generateContent(request) {
+      const contents = request.image
+        ? [
+            {
+              inlineData: {
+                data: request.image.base64,
+                mimeType: request.image.mimeType,
+              },
+            },
+            { text: request.userPrompt },
+          ]
+        : request.userPrompt;
       const response = await ai.models.generateContent({
         model: request.model,
-        contents: request.userPrompt,
+        contents,
         config: {
           systemInstruction: request.systemPrompt,
           temperature: request.temperature,
@@ -176,6 +189,7 @@ export function createGeminiAdapter(options: GeminiAdapterOptions): LlmProviderA
           model: modelId,
           systemPrompt: request.systemPrompt,
           userPrompt: request.userPrompt,
+          image: request.image,
           temperature: request.temperature,
           maxOutputTokens: request.maxOutputTokens,
           signal,

@@ -18,6 +18,10 @@ const draft = {
   },
 };
 
+function runtimePlaceholderReverseEngineer(): PromptOrchestrator["reverseEngineer"] {
+  return createRuntime(loadConfig({})).orchestrator.reverseEngineer;
+}
+
 function buildApp(
   limit: number,
   orchestrator = createRuntime(loadConfig({})).orchestrator,
@@ -72,6 +76,7 @@ describe("api", () => {
       },
       composeStream: runtime.orchestrator.composeStream.bind(runtime.orchestrator),
       refine: runtime.orchestrator.refine.bind(runtime.orchestrator),
+      reverseEngineer: runtime.orchestrator.reverseEngineer.bind(runtime.orchestrator),
       healthSnapshot: () => runtime.orchestrator.healthSnapshot(),
     };
     const logs: string[] = [];
@@ -148,6 +153,7 @@ describe("compose stream", () => {
           requestId: "req_refine",
         };
       },
+      reverseEngineer: runtimePlaceholderReverseEngineer(),
       healthSnapshot: () => [],
     };
     const app = buildApp(20, orchestrator);
@@ -227,6 +233,7 @@ describe("compose stream", () => {
           requestId: "req_refine",
         };
       },
+      reverseEngineer: runtimePlaceholderReverseEngineer(),
       healthSnapshot: () => [],
     };
     const app = buildApp(20, orchestrator);

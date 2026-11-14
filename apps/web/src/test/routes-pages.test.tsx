@@ -9,10 +9,13 @@ import { orpcClient, resetOrpcTestState } from "../lib/orpc.js";
 import { createAppQueryClient } from "../lib/query-client.js";
 import { clearStorageForTest, safeGetItem } from "../lib/storage.js";
 import { BillingReturnPage } from "../routes/billing-return-page.js";
+import { HistoryPage } from "../routes/history-page.js";
 import { ImproveAutopsyPage } from "../routes/improve-autopsy-page.js";
 import { LibraryPage } from "../routes/library-page.js";
 import { PricingPage } from "../routes/pricing-page.js";
 import { PublicPromptPage } from "../routes/public-prompt-page.js";
+import { ReverseEngineerPage } from "../routes/reverse-engineer-page.js";
+import { ProfileSettingsPage } from "../routes/settings/profile-page.js";
 import { TemplateDetailPage } from "../routes/template-detail-page.js";
 import { TemplateGalleryPage } from "../routes/template-gallery-page.js";
 import { getAuthDialogState, resetAuthDialogStoreForTest } from "../state/auth-dialog-store.js";
@@ -153,8 +156,45 @@ describe("Web Route Pages & AuthGate", () => {
       });
 
       const returnBtn = await screen.findByRole("button", { name: /Return to Composer/i });
+      expect(screen.getByText("Local Emulator")).toBeInTheDocument();
       fireEvent.click(returnBtn);
       expect(screen.getByTestId("composer-dest")).toBeInTheDocument();
+    });
+
+    it("shows Manage Billing Portal button on ProfileSettingsPage for paid workspaces and opens emulated portal modal", async () => {
+      const portalSpy = vi.spyOn(orpcClient.billing, "portal");
+      const emulatePlanSpy = vi.spyOn(orpcClient.billing, "emulatePlan");
+      act(() => {
+        setAuthSessionForTest({
+          id: "u_pro",
+          email: "pro@example.com",
+          name: "Pro User",
+          plan: "pro",
+          spaceId: "sp_pro",
+          spaceName: "Pro Space",
+          hasPasskey: false,
+        });
+      });
+
+      renderRoute(<ProfileSettingsPage />, ["/settings/profile"], "/settings/profile");
+
+      const portalBtn = await screen.findByRole("button", { name: /Manage Billing Portal/i });
+      fireEvent.click(portalBtn);
+      await waitFor(() => {
+        expect(portalSpy).toHaveBeenCalledTimes(1);
+      });
+
+      expect(await screen.findByText("Emulated Billing Portal")).toBeInTheDocument();
+      const downgradeBtn = screen.getByRole("button", { name: /Downgrade to Free/i });
+      fireEvent.click(downgradeBtn);
+
+      await waitFor(() => {
+        expect(emulatePlanSpy).toHaveBeenCalledWith({ plan: "free", interval: "monthly" });
+      });
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: /Upgrade Plan/i })).toBeInTheDocument();
+      });
     });
   });
 
@@ -305,6 +345,85 @@ describe("Web Route Pages & AuthGate", () => {
 
       fireEvent.click(screen.getByRole("button", { name: /Accept into Composer/i }));
       expect(screen.getByTestId("composer-dest")).toBeInTheDocument();
+    });
+  });
+
+  describe("ReverseEngineerPage", () => {
+    it("validates missing upload, processes an image, and loads draft into Composer", async () => {
+      renderRoute(<ReverseEngineerPage />, ["/reverse-engineer"], "/reverse-engineer");
+
+      fireEvent.click(screen.getByRole("button", { name: /Reverse Engineer Image/i }));
+      expect(screen.getByRole("alert")).toHaveTextContent(/Upload a reference image/i);
+
+      const fileInput = screen.getByLabelText("Upload reference image") as HTMLInputElement;
+      const validFile = new File([new Uint8Array(64).fill(1)], "sample.png", {
+        type: "image/png",
+      });
+      fireEvent.change(fileInput, { target: { files: [validFile] } });
+
+      await waitFor(() => {
+        expect(screen.getByAltText("sample.png")).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole("button", { name: /Reverse Engineer Image/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/6-Axis Visual Breakdown/i)).toBeInTheDocument();
+      });
+      expect(screen.getByText(/RECONSTRUCTED VISUAL PROMPT/i)).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: /Accept into Composer/i }));
+      expect(screen.getByTestId("composer-dest")).toBeInTheDocument();
+      expect(composerActions.getState().activeMode).toBe("image");
+      expect(composerActions.getActiveDraft().rawInput).toContain("RECONSTRUCTED VISUAL PROMPT");
+    });
+  });
+
+  describe("HistoryPage", () => {
+    it("gates unauthenticated users, lists past runs, filters by kind, and loads into Composer", async () => {
+      const unauth = renderRoute(<HistoryPage />, ["/history"], "/history");
+      expect(screen.getByText(/Sign in to access Interaction History/i)).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: /Sign in to unlock History/i }));
+      expect(getAuthDialogState().isOpen).toBe(true);
+      unauth.unmount();
+
+      act(() => {
+        setAuthSessionForTest({
+          id: "u_hist",
+          email: "hist@example.com",
+          name: "History User",
+          plan: "pro",
+          spaceId: "sp_hist",
+          spaceName: "History Space",
+          hasPasskey: false,
+        });
+      });
+
+      renderRoute(<HistoryPage />, ["/history"], "/history");
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(/Design a resilient webhook delivery pipeline/i),
+        ).toBeInTheDocument();
+      });
+      expect(
+        screen.getByText(/Match editorial rim lighting and moody cyberpunk street composition/i),
+      ).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("tab", { name: "Reverse Engineer" }));
+      expect(
+        await screen.findByText(
+          /Match editorial rim lighting and moody cyberpunk street composition/i,
+        ),
+      ).toBeInTheDocument();
+      expect(screen.getByAltText("Reverse Engineer visual reference")).toBeInTheDocument();
+      expect(
+        screen.queryByText(/Design a resilient webhook delivery pipeline/i),
+      ).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: /Open in Composer/i }));
+      expect(screen.getByTestId("composer-dest")).toBeInTheDocument();
+      expect(composerActions.getState().activeMode).toBe("image");
     });
   });
 });

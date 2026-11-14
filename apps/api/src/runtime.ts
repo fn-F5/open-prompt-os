@@ -1,11 +1,13 @@
-import type { LlmProviderAdapter } from "@open-prompt-os/adapter-kit";
+import type { BillingProvider, LlmProviderAdapter } from "@open-prompt-os/adapter-kit";
 import {
   createAnthropicAdapter,
   createGeminiAdapter,
+  createLocalBillingEmulator,
   createOllamaAdapter,
   createOpenAiCompatibleAdapter,
   createOrchestrator,
   createRegistry,
+  createStripeBillingProvider,
   createSynthesizerAdapter,
 } from "@open-prompt-os/adapters";
 import type { AppConfig } from "./config.js";
@@ -59,5 +61,24 @@ export function createRuntime(config: AppConfig) {
     registry: createRegistry(adapters),
     timeoutMs: config.llmTimeoutMs,
   });
-  return { orchestrator };
+
+  const billingProvider: BillingProvider =
+    config.stripeSecretKey &&
+    config.stripePriceProMonthly &&
+    config.stripePriceProYearly &&
+    config.stripePriceTeamMonthly &&
+    config.stripePriceTeamYearly
+      ? createStripeBillingProvider({
+          secretKey: config.stripeSecretKey,
+          webhookSecret: config.stripeWebhookSecret,
+          prices: {
+            proMonthly: config.stripePriceProMonthly,
+            proYearly: config.stripePriceProYearly,
+            teamMonthly: config.stripePriceTeamMonthly,
+            teamYearly: config.stripePriceTeamYearly,
+          },
+        })
+      : createLocalBillingEmulator();
+
+  return { orchestrator, billingProvider };
 }

@@ -24,11 +24,23 @@ interface ChatCompletion {
 }
 
 function completionBody(request: LlmCompletionRequest, model: string, stream: boolean) {
+  const userContent = request.image
+    ? [
+        { type: "text", text: request.userPrompt },
+        {
+          type: "image_url",
+          image_url: {
+            url: `data:${request.image.mimeType};base64,${request.image.base64}`,
+          },
+        },
+      ]
+    : request.userPrompt;
+
   return {
     model,
     messages: [
       { role: "system", content: request.systemPrompt },
-      { role: "user", content: request.userPrompt },
+      { role: "user", content: userContent },
     ],
     temperature: request.temperature,
     max_tokens: request.maxOutputTokens,

@@ -80,6 +80,8 @@ describe("API Routes & Database Integration", () => {
     // Clean up test data
     try {
       await runAsSystem(async (tx) => {
+        await tx.billingAuditEvent.deleteMany({ where: { spaceId: testSpaceId } });
+        await tx.subscription.deleteMany({ where: { spaceId: testSpaceId } });
         await tx.savedPrompt.deleteMany({ where: { spaceId: testSpaceId } });
         await tx.promptGeneration.deleteMany({ where: { spaceId: testSpaceId } });
         await tx.usageCounter.deleteMany({ where: { spaceId: testSpaceId } });
@@ -698,8 +700,74 @@ describe("API Routes & Database Integration", () => {
     });
   });
 
-  describe("Unimplemented Routes Retained as Stubs", () => {
-    it("billing.checkout throws Billing is not enabled", async () => {
+  describe("Reverse Engineer (Image-to-Prompt) & Billing Checkout/Portal", () => {
+    it("executes reverseEngineer with a >32KB image payload and persists to prompt_generations", async () => {
+      const largeBase64 = "A".repeat(48_000);
+      const res = await app.request("http://localhost/rpc/prompts/reverseEngineer", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-space-id": testSpaceId,
+          "x-user-id": testUserId,
+        },
+        body: JSON.stringify({
+          json: {
+            imageBase64: largeBase64,
+            mimeType: "image/png",
+            targetMode: "image",
+            focusNotes: "Warm golden hour rim lighting",
+          },
+        }),
+      });
+
+      expect(res.status).toBe(200);
+      const { json } = (await res.json()) as {
+        json: {
+          reconstructedPrompt: string;
+          remainingDailyRuns: number;
+          breakdown: { subject: string; negativePrompt: string };
+        };
+      };
+      expect(json.reconstructedPrompt).toContain("RECONSTRUCTED VISUAL PROMPT");
+      expect(json.remainingDailyRuns).toBe(2); // free tier reverse_engineer limit is 3
+      expect(json.breakdown.subject.length).toBeGreaterThan(0);
+
+      const gens = await runAsSystem((tx) =>
+        tx.promptGeneration.findMany({
+          where: { spaceId: testSpaceId, kind: "reverse_engineer" },
+        }),
+      );
+      expect(gens.length).toBeGreaterThanOrEqual(1);
+
+      const historyRes = await app.request("http://localhost/rpc/prompts/generations", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-space-id": testSpaceId,
+          "x-user-id": testUserId,
+        },
+        body: JSON.stringify({ json: { kind: "reverse_engineer", limit: 10 } }),
+      });
+      expect(historyRes.status).toBe(200);
+      const { json: historyJson } = (await historyRes.json()) as {
+        json: {
+          items: Array<{
+            id: string;
+            kind: string;
+            rawInput: string;
+            compiledPrompt: string;
+            inputImageUrl: string | null;
+          }>;
+          nextCursor: string | null;
+        };
+      };
+      expect(historyJson.items.length).toBeGreaterThanOrEqual(1);
+      expect(historyJson.items[0]?.kind).toBe("reverse_engineer");
+      expect(historyJson.items[0]?.compiledPrompt).toContain("RECONSTRUCTED VISUAL PROMPT");
+      expect(historyJson.items[0]?.inputImageUrl).toMatch(/^data:image\/png;base64,/);
+    });
+
+    it("rejects unauthenticated billing.checkout with 401", async () => {
       const res = await app.request("http://localhost/rpc/billing/checkout", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -711,9 +779,119 @@ describe("API Routes & Database Integration", () => {
           },
         }),
       });
-      expect(res.status).toBe(400);
-      const body = await res.text();
-      expect(body).toContain("Billing is not enabled");
+      expect(res.status).toBe(401);
+    });
+
+    it("completes emulated checkout, opens portal, and handles webhooks idempotently", async () => {
+      const checkoutRes = await app.request("http://localhost/rpc/billing/checkout", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-space-id": testSpaceId,
+          "x-user-id": testUserId,
+        },
+        body: JSON.stringify({
+          json: {
+            plan: "pro",
+            interval: "yearly",
+            seats: 1,
+          },
+        }),
+      });
+      expect(checkoutRes.status).toBe(200);
+      const { json: checkoutJson } = (await checkoutRes.json()) as { json: { url: string } };
+      expect(checkoutJson.url).toBe("/billing/return?plan=pro&emulated=1");
+
+      const spaceAfter = await prisma.space.findUnique({ where: { id: testSpaceId } });
+      expect(spaceAfter?.plan).toBe("pro");
+      expect(spaceAfter?.stripeCustomerId).toBe(`cus_local_${testSpaceId}`);
+
+      const portalRes = await app.request("http://localhost/rpc/billing/portal", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-space-id": testSpaceId,
+          "x-user-id": testUserId,
+        },
+        body: JSON.stringify({}),
+      });
+      expect(portalRes.status).toBe(200);
+      const { json: portalJson } = (await portalRes.json()) as { json: { url: string } };
+      expect(portalJson.url).toBe("/settings/profile?portal=emulated");
+
+      const badWebhook = await app.request("http://localhost/api/webhooks/stripe", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "stripe-signature": "invalid",
+        },
+        body: JSON.stringify({ customerId: `cus_local_${testSpaceId}`, eventId: "evt_bad" }),
+      });
+      expect(badWebhook.status).toBe(400);
+
+      const eventId = `evt_wh_${Date.now()}`;
+      const goodWebhook1 = await app.request("http://localhost/api/webhooks/stripe", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "stripe-signature": "emulator-signature",
+        },
+        body: JSON.stringify({ customerId: `cus_local_${testSpaceId}`, eventId }),
+      });
+      expect(goodWebhook1.status).toBe(200);
+
+      // Replaying the same webhook eventId is idempotent and does not duplicate audit rows
+      const goodWebhook2 = await app.request("http://localhost/api/webhooks/stripe", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "stripe-signature": "emulator-signature",
+        },
+        body: JSON.stringify({ customerId: `cus_local_${testSpaceId}`, eventId }),
+      });
+      expect(goodWebhook2.status).toBe(200);
+
+      const auditRows = await runAsSystem((tx) =>
+        tx.billingAuditEvent.findMany({
+          where: { spaceId: testSpaceId, externalId: eventId },
+        }),
+      );
+      expect(auditRows).toHaveLength(1);
+
+      const switchToTeamRes = await app.request("http://localhost/rpc/billing/emulatePlan", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-space-id": testSpaceId,
+          "x-user-id": testUserId,
+        },
+        body: JSON.stringify({ json: { plan: "team", interval: "monthly" } }),
+      });
+      expect(switchToTeamRes.status).toBe(200);
+      const { json: teamJson } = (await switchToTeamRes.json()) as {
+        json: { plan: string; dailyLimit: number };
+      };
+      expect(teamJson.plan).toBe("team");
+      expect(teamJson.dailyLimit).toBe(2000);
+
+      const downgradeRes = await app.request("http://localhost/rpc/billing/emulatePlan", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-space-id": testSpaceId,
+          "x-user-id": testUserId,
+        },
+        body: JSON.stringify({ json: { plan: "free", interval: "monthly" } }),
+      });
+      expect(downgradeRes.status).toBe(200);
+      const { json: freeJson } = (await downgradeRes.json()) as {
+        json: { plan: string; dailyLimit: number };
+      };
+      expect(freeJson.plan).toBe("free");
+      expect(freeJson.dailyLimit).toBe(20);
+
+      const spaceDowngraded = await prisma.space.findUnique({ where: { id: testSpaceId } });
+      expect(spaceDowngraded?.plan).toBe("free");
     });
   });
 });

@@ -36,6 +36,12 @@ const EnvSchema = z.object({
   LLM_TIMEOUT_MS: optionalPositiveInt(20_000),
   RATE_LIMIT_PER_MINUTE: optionalPositiveInt(30),
   TRUST_PROXY: z.string().optional(),
+  STRIPE_SECRET_KEY: optionalSecret,
+  STRIPE_WEBHOOK_SECRET: optionalSecret,
+  STRIPE_PRICE_PRO_MONTHLY: optionalSecret,
+  STRIPE_PRICE_PRO_YEARLY: optionalSecret,
+  STRIPE_PRICE_TEAM_MONTHLY: optionalSecret,
+  STRIPE_PRICE_TEAM_YEARLY: optionalSecret,
 });
 
 export interface AppConfig {
@@ -51,6 +57,12 @@ export interface AppConfig {
   readonly llmTimeoutMs: number;
   readonly rateLimitPerMinute: number;
   readonly trustProxy: boolean;
+  readonly stripeSecretKey?: string;
+  readonly stripeWebhookSecret?: string;
+  readonly stripePriceProMonthly?: string;
+  readonly stripePriceProYearly?: string;
+  readonly stripePriceTeamMonthly?: string;
+  readonly stripePriceTeamYearly?: string;
 }
 
 export function loadConfig(env: Record<string, string | undefined>): AppConfig {
@@ -72,5 +84,11 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     llmTimeoutMs: parsed.LLM_TIMEOUT_MS,
     rateLimitPerMinute: parsed.RATE_LIMIT_PER_MINUTE,
     trustProxy: parsed.TRUST_PROXY === "true",
+    stripeSecretKey: parsed.STRIPE_SECRET_KEY,
+    stripeWebhookSecret: parsed.STRIPE_WEBHOOK_SECRET,
+    stripePriceProMonthly: parsed.STRIPE_PRICE_PRO_MONTHLY,
+    stripePriceProYearly: parsed.STRIPE_PRICE_PRO_YEARLY,
+    stripePriceTeamMonthly: parsed.STRIPE_PRICE_TEAM_MONTHLY,
+    stripePriceTeamYearly: parsed.STRIPE_PRICE_TEAM_YEARLY,
   };
 }

@@ -1,7 +1,11 @@
 import type { ComposeStreamEvent, LlmProviderAdapter } from "@open-prompt-os/adapter-kit";
 import { LlmProviderError, createFakeAdapter } from "@open-prompt-os/adapter-kit";
 import type { ComposePromptInput } from "@open-prompt-os/contracts";
-import { ComposePromptOutputSchema, RefinePromptOutputSchema } from "@open-prompt-os/contracts";
+import {
+  ComposePromptOutputSchema,
+  RefinePromptOutputSchema,
+  ReverseEngineerOutputSchema,
+} from "@open-prompt-os/contracts";
 import { InputGuardError } from "@open-prompt-os/core";
 import { describe, expect, it } from "vitest";
 import { createOrchestrator } from "./gateway.js";
@@ -220,5 +224,86 @@ describe("createOrchestrator", () => {
       expect(done.output.healedFromFailure).toBe(true);
       expect(done.output.providerId).toBe("rule-synthesizer");
     }
+  });
+
+  it("dispatches image attachments to vision providers and falls back to synthesizer on invalid JSON", async () => {
+    let seenImage: { base64: string; mimeType: string } | undefined;
+    const gemini: LlmProviderAdapter = {
+      id: "gemini",
+      defaultModel: "gemini-2.5-pro",
+      isConfigured: () => true,
+      async complete(request) {
+        seenImage = request.image;
+        return {
+          text: JSON.stringify({
+            reconstructedPrompt: "A moody neon-lit alley with [Subject_Hero] in rain",
+            breakdown: {
+              subject: "Cyberpunk courier [Subject_Hero]",
+              styleAndMedium: "35mm anamorphic still",
+              lightingAndColor: "Magenta and cyan neon reflections",
+              cameraAndComposition: "Low-angle wide shot",
+              moodAndAtmosphere: "Rain-slicked nocturnal atmosphere",
+              negativePrompt: "blurry, watermark",
+            },
+          }),
+          providerId: "gemini",
+          modelId: "gemini-2.5-pro",
+          usage: { inputTokens: 100, outputTokens: 50 },
+          latencyMs: 12,
+        };
+      },
+      async *stream() {
+        yield {
+          type: "done",
+          result: {
+            text: "",
+            providerId: "gemini",
+            modelId: "gemini-2.5-pro",
+            usage: { inputTokens: 0, outputTokens: 0 },
+            latencyMs: 1,
+          },
+        };
+      },
+    };
+
+    const orchestrator = createOrchestrator({
+      registry: createRegistry([createSynthesizerAdapter(), gemini]),
+      timeoutMs: 1000,
+    });
+
+    const base64 =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+    const liveOut = await orchestrator.reverseEngineer(
+      {
+        imageBase64: base64,
+        mimeType: "image/png",
+        targetMode: "image",
+      },
+      { requestId: "req_rev_live" },
+    );
+    expect(seenImage).toEqual({ base64, mimeType: "image/png" });
+    expect(ReverseEngineerOutputSchema.parse(liveOut)).toMatchObject({
+      providerId: "gemini",
+      modelId: "gemini-2.5-pro",
+      detectedVariables: ["Subject_Hero"],
+      requestId: "req_rev_live",
+    });
+
+    // Malformed JSON triggers synthesizer fallback
+    const badGemini = createFakeAdapter({ id: "gemini", text: "not-valid-json" });
+    const fallbackOrchestrator = createOrchestrator({
+      registry: createRegistry([createSynthesizerAdapter(), badGemini]),
+      timeoutMs: 1000,
+    });
+    const fallbackOut = await fallbackOrchestrator.reverseEngineer(
+      {
+        imageBase64: base64,
+        mimeType: "image/jpeg",
+        targetMode: "video",
+      },
+      { requestId: "req_rev_fallback" },
+    );
+    expect(ReverseEngineerOutputSchema.parse(fallbackOut).providerId).toBe("rule-synthesizer");
+    expect(fallbackOut.requestId).toBe("req_rev_fallback");
   });
 });
