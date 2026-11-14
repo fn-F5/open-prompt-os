@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   InputGuardError,
   assertNoClientSystemPrompt,
+  isInputGuardError,
   redactSecrets,
+  sanitizeOptionalUserText,
   sanitizeUserText,
 } from "./input-guard.js";
 
@@ -14,6 +16,18 @@ describe("sanitizeUserText", () => {
   it("rejects empty and oversized text", () => {
     expect(() => sanitizeUserText("   ", 10)).toThrow(InputGuardError);
     expect(() => sanitizeUserText("abcdef", 3)).toThrow(/exceeds 3/);
+  });
+});
+
+describe("sanitizeOptionalUserText & isInputGuardError", () => {
+  it("normalizes undefined/blank optional text and checks InputGuardError instances", () => {
+    expect(sanitizeOptionalUserText(undefined, 20)).toBeUndefined();
+    expect(sanitizeOptionalUserText("  \u202E  ", 20)).toBeUndefined();
+    expect(sanitizeOptionalUserText("  concise ", 20)).toBe("concise");
+    expect(() => sanitizeOptionalUserText("too long", 4)).toThrow(/exceeds 4/);
+
+    expect(isInputGuardError(new InputGuardError("bad"))).toBe(true);
+    expect(isInputGuardError(new Error("other"))).toBe(false);
   });
 });
 

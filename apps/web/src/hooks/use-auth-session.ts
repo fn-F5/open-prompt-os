@@ -16,14 +16,14 @@ export interface AuthSessionState {
   }) => Promise<AuthenticatedUser>;
   readonly signInWithGoogle: () => Promise<void>;
   readonly signInWithGitHub: () => Promise<void>;
-  readonly signInWithPasskey: () => Promise<AuthenticatedUser>;
-  readonly registerPasskey: () => Promise<void>;
-  readonly listPasskeys: () => Promise<
-    Array<{ id: string; name: string; createdAt: string | null }>
-  >;
-  readonly deletePasskey: (id: string) => Promise<void>;
   readonly signOut: () => Promise<void>;
 }
+
+const sendEmailCode: AuthSessionState["sendEmailCode"] = (input) => authClient.sendEmailCode(input);
+const verifyEmailCode: AuthSessionState["verifyEmailCode"] = (input) =>
+  authClient.verifyEmailCode(input);
+const signInWithGoogle: AuthSessionState["signInWithGoogle"] = () => authClient.signInWithGoogle();
+const signInWithGitHub: AuthSessionState["signInWithGitHub"] = () => authClient.signInWithGitHub();
 
 export function useAuthSession(): AuthSessionState {
   const qc = useQueryClient();
@@ -49,14 +49,10 @@ export function useAuthSession(): AuthSessionState {
     isAuthenticated: snapshot.isAuthenticated,
     isLoading: snapshot.isLoading,
     user: snapshot.user,
-    sendEmailCode: authClient.sendEmailCode.bind(authClient),
-    verifyEmailCode: authClient.verifyEmailCode.bind(authClient),
-    signInWithGoogle: authClient.signInWithGoogle.bind(authClient),
-    signInWithGitHub: authClient.signInWithGitHub.bind(authClient),
-    signInWithPasskey: authClient.signInWithPasskey.bind(authClient),
-    registerPasskey: authClient.registerPasskey.bind(authClient),
-    listPasskeys: authClient.listPasskeys.bind(authClient),
-    deletePasskey: authClient.deletePasskey.bind(authClient),
+    sendEmailCode,
+    verifyEmailCode,
+    signInWithGoogle,
+    signInWithGitHub,
     signOut,
   };
 }

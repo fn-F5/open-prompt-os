@@ -141,7 +141,7 @@ export function PricingPage() {
               </li>
               <li className="flex items-center gap-2.5">
                 <Check className="w-5 h-5 text-[var(--success-text)] shrink-0" />
-                <span>Hardware Passkey enforcement</span>
+                <span>Team access & role controls</span>
               </li>
             </ul>
           </div>

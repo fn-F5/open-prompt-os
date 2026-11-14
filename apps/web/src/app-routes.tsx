@@ -30,9 +30,6 @@ const BillingReturnPage = React.lazy(() =>
 const ProfileSettingsPage = React.lazy(() =>
   import("./routes/settings/profile-page.js").then((m) => ({ default: m.ProfileSettingsPage })),
 );
-const SecuritySettingsPage = React.lazy(() =>
-  import("./routes/settings/security-page.js").then((m) => ({ default: m.SecuritySettingsPage })),
-);
 
 class RouteErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -99,7 +96,7 @@ export function AppRoutes() {
             <Route path="settings" element={<SettingsLayout />}>
               <Route index element={<Navigate to="/settings/profile" replace />} />
               <Route path="profile" element={<ProfileSettingsPage />} />
-              <Route path="security" element={<SecuritySettingsPage />} />
+              <Route path="security" element={<Navigate to="/settings/profile" replace />} />
             </Route>
             <Route path="*" element={<NotFoundPage />} />
           </Route>

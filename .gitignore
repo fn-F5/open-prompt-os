@@ -6,3 +6,5 @@ dist/
 coverage/
 docs/
 .env
+.stryker-tmp/
+reports/
