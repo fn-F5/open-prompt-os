@@ -125,14 +125,23 @@ export const authClient = {
     }
   },
 
-  async sendEmailCode(input: { email: string }): Promise<void> {
+  async sendEmailCode(input: { email: string; captchaToken?: string }): Promise<void> {
     const email = input.email.trim().toLowerCase();
     if (!email.includes("@")) throw new Error("Enter a valid email address.");
-    const result = await betterAuth.emailOtp.sendVerificationOtp({
-      email,
-      type: "sign-in",
-    });
-    if (result.error) throw new Error("Could not send a sign-in code.");
+    const result = await betterAuth.emailOtp.sendVerificationOtp(
+      {
+        email,
+        type: "sign-in",
+      },
+      input.captchaToken ? { headers: { "x-captcha-response": input.captchaToken } } : undefined,
+    );
+    if (result.error) {
+      const code = (result.error as { code?: string }).code;
+      if (code === "MISSING_RESPONSE" || code === "VERIFICATION_FAILED") {
+        throw new Error("Human verification failed. Please complete the check and try again.");
+      }
+      throw new Error("Could not send a sign-in code.");
+    }
   },
 
   async verifyEmailCode(input: {

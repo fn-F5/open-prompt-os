@@ -2,7 +2,7 @@ import { passkey } from "@better-auth/passkey";
 import { type PrismaClient, runAsSystem } from "@open-prompt-os/db";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { customSession, emailOTP } from "better-auth/plugins";
+import { captcha, customSession, emailOTP } from "better-auth/plugins";
 import type { AuthBootConfig } from "./boot.js";
 import { type SignInMailer, createCaptureMailer, createResendMailer } from "./mailer.js";
 
@@ -173,6 +173,15 @@ export function createAuth(options: CreateAuthOptions): AuthServer {
       },
     },
     plugins: [
+      ...(options.boot.turnstileSecretKey
+        ? [
+            captcha({
+              provider: "cloudflare-turnstile",
+              secretKey: options.boot.turnstileSecretKey,
+              endpoints: ["/email-otp/send-verification-otp"],
+            }),
+          ]
+        : []),
       emailOTP({
         otpLength: 6,
         expiresIn: 600,

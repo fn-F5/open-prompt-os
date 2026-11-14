@@ -49,7 +49,14 @@ export function createApp(options: AppOptions) {
     cors({
       origin: [...options.webOrigins],
       allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
-      allowHeaders: ["content-type", "x-request-id", "traceparent", "x-user-id", "x-space-id"],
+      allowHeaders: [
+        "content-type",
+        "x-request-id",
+        "traceparent",
+        "x-user-id",
+        "x-space-id",
+        "x-captcha-response",
+      ],
       exposeHeaders: ["x-request-id"],
       credentials: true,
     }),

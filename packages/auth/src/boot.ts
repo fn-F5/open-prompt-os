@@ -16,6 +16,7 @@ export interface AuthBootConfig {
   readonly googleClientSecret?: string;
   readonly githubClientId?: string;
   readonly githubClientSecret?: string;
+  readonly turnstileSecretKey?: string;
   readonly trustProxy: boolean;
   readonly secureCookies: boolean;
 }
@@ -82,6 +83,7 @@ export function loadAuthBoot(env: Record<string, string | undefined>): AuthBootC
     googleClientSecret: env.GOOGLE_CLIENT_SECRET?.trim() || undefined,
     githubClientId: env.GITHUB_CLIENT_ID?.trim() || undefined,
     githubClientSecret: env.GITHUB_CLIENT_SECRET?.trim() || undefined,
+    turnstileSecretKey: env.TURNSTILE_SECRET_KEY?.trim() || undefined,
     trustProxy: env.TRUST_PROXY === "true",
     secureCookies: baseURL.startsWith("https://"),
   };

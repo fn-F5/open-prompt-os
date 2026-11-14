@@ -8,7 +8,7 @@ export interface AuthSessionState {
   readonly isAuthenticated: boolean;
   readonly isLoading: boolean;
   readonly user: AuthenticatedUser | null;
-  readonly sendEmailCode: (input: { email: string }) => Promise<void>;
+  readonly sendEmailCode: (input: { email: string; captchaToken?: string }) => Promise<void>;
   readonly verifyEmailCode: (input: {
     email: string;
     otp: string;

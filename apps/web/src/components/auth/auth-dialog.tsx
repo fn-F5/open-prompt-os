@@ -11,6 +11,12 @@ import {
   safeInternalRoute,
   useAuthDialogStore,
 } from "../../state/auth-dialog-store.js";
+import { TurnstileWidget, type TurnstileWidgetHandle } from "./turnstile-widget.js";
+
+function resolveTurnstileSiteKey(): string | undefined {
+  const value = import.meta.env.VITE_TURNSTILE_SITE_KEY;
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
 
 const REASON_COPY: Record<
   AuthTriggerReason,
@@ -48,7 +54,7 @@ const REASON_COPY: Record<
   },
 };
 
-export function AuthDialog() {
+export function AuthDialog({ turnstileSiteKey }: { turnstileSiteKey?: string | null } = {}) {
   const { isOpen, reason, intendedRoute } = useAuthDialogStore();
   const { sendEmailCode, verifyEmailCode, signInWithGoogle, signInWithGitHub } = useAuthSession();
   const navigate = useNavigate();
@@ -57,6 +63,8 @@ export function AuthDialog() {
   const [name, setName] = React.useState("");
   const [code, setCode] = React.useState("");
   const [step, setStep] = React.useState<"email" | "code">("email");
+  const [captchaToken, setCaptchaToken] = React.useState<string | null>(null);
+  const turnstileRef = React.useRef<TurnstileWidgetHandle | null>(null);
   const [providers, setProviders] = React.useState<OAuthProviderStatus>({
     google: false,
     github: false,
@@ -64,12 +72,20 @@ export function AuthDialog() {
   const [error, setError] = React.useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
+  const siteKey =
+    turnstileSiteKey !== undefined
+      ? turnstileSiteKey?.trim() || undefined
+      : resolveTurnstileSiteKey();
   const hasSocial = providers.google || providers.github;
   const copy = REASON_COPY[reason];
 
   React.useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      setCaptchaToken(null);
+      return;
+    }
     setError(null);
+    setCaptchaToken(null);
     let active = true;
     void authClient.getOAuthProviders().then((status) => {
       if (active) setProviders(status);
@@ -93,10 +109,15 @@ export function AuthDialog() {
   const handleEmailSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
+    if (step === "email" && siteKey && !captchaToken) {
+      setError("Please complete the verification check before continuing.");
+      return;
+    }
     setIsSubmitting(true);
     try {
       if (step === "email") {
-        await sendEmailCode({ email });
+        await sendEmailCode({ email, captchaToken: captchaToken ?? undefined });
+        setCaptchaToken(null);
         setStep("code");
         return;
       }
@@ -105,6 +126,10 @@ export function AuthDialog() {
       setCode("");
       handleSuccessPostAuth();
     } catch (err) {
+      if (step === "email") {
+        setCaptchaToken(null);
+        turnstileRef.current?.reset();
+      }
       setError(
         err instanceof Error
           ? err.message
@@ -212,6 +237,7 @@ export function AuthDialog() {
                 onClick={() => {
                   setStep("email");
                   setCode("");
+                  setCaptchaToken(null);
                   setError(null);
                 }}
                 disabled={isSubmitting}
@@ -250,6 +276,22 @@ export function AuthDialog() {
           />
         </div>
 
+        {step === "email" && siteKey && isOpen ? (
+          <TurnstileWidget
+            ref={turnstileRef}
+            siteKey={siteKey}
+            onSuccess={(token) => {
+              setCaptchaToken(token);
+              setError(null);
+            }}
+            onExpire={() => setCaptchaToken(null)}
+            onError={() => {
+              setCaptchaToken(null);
+              setError("Human verification could not load. Please refresh or disable blockers.");
+            }}
+          />
+        ) : null}
+
         {error ? (
           <div
             role="alert"
@@ -271,7 +313,7 @@ export function AuthDialog() {
           <Button
             type="submit"
             variant={hasSocial ? "secondary" : "primary-inverse"}
-            disabled={isSubmitting}
+            disabled={isSubmitting || (step === "email" && Boolean(siteKey) && !captchaToken)}
           >
             {isSubmitting ? "Working..." : step === "code" ? "Verify code" : "Email me a code"}
           </Button>
