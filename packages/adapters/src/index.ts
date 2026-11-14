@@ -1,3 +1,5 @@
+export { createLocalBillingEmulator } from "./billing/emulator.js";
+export { createStripeBillingProvider } from "./billing/stripe.js";
 export { MODEL_CATALOG, lookupModel } from "./llm/catalog.js";
 export { createGeminiAdapter } from "./llm/gemini.js";
 export { createOrchestrator } from "./llm/gateway.js";

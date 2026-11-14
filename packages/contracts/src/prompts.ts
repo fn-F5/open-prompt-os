@@ -191,3 +191,81 @@ export const PromptTemplateSchema = z.object({
   updatedAt: z.string(),
 });
 export type PromptTemplate = z.infer<typeof PromptTemplateSchema>;
+
+export const ReverseEngineerImageMimeSchema = z.enum(["image/png", "image/jpeg", "image/webp"]);
+export type ReverseEngineerImageMime = z.infer<typeof ReverseEngineerImageMimeSchema>;
+
+// 4 MB binary image ~= 5.33 MB in base64 characters
+const MAX_BASE64_LENGTH = 5_600_000;
+
+export const SafeImageDataUrlSchema = z
+  .string()
+  .max(150_000, "Thumbnail preview exceeds maximum size.")
+  .regex(/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/, {
+    message: "Thumbnail must be a base64-encoded PNG, JPEG, or WebP data URL.",
+  });
+
+export const ReverseEngineerInputSchema = z.object({
+  imageBase64: z
+    .string()
+    .trim()
+    .min(32, "Image payload is required.")
+    .max(MAX_BASE64_LENGTH, "Image exceeds maximum size of 4MB.")
+    .refine((val) => !val.startsWith("data:"), {
+      message: "Pass raw base64 without the data:...;base64, prefix.",
+    }),
+  mimeType: ReverseEngineerImageMimeSchema,
+  targetMode: z.enum(["image", "video"]).default("image"),
+  targetModelId: z.string().optional(),
+  focusNotes: z.string().max(500).optional(),
+  previewImageDataUrl: SafeImageDataUrlSchema.optional(),
+});
+export type ReverseEngineerInput = z.infer<typeof ReverseEngineerInputSchema>;
+
+export const ReverseEngineerBreakdownSchema = z.object({
+  subject: z.string(),
+  styleAndMedium: z.string(),
+  lightingAndColor: z.string(),
+  cameraAndComposition: z.string(),
+  moodAndAtmosphere: z.string(),
+  negativePrompt: z.string(),
+});
+export type ReverseEngineerBreakdown = z.infer<typeof ReverseEngineerBreakdownSchema>;
+
+export const ReverseEngineerOutputSchema = z.object({
+  reconstructedPrompt: z.string(),
+  detectedVariables: z.array(z.string()),
+  breakdown: ReverseEngineerBreakdownSchema,
+  suggestedDraft: ComposerDraftSchema,
+  providerId: z.string(),
+  modelId: z.string(),
+  latencyMs: z.number(),
+  remainingDailyRuns: z.number().nullable(),
+  requestId: z.string(),
+});
+export type ReverseEngineerOutput = z.infer<typeof ReverseEngineerOutputSchema>;
+
+export const GenerationKindSchema = z.enum([
+  "compose",
+  "refine",
+  "autopsy",
+  "reverse_engineer",
+  "guest_import",
+]);
+export type GenerationKind = z.infer<typeof GenerationKindSchema>;
+
+export const PromptGenerationItemSchema = z.object({
+  id: z.string(),
+  kind: GenerationKindSchema,
+  rawInput: z.string(),
+  compiledPrompt: z.string(),
+  draft: ComposerDraftSchema.nullable(),
+  inputImageUrl: SafeImageDataUrlSchema.nullable().default(null),
+  mode: ComposerModeSchema,
+  framework: PromptFrameworkSchema,
+  modelId: z.string().nullable(),
+  providerId: z.string(),
+  latencyMs: z.number(),
+  createdAt: z.string(),
+});
+export type PromptGenerationItem = z.infer<typeof PromptGenerationItemSchema>;

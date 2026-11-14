@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - recaptcha
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Typecheck, Build & Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: ci_password
+          POSTGRES_DB: open_prompt_os
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U admin -d open_prompt_os"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      NODE_ENV: test
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: ci_password
+      POSTGRES_DB: open_prompt_os
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @open-prompt-os/db db:generate
+
+      - name: Prepare PostgreSQL schema, RLS, and seed data
+        run: |
+          pnpm --filter @open-prompt-os/db exec tsx scripts/prisma.ts migrate deploy
+          pnpm --filter @open-prompt-os/db db:rls
+          pnpm --filter @open-prompt-os/db db:seed
+
+      - name: Typecheck workspace
+        run: pnpm typecheck
+
+      - name: Build workspace
+        run: pnpm build
+
+      - name: Run all test suites
+        run: pnpm test

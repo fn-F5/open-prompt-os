@@ -2,6 +2,7 @@ import type {
   ComposeStreamEvent,
   LlmCompletionRequest,
   LlmCompletionResult,
+  LlmImageAttachment,
   LlmProviderAdapter,
   OrchestratorContext,
   PromptOrchestrator,
@@ -15,8 +16,14 @@ import type {
   ProviderId,
   RefinePromptInput,
   RefinePromptOutput,
+  ReverseEngineerInput,
+  ReverseEngineerOutput,
 } from "@open-prompt-os/contracts";
-import { RefinePromptOutputSchema } from "@open-prompt-os/contracts";
+import {
+  RefinePromptOutputSchema,
+  ReverseEngineerBreakdownSchema,
+  ReverseEngineerOutputSchema,
+} from "@open-prompt-os/contracts";
 import type { CircuitMemory } from "@open-prompt-os/core";
 import {
   analyzePromptVariables,
@@ -32,9 +39,15 @@ import {
   redactSecrets,
   sanitizeOptionalUserText,
   sanitizeUserText,
+  synthesizeReverseEngineeredPrompt,
 } from "@open-prompt-os/core";
+import { lookupModel } from "./catalog.js";
 import { asProviderError } from "./errors.js";
-import { buildComposeSystemPrompt, buildRefineSystemPrompt } from "./instructions.js";
+import {
+  buildComposeSystemPrompt,
+  buildRefineSystemPrompt,
+  buildReverseEngineerSystemPrompt,
+} from "./instructions.js";
 import type { ProviderRegistry } from "./registry.js";
 import type { SynthesizerTask } from "./synthesizer.js";
 
@@ -125,18 +138,91 @@ function toComposeOutput(
   };
 }
 
-function parseRefine(text: string): RefinePromptOutput | null {
-  const unfenced = text
+function unfenceJson(text: string): string {
+  return text
     .trim()
     .replace(/^```(?:json)?/i, "")
     .replace(/```$/i, "")
     .trim();
+}
+
+function parseRefine(text: string): RefinePromptOutput | null {
   try {
-    const parsed = RefinePromptOutputSchema.safeParse(JSON.parse(unfenced));
+    const parsed = RefinePromptOutputSchema.safeParse(JSON.parse(unfenceJson(text)));
     return parsed.success ? parsed.data : null;
   } catch {
     return null;
   }
+}
+
+function parseReverseEngineer(
+  text: string,
+  input: ReverseEngineerInput,
+  result: LlmCompletionResult,
+  ctx: OrchestratorContext,
+): ReverseEngineerOutput | null {
+  try {
+    const raw = JSON.parse(unfenceJson(text)) as Record<string, unknown>;
+    const fullParsed = ReverseEngineerOutputSchema.safeParse(raw);
+    if (fullParsed.success) {
+      return {
+        ...fullParsed.data,
+        providerId: result.providerId,
+        modelId: result.modelId,
+        latencyMs: result.latencyMs,
+        remainingDailyRuns: null,
+        requestId: ctx.requestId,
+      };
+    }
+
+    const reconstructedPrompt =
+      typeof raw.reconstructedPrompt === "string" ? raw.reconstructedPrompt.trim() : "";
+    const breakdownParsed = ReverseEngineerBreakdownSchema.safeParse(raw.breakdown);
+    if (!reconstructedPrompt || !breakdownParsed.success) {
+      return null;
+    }
+
+    const breakdown = breakdownParsed.data;
+    const { detectedVariables } = analyzePromptVariables(reconstructedPrompt);
+
+    return {
+      reconstructedPrompt,
+      detectedVariables,
+      breakdown,
+      suggestedDraft: {
+        rawInput: reconstructedPrompt,
+        mode: input.targetMode,
+        modelId: result.modelId,
+        goal: "Reproduce the visual style, lighting, and composition while customizing detected variables",
+        format: breakdown.cameraAndComposition,
+        tone: breakdown.lightingAndColor,
+        constraints: [breakdown.styleAndMedium],
+        guardrails: [breakdown.negativePrompt],
+        framework: "costar",
+        advanced: { length: "detailed", creativity: 0.5 },
+      },
+      providerId: result.providerId,
+      modelId: result.modelId,
+      latencyMs: result.latencyMs,
+      remainingDailyRuns: null,
+      requestId: ctx.requestId,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function fallbackReverseEngineer(
+  input: ReverseEngineerInput,
+  ctx: OrchestratorContext,
+  latencyMs: number,
+): ReverseEngineerOutput {
+  const synthesized = synthesizeReverseEngineeredPrompt(input);
+  return {
+    ...synthesized,
+    latencyMs,
+    requestId: ctx.requestId,
+  };
 }
 
 function fallbackRefine(
@@ -201,19 +287,23 @@ export function createOrchestrator(options: OrchestratorOptions): PromptOrchestr
 
   async function dispatch(
     modelId: string | null,
-    live: { systemPrompt: string; userPrompt: string },
+    live: { systemPrompt: string; userPrompt: string; image?: LlmImageAttachment },
     synthUserPrompt: string,
     ctx: OrchestratorContext,
   ): Promise<{ result: LlmCompletionResult; healed: boolean }> {
     const chain = options.registry.failoverChain(modelId);
     const preferred = chain[0];
+    const requestedProvider = modelId ? lookupModel(modelId).providerId : null;
     for (const adapter of chain) {
       if (!acquire(adapter.id, clock())) continue;
+      const resolvedModelId =
+        modelId && requestedProvider === adapter.id ? modelId : adapter.defaultModel;
       const request: LlmCompletionRequest = {
         requestId: ctx.requestId,
         systemPrompt: live.systemPrompt,
         userPrompt: adapter.id === "rule-synthesizer" ? synthUserPrompt : live.userPrompt,
-        modelId: modelId ?? adapter.defaultModel,
+        ...(adapter.id !== "rule-synthesizer" && live.image ? { image: live.image } : {}),
+        modelId: resolvedModelId,
         timeoutMs: options.timeoutMs,
         signal: ctx.signal,
       };
@@ -312,6 +402,38 @@ export function createOrchestrator(options: OrchestratorOptions): PromptOrchestr
       } catch (error) {
         if (isInputGuardError(error)) throw error;
         return fallbackRefine(sanitized, ctx, 0);
+      }
+    },
+    async reverseEngineer(input, ctx) {
+      assertNoClientSystemPrompt(input);
+      const sanitized: ReverseEngineerInput = {
+        ...input,
+        focusNotes: sanitizeOptionalUserText(input.focusNotes, 500),
+      };
+      const task: SynthesizerTask = { kind: "reverse_engineer", input: sanitized };
+      try {
+        const { result } = await dispatch(
+          sanitized.targetModelId ?? "gemini-2.5-pro",
+          {
+            systemPrompt: buildReverseEngineerSystemPrompt(sanitized.targetMode),
+            userPrompt: JSON.stringify({
+              targetMode: sanitized.targetMode,
+              focusNotes: sanitized.focusNotes,
+            }),
+            image: {
+              base64: sanitized.imageBase64,
+              mimeType: sanitized.mimeType,
+            },
+          },
+          JSON.stringify(task),
+          ctx,
+        );
+        const parsed = parseReverseEngineer(result.text, sanitized, result, ctx);
+        if (!parsed) return fallbackReverseEngineer(sanitized, ctx, result.latencyMs);
+        return parsed;
+      } catch (error) {
+        if (isInputGuardError(error)) throw error;
+        return fallbackReverseEngineer(sanitized, ctx, 0);
       }
     },
     healthSnapshot(): readonly ProviderHealthSnapshot[] {

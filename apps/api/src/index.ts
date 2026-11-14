@@ -18,9 +18,10 @@ const authBoot = loadAuthBoot({
   DATABASE_URL: process.env.DATABASE_URL?.trim() || resolveDatabaseUrl(),
 });
 const auth = authBoot ? createAuth({ db: prisma, boot: authBoot }) : undefined;
-const { orchestrator } = createRuntime(config);
+const { orchestrator, billingProvider } = createRuntime(config);
 const app = createApp({
   orchestrator,
+  billingProvider,
   webOrigins: config.webOrigins,
   trustProxy: config.trustProxy,
   allowRequest: createRateLimiter(config.rateLimitPerMinute, 60_000),

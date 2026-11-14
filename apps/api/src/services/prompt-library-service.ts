@@ -1,11 +1,15 @@
 import { randomUUID } from "node:crypto";
-import type {
-  ComposerMode,
-  ImportGuestInteractionInput,
-  ImportGuestInteractionOutput,
-  PromptFramework,
-  SavePromptInput,
-  SavedPromptItem,
+import {
+  ComposerDraftSchema,
+  type ComposerMode,
+  type GenerationKind,
+  type ImportGuestInteractionInput,
+  type ImportGuestInteractionOutput,
+  type PromptFramework,
+  type PromptGenerationItem,
+  SafeImageDataUrlSchema,
+  type SavePromptInput,
+  type SavedPromptItem,
 } from "@open-prompt-os/contracts";
 import { analyzePromptVariables } from "@open-prompt-os/core";
 import { type Prisma, prisma, runAsTenant } from "@open-prompt-os/db";
@@ -328,6 +332,84 @@ export async function listPromptHistory(
     const hasMore = rows.length > limit;
     const pageRows = hasMore ? rows.slice(0, limit) : rows;
     const items = pageRows.map(formatSavedPrompt);
+    const nextCursor = hasMore && items.length > 0 ? (items[items.length - 1]?.id ?? null) : null;
+
+    return { items, nextCursor };
+  });
+}
+
+export interface ListGenerationsParams {
+  readonly kind?: GenerationKind;
+  readonly mode?: ComposerMode;
+  readonly search?: string;
+  readonly cursor?: string;
+  readonly limit?: number;
+}
+
+/**
+ * Lists past prompt generation interactions (compose, refine, autopsy, reverse_engineer, guest_import)
+ * for the actor's space with cursor pagination.
+ */
+export async function listPromptGenerations(
+  actor: ResolvedActor,
+  params?: ListGenerationsParams,
+): Promise<{ items: PromptGenerationItem[]; nextCursor: string | null }> {
+  if (!actor.spaceId) {
+    return { items: [], nextCursor: null };
+  }
+  const spaceId = actor.spaceId;
+  const limit = Math.min(Math.max(params?.limit ?? 20, 1), 50);
+
+  return runAsTenant({ spaceId, userId: actor.userId }, async (tx) => {
+    const where: Prisma.PromptGenerationWhereInput = {
+      spaceId,
+    };
+
+    if (params?.kind) {
+      where.kind = params.kind;
+    }
+    if (params?.mode) {
+      where.mode = params.mode;
+    }
+    if (params?.search?.trim()) {
+      const q = params.search.trim();
+      where.OR = [
+        { rawInput: { contains: q, mode: "insensitive" } },
+        { compiledPrompt: { contains: q, mode: "insensitive" } },
+      ];
+    }
+
+    const rows = await tx.promptGeneration.findMany({
+      where,
+      take: limit + 1,
+      ...(params?.cursor ? { cursor: { id: params.cursor }, skip: 1 } : {}),
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    });
+
+    const hasMore = rows.length > limit;
+    const pageRows = hasMore ? rows.slice(0, limit) : rows;
+    const items: PromptGenerationItem[] = pageRows.map((row) => {
+      const parsedDraft = row.draft ? ComposerDraftSchema.safeParse(row.draft) : null;
+      const rawPreview =
+        row.draft && typeof row.draft === "object" && !Array.isArray(row.draft)
+          ? (row.draft as Record<string, unknown>).sourcePreviewDataUrl
+          : undefined;
+      const parsedPreview = SafeImageDataUrlSchema.safeParse(rawPreview);
+      return {
+        id: row.id,
+        kind: row.kind as GenerationKind,
+        rawInput: row.rawInput,
+        compiledPrompt: row.compiledPrompt,
+        draft: parsedDraft?.success ? parsedDraft.data : null,
+        inputImageUrl: parsedPreview.success ? parsedPreview.data : null,
+        mode: row.mode as ComposerMode,
+        framework: row.framework as PromptFramework,
+        modelId: row.modelId,
+        providerId: row.providerId,
+        latencyMs: row.latencyMs,
+        createdAt: row.createdAt.toISOString(),
+      };
+    });
     const nextCursor = hasMore && items.length > 0 ? (items[items.length - 1]?.id ?? null) : null;
 
     return { items, nextCursor };

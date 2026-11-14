@@ -9,6 +9,9 @@ import { NotFoundPage } from "./routes/not-found-page.js";
 const ImproveAutopsyPage = React.lazy(() =>
   import("./routes/improve-autopsy-page.js").then((m) => ({ default: m.ImproveAutopsyPage })),
 );
+const ReverseEngineerPage = React.lazy(() =>
+  import("./routes/reverse-engineer-page.js").then((m) => ({ default: m.ReverseEngineerPage })),
+);
 const TemplateGalleryPage = React.lazy(() =>
   import("./routes/template-gallery-page.js").then((m) => ({ default: m.TemplateGalleryPage })),
 );
@@ -17,6 +20,9 @@ const TemplateDetailPage = React.lazy(() =>
 );
 const LibraryPage = React.lazy(() =>
   import("./routes/library-page.js").then((m) => ({ default: m.LibraryPage })),
+);
+const HistoryPage = React.lazy(() =>
+  import("./routes/history-page.js").then((m) => ({ default: m.HistoryPage })),
 );
 const PublicPromptPage = React.lazy(() =>
   import("./routes/public-prompt-page.js").then((m) => ({ default: m.PublicPromptPage })),
@@ -87,8 +93,10 @@ export function AppRoutes() {
           <Route element={<HybridLayout />}>
             <Route index element={<ComposerPage />} />
             <Route path="improve" element={<ImproveAutopsyPage />} />
+            <Route path="reverse-engineer" element={<ReverseEngineerPage />} />
             <Route path="templates" element={<TemplateGalleryPage />} />
             <Route path="templates/:templateSlug" element={<TemplateDetailPage />} />
+            <Route path="history" element={<HistoryPage />} />
             <Route path="library" element={<LibraryPage />} />
             <Route path="share/:shareId" element={<PublicPromptPage />} />
             <Route path="pricing" element={<PricingPage />} />

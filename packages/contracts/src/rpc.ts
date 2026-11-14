@@ -1,18 +1,26 @@
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 import { OnboardingPreferencesSchema, UpdateOnboardingInputSchema } from "./auth.js";
-import { BillingStatusSchema, CheckoutInputSchema } from "./billing.js";
+import {
+  BillingStatusSchema,
+  CheckoutInputSchema,
+  EmulatePlanSwitchInputSchema,
+} from "./billing.js";
 import { ModelOptionSchema, ProviderHealthSchema } from "./models.js";
 import {
   ComposePromptInputSchema,
   ComposePromptOutputSchema,
   ComposerModeSchema,
+  GenerationKindSchema,
   ImportGuestInteractionInputSchema,
   ImportGuestInteractionOutputSchema,
   PromptFrameworkSchema,
+  PromptGenerationItemSchema,
   PromptTemplateSchema,
   RefinePromptInputSchema,
   RefinePromptOutputSchema,
+  ReverseEngineerInputSchema,
+  ReverseEngineerOutputSchema,
   SavePromptInputSchema,
   SavedPromptItemSchema,
 } from "./prompts.js";
@@ -24,6 +32,7 @@ export const appContract = {
     compose: oc.input(ComposePromptInputSchema).output(ComposePromptOutputSchema),
     refine: oc.input(RefinePromptInputSchema).output(RefinePromptOutputSchema),
     autopsy: oc.input(RefinePromptInputSchema).output(RefinePromptOutputSchema),
+    reverseEngineer: oc.input(ReverseEngineerInputSchema).output(ReverseEngineerOutputSchema),
     importGuestInteraction: oc
       .input(ImportGuestInteractionInputSchema)
       .output(ImportGuestInteractionOutputSchema),
@@ -45,14 +54,30 @@ export const appContract = {
           nextCursor: z.string().nullable(),
         }),
       ),
+    generations: oc
+      .input(
+        z
+          .object({
+            kind: GenerationKindSchema.optional(),
+            mode: ComposerModeSchema.optional(),
+            search: z.string().optional(),
+            cursor: z.string().optional(),
+            limit: z.number().int().min(1).max(50).default(20),
+          })
+          .optional(),
+      )
+      .output(
+        z.object({
+          items: z.array(PromptGenerationItemSchema),
+          nextCursor: z.string().nullable(),
+        }),
+      ),
     save: oc.input(SavePromptInputSchema).output(SavedPromptItemSchema),
     delete: oc.input(z.object({ id: z.string() })).output(z.object({ deleted: z.boolean() })),
     share: oc
       .input(z.object({ id: z.string() }))
       .output(z.object({ shareId: z.string(), shareUrl: z.string() })),
-    getShared: oc
-      .input(z.object({ shareId: z.string() }))
-      .output(SavedPromptItemSchema.nullable()),
+    getShared: oc.input(z.object({ shareId: z.string() })).output(SavedPromptItemSchema.nullable()),
   },
   models: {
     listProviders: oc
@@ -73,9 +98,7 @@ export const appContract = {
           .optional(),
       )
       .output(z.array(PromptTemplateSchema)),
-    getBySlug: oc
-      .input(z.object({ slug: z.string() }))
-      .output(PromptTemplateSchema.nullable()),
+    getBySlug: oc.input(z.object({ slug: z.string() })).output(PromptTemplateSchema.nullable()),
   },
   userPreferences: {
     get: oc.output(OnboardingPreferencesSchema),
@@ -86,5 +109,6 @@ export const appContract = {
     refresh: oc.output(BillingStatusSchema),
     checkout: oc.input(CheckoutInputSchema).output(z.object({ url: z.string() })),
     portal: oc.output(z.object({ url: z.string() })),
+    emulatePlan: oc.input(EmulatePlanSwitchInputSchema).output(BillingStatusSchema),
   },
 } as const;

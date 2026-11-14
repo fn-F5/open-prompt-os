@@ -4,6 +4,8 @@ import type {
   DiagnosticFinding,
   RefinePromptInput,
   RefinePromptOutput,
+  ReverseEngineerInput,
+  ReverseEngineerOutput,
 } from "@open-prompt-os/contracts";
 import { analyzePromptVariables } from "./prompt-compiler.js";
 
@@ -312,5 +314,66 @@ export function diagnoseAndRefinePrompt(input: RefinePromptInput): RefinePromptO
     modelId: input.targetModelId || "claude-3-7-sonnet",
     latencyMs: 168,
     requestId: `req_autopsy_${Date.now().toString(36)}`,
+  };
+}
+
+/** Synthesizes a deterministic visual or video motion prompt when no live vision model responds. */
+export function synthesizeReverseEngineeredPrompt(
+  input: ReverseEngineerInput,
+): ReverseEngineerOutput {
+  const isVideo = input.targetMode === "video";
+  const focusClause = input.focusNotes?.trim()
+    ? ` Additional focus: ${input.focusNotes.trim()}.`
+    : "";
+
+  const breakdown = {
+    subject: "Primary focal subject [Primary_Subject] positioned with clear foreground separation",
+    styleAndMedium: isVideo
+      ? "Cinematic 24fps digital film capture, anamorphic lens characteristics, subtle film grain"
+      : "High-detail editorial photography / digital concept render with crisp micro-textures",
+    lightingAndColor:
+      "Directional volumetric key light, soft rim lighting, balanced warm-to-cool color contrast in [Color_Palette]",
+    cameraAndComposition: isVideo
+      ? "Smooth dolly push-in, 35mm prime lens, f/2.8 shallow depth of field, rule-of-thirds framing"
+      : "50mm prime lens, f/2.8 aperture, eye-level perspective, balanced negative space",
+    moodAndAtmosphere: `Immersive, high-contrast atmospheric depth.${focusClause}`,
+    negativePrompt:
+      "blurry, low-resolution, overexposed highlights, deformed anatomy, watermark, text overlay, compression artifacts",
+  };
+
+  const reconstructedPrompt = [
+    `# RECONSTRUCTED ${isVideo ? "VIDEO MOTION" : "VISUAL"} PROMPT`,
+    `Subject: ${breakdown.subject}.`,
+    `Style & Medium: ${breakdown.styleAndMedium}.`,
+    `Lighting & Color Grade: ${breakdown.lightingAndColor}.`,
+    `Camera & Composition: ${breakdown.cameraAndComposition}.`,
+    `Atmosphere: ${breakdown.moodAndAtmosphere}`,
+    `Negative Guardrails: ${breakdown.negativePrompt}`,
+  ].join("\n\n");
+
+  const { detectedVariables } = analyzePromptVariables(reconstructedPrompt);
+  const modelId = input.targetModelId ?? (isVideo ? "veo-2-cinema" : "imagen-3-pro");
+
+  return {
+    reconstructedPrompt,
+    detectedVariables,
+    breakdown,
+    suggestedDraft: {
+      rawInput: reconstructedPrompt,
+      mode: input.targetMode,
+      modelId,
+      goal: "Reproduce the visual style, lighting, and composition while customizing [Primary_Subject]",
+      format: breakdown.cameraAndComposition,
+      tone: breakdown.lightingAndColor,
+      constraints: [breakdown.styleAndMedium],
+      guardrails: [breakdown.negativePrompt],
+      framework: "costar",
+      advanced: { length: "detailed", creativity: 0.5 },
+    },
+    providerId: "rule-synthesizer",
+    modelId,
+    latencyMs: 95,
+    remainingDailyRuns: null,
+    requestId: `req_rev_${Date.now().toString(36)}`,
   };
 }
