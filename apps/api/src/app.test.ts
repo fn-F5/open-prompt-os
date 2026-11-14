@@ -90,6 +90,25 @@ describe("api", () => {
   it("treats an empty provider key as unconfigured", () => {
     expect(loadConfig({ GEMINI_API_KEY: "" }).geminiApiKey).toBeUndefined();
   });
+
+  it("allows x-captcha-response in CORS preflight headers", async () => {
+    const app = buildApp(20);
+    const response = await app.request(
+      "http://localhost/api/auth/email-otp/send-verification-otp",
+      {
+        method: "OPTIONS",
+        headers: {
+          origin: "http://localhost:5173",
+          "access-control-request-method": "POST",
+          "access-control-request-headers": "content-type,x-captcha-response",
+        },
+      },
+    );
+    expect(response.status).toBe(204);
+    expect(response.headers.get("access-control-allow-headers")?.toLowerCase()).toContain(
+      "x-captcha-response",
+    );
+  });
 });
 
 describe("compose stream", () => {
