@@ -115,6 +115,7 @@ export function MarketingNavbar({ onReplayTour }: NavbarProps) {
   const navLinks = [
     { to: "/", label: "Composer" },
     { to: "/improve", label: "Improve & Autopsy" },
+    { to: "/reverse-engineer", label: "Reverse Engineer" },
     { to: "/templates", label: "Templates" },
     { to: "/pricing", label: "Pricing" },
   ];
@@ -276,6 +277,8 @@ export function AppNavbar() {
   const navLinks = [
     { to: "/", label: "Composer" },
     { to: "/improve", label: "Improve" },
+    { to: "/reverse-engineer", label: "Reverse Engineer" },
+    { to: "/history", label: "History" },
     { to: "/library", label: "Library" },
     { to: "/templates", label: "Templates" },
     { to: "/settings/profile", label: "Settings" },

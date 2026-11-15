@@ -23,3 +23,9 @@ export const CheckoutInputSchema = z.object({
   seats: z.number().int().min(1).max(100).default(1),
 });
 export type CheckoutInput = z.infer<typeof CheckoutInputSchema>;
+
+export const EmulatePlanSwitchInputSchema = z.object({
+  plan: PlanTierSchema,
+  interval: BillingIntervalSchema.default("monthly"),
+});
+export type EmulatePlanSwitchInput = z.infer<typeof EmulatePlanSwitchInputSchema>;

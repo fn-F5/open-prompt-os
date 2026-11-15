@@ -198,7 +198,7 @@ export interface PromptGenerationPayload {
   readonly kind: GenerationKind;
   readonly rawInput: string;
   readonly compiledPrompt: string;
-  readonly draft?: ComposerDraft | null;
+  readonly draft?: (ComposerDraft & { readonly sourcePreviewDataUrl?: string }) | null;
   readonly mode: ComposerMode;
   readonly framework: PromptFramework;
   readonly modelId?: string | null;

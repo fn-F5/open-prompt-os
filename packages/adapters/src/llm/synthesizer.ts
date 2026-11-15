@@ -5,8 +5,16 @@ import type {
   LlmStreamEvent,
 } from "@open-prompt-os/adapter-kit";
 import { LlmProviderError } from "@open-prompt-os/adapter-kit";
-import type { ComposerDraft, RefinePromptInput } from "@open-prompt-os/contracts";
-import { diagnoseAndRefinePrompt, synthesizeCompiledPrompt } from "@open-prompt-os/core";
+import type {
+  ComposerDraft,
+  RefinePromptInput,
+  ReverseEngineerInput,
+} from "@open-prompt-os/contracts";
+import {
+  diagnoseAndRefinePrompt,
+  synthesizeCompiledPrompt,
+  synthesizeReverseEngineeredPrompt,
+} from "@open-prompt-os/core";
 
 export interface SynthesizerComposeTask {
   readonly kind: "compose";
@@ -20,12 +28,26 @@ export interface SynthesizerRefineTask {
   readonly input: RefinePromptInput;
 }
 
-export type SynthesizerTask = SynthesizerComposeTask | SynthesizerRefineTask;
+export interface SynthesizerReverseEngineerTask {
+  readonly kind: "reverse_engineer";
+  readonly input: ReverseEngineerInput;
+}
+
+export type SynthesizerTask =
+  | SynthesizerComposeTask
+  | SynthesizerRefineTask
+  | SynthesizerReverseEngineerTask;
 
 function parseTask(userPrompt: string): SynthesizerTask {
   try {
     const parsed = JSON.parse(userPrompt) as SynthesizerTask;
-    if (parsed.kind === "compose" || parsed.kind === "refine") return parsed;
+    if (
+      parsed.kind === "compose" ||
+      parsed.kind === "refine" ||
+      parsed.kind === "reverse_engineer"
+    ) {
+      return parsed;
+    }
   } catch {
     // Fall through to the provider error below.
   }
@@ -63,13 +85,17 @@ async function completeTask(request: LlmCompletionRequest): Promise<LlmCompletio
       Date.now() - started,
     );
   }
-  const refined = diagnoseAndRefinePrompt(task.input);
-  return resultFromText(
-    request,
-    JSON.stringify(refined),
-    task.input.targetModelId ?? "rule-synthesizer",
-    Date.now() - started,
-  );
+  if (task.kind === "refine") {
+    const refined = diagnoseAndRefinePrompt(task.input);
+    return resultFromText(
+      request,
+      JSON.stringify(refined),
+      task.input.targetModelId ?? "rule-synthesizer",
+      Date.now() - started,
+    );
+  }
+  const reversed = synthesizeReverseEngineeredPrompt(task.input);
+  return resultFromText(request, JSON.stringify(reversed), reversed.modelId, Date.now() - started);
 }
 
 export function createSynthesizerAdapter(): LlmProviderAdapter {

@@ -34,6 +34,19 @@ export function createAnthropicAdapter(options: AnthropicAdapterOptions): LlmPro
 
   async function post(request: LlmCompletionRequest, stream: boolean, signal: AbortSignal) {
     const model = request.modelId ?? defaultModel;
+    const userContent = request.image
+      ? [
+          {
+            type: "image",
+            source: {
+              type: "base64",
+              media_type: request.image.mimeType,
+              data: request.image.base64,
+            },
+          },
+          { type: "text", text: request.userPrompt },
+        ]
+      : request.userPrompt;
     let response: Response;
     try {
       response = await fetchImpl(`${baseUrl}/v1/messages`, {
@@ -47,7 +60,7 @@ export function createAnthropicAdapter(options: AnthropicAdapterOptions): LlmPro
           model,
           max_tokens: request.maxOutputTokens ?? 2048,
           system: request.systemPrompt,
-          messages: [{ role: "user", content: request.userPrompt }],
+          messages: [{ role: "user", content: userContent }],
           temperature: request.temperature,
           stream,
         }),

@@ -4,12 +4,20 @@ import type {
   ProviderId,
   RefinePromptInput,
   RefinePromptOutput,
+  ReverseEngineerInput,
+  ReverseEngineerOutput,
 } from "@open-prompt-os/contracts";
+
+export interface LlmImageAttachment {
+  readonly base64: string;
+  readonly mimeType: "image/png" | "image/jpeg" | "image/webp";
+}
 
 export interface LlmCompletionRequest {
   readonly requestId: string;
   readonly systemPrompt: string;
   readonly userPrompt: string;
+  readonly image?: LlmImageAttachment;
   readonly modelId?: string;
   readonly temperature?: number;
   readonly maxOutputTokens?: number;
@@ -77,6 +85,10 @@ export interface PromptOrchestrator {
     ctx: OrchestratorContext,
   ): AsyncIterable<ComposeStreamEvent>;
   refine(input: RefinePromptInput, ctx: OrchestratorContext): Promise<RefinePromptOutput>;
+  reverseEngineer(
+    input: ReverseEngineerInput,
+    ctx: OrchestratorContext,
+  ): Promise<ReverseEngineerOutput>;
   healthSnapshot(): readonly ProviderHealthSnapshot[];
 }
 

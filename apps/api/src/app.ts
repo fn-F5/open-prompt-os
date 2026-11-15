@@ -1,4 +1,5 @@
-import type { PromptOrchestrator } from "@open-prompt-os/adapter-kit";
+import type { BillingProvider, PromptOrchestrator } from "@open-prompt-os/adapter-kit";
+import { createLocalBillingEmulator } from "@open-prompt-os/adapters";
 import type { Auth } from "@open-prompt-os/auth";
 import { redactSecrets } from "@open-prompt-os/core";
 import { RPCHandler } from "@orpc/server/fetch";
@@ -10,9 +11,11 @@ import { resolveActor } from "./auth/session-resolver.js";
 import { clientKey } from "./client-key.js";
 import { createRouter } from "./router.js";
 import { registerComposeStream } from "./routes/compose-stream.js";
+import { registerStripeWebhook } from "./routes/stripe-webhook.js";
 
 export interface AppOptions {
   orchestrator: PromptOrchestrator;
+  billingProvider?: BillingProvider;
   webOrigins: readonly string[];
   trustProxy: boolean;
   allowRequest: (key: string) => boolean;
@@ -23,8 +26,10 @@ export interface AppOptions {
 
 export function createApp(options: AppOptions) {
   const app = new Hono<ApiEnv>();
+  const billingProvider = options.billingProvider ?? createLocalBillingEmulator();
   const router = createRouter({
     orchestrator: options.orchestrator,
+    billingProvider,
     webOrigins: options.webOrigins,
   });
   const rpc = new RPCHandler(router);
@@ -61,7 +66,18 @@ export function createApp(options: AppOptions) {
       credentials: true,
     }),
   );
-  app.use("*", bodyLimit({ maxSize: 32 * 1024 }));
+  const reverseEngineerBodyLimit = bodyLimit({ maxSize: 6 * 1024 * 1024 });
+  const defaultBodyLimit = bodyLimit({ maxSize: 32 * 1024 });
+  const stripeWebhookBodyLimit = bodyLimit({ maxSize: 256 * 1024 });
+  app.use("*", async (c, next) => {
+    if (c.req.path === "/rpc/prompts/reverseEngineer") {
+      return reverseEngineerBodyLimit(c, next);
+    }
+    if (c.req.path === "/api/webhooks/stripe") {
+      return stripeWebhookBodyLimit(c, next);
+    }
+    return defaultBodyLimit(c, next);
+  });
   app.get("/healthz", (c) => {
     c.header("x-request-id", c.get("requestId"));
     return c.json({ ok: true });
@@ -106,6 +122,8 @@ export function createApp(options: AppOptions) {
     }
     return options.auth.handler(c.req.raw);
   });
+
+  registerStripeWebhook(app, billingProvider);
 
   registerComposeStream(app, {
     orchestrator: options.orchestrator,

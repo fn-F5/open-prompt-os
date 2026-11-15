@@ -1,24 +1,68 @@
 import type { BillingInterval } from "@open-prompt-os/contracts";
-import { Badge, Button, Tabs } from "@open-prompt-os/ui-web";
+import { Badge, Button, Tabs, toast } from "@open-prompt-os/ui-web";
+import { useQuery } from "@tanstack/react-query";
 import { Check, ShieldCheck } from "lucide-react";
 import * as React from "react";
 import { useNavigate } from "react-router";
 import { useAuthSession } from "../hooks/use-auth-session.js";
 import { orpcClient } from "../lib/orpc.js";
+import { queryKeys } from "../lib/query-client.js";
 import { openAuthDialog } from "../state/auth-dialog-store.js";
+
+function redirectToBillingUrl(url: string, navigate: (to: string) => void): void {
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    window.location.assign(url);
+    return;
+  }
+  navigate(url);
+}
 
 export function PricingPage() {
   const { isAuthenticated } = useAuthSession();
   const navigate = useNavigate();
   const [interval, setInterval] = React.useState<BillingInterval>("monthly");
+  const [loadingPlan, setLoadingPlan] = React.useState<"pro" | "team" | "portal" | null>(null);
+
+  const billingQuery = useQuery({
+    queryKey: queryKeys.billing.status(),
+    queryFn: () => orpcClient.billing.status(),
+    enabled: isAuthenticated,
+  });
+
+  const activePlan = isAuthenticated ? (billingQuery.data?.plan ?? "free") : "free";
 
   const handleCheckout = async (plan: "pro" | "team") => {
     if (!isAuthenticated) {
       openAuthDialog({ reason: "navbar_signin", intendedRoute: "/pricing" });
       return;
     }
-    const res = await orpcClient.billing.checkout({ plan, interval, seats: 1 });
-    navigate(res.url);
+    try {
+      setLoadingPlan(plan);
+      const res = await orpcClient.billing.checkout({ plan, interval, seats: 1 });
+      redirectToBillingUrl(res.url, navigate);
+    } catch (err) {
+      toast({
+        title: "Checkout failed",
+        description: err instanceof Error ? err.message : "Could not start checkout session.",
+      });
+    } finally {
+      setLoadingPlan(null);
+    }
+  };
+
+  const handlePortal = async () => {
+    try {
+      setLoadingPlan("portal");
+      const res = await orpcClient.billing.portal();
+      redirectToBillingUrl(res.url, navigate);
+    } catch (err) {
+      toast({
+        title: "Portal unavailable",
+        description: err instanceof Error ? err.message : "Could not open billing portal.",
+      });
+    } finally {
+      setLoadingPlan(null);
+    }
   };
 
   return (
@@ -110,9 +154,25 @@ export function PricingPage() {
               </li>
             </ul>
           </div>
-          <Button variant="primary-inverse" size="lg" onClick={() => handleCheckout("pro")}>
-            Upgrade to Pro
-          </Button>
+          {activePlan === "pro" ? (
+            <Button
+              variant="primary-inverse"
+              size="lg"
+              disabled={loadingPlan !== null}
+              onClick={handlePortal}
+            >
+              {loadingPlan === "portal" ? "Opening Portal..." : "Manage Subscription"}
+            </Button>
+          ) : (
+            <Button
+              variant="primary-inverse"
+              size="lg"
+              disabled={loadingPlan !== null}
+              onClick={() => handleCheckout("pro")}
+            >
+              {loadingPlan === "pro" ? "Starting Checkout..." : "Upgrade to Pro"}
+            </Button>
+          )}
         </div>
 
         <div className="rounded-3xl p-7 sm:p-8 flat-surface flex flex-col justify-between gap-8">
@@ -145,9 +205,25 @@ export function PricingPage() {
               </li>
             </ul>
           </div>
-          <Button variant="solid" size="lg" onClick={() => handleCheckout("team")}>
-            Start Team Space
-          </Button>
+          {activePlan === "team" ? (
+            <Button
+              variant="solid"
+              size="lg"
+              disabled={loadingPlan !== null}
+              onClick={handlePortal}
+            >
+              {loadingPlan === "portal" ? "Opening Portal..." : "Manage Subscription"}
+            </Button>
+          ) : (
+            <Button
+              variant="solid"
+              size="lg"
+              disabled={loadingPlan !== null}
+              onClick={() => handleCheckout("team")}
+            >
+              {loadingPlan === "team" ? "Starting Checkout..." : "Start Team Space"}
+            </Button>
+          )}
         </div>
       </div>
 

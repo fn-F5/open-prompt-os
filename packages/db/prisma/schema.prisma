@@ -55,6 +55,7 @@ enum GenerationKind {
   compose
   refine
   autopsy
+  reverse_engineer
   guest_import
 }
 

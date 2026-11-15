@@ -26,6 +26,9 @@ const orchestrator: PromptOrchestrator = {
   async refine() {
     throw new Error("unused");
   },
+  async reverseEngineer() {
+    throw new Error("unused");
+  },
   healthSnapshot: () => [],
 };
 

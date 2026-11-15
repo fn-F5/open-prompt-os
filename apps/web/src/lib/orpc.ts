@@ -5,15 +5,20 @@ import type {
   ComposePromptInput,
   ComposePromptOutput,
   ComposerMode,
+  EmulatePlanSwitchInput,
+  GenerationKind,
   ImportGuestInteractionInput,
   ImportGuestInteractionOutput,
   ModelOption,
   OnboardingPreferences,
   PromptFramework,
+  PromptGenerationItem,
   PromptTemplate,
   ProviderHealth,
   RefinePromptInput,
   RefinePromptOutput,
+  ReverseEngineerInput,
+  ReverseEngineerOutput,
   SavePromptInput,
   SavedPromptItem,
   SystemHealth,
@@ -23,6 +28,7 @@ import {
   analyzePromptVariables,
   diagnoseAndRefinePrompt,
   synthesizeCompiledPrompt,
+  synthesizeReverseEngineeredPrompt,
 } from "@open-prompt-os/core";
 import { authClient } from "./auth-client.js";
 import { createCorrelationHeaders } from "./telemetry.js";
@@ -278,6 +284,77 @@ let savedPromptsStore: SavedPromptItem[] = [
   },
 ];
 
+const SAMPLE_THUMB_DATA_URL =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+
+const SEED_GENERATIONS: PromptGenerationItem[] = [
+  {
+    id: "gen_seed_compose_1",
+    kind: "compose",
+    rawInput: "Design a resilient webhook delivery pipeline for [Tenant_Scale] events per minute.",
+    compiledPrompt:
+      "# OPERATIONAL PROMPT SPECIFICATION\nRole: Principal Backend Engineer.\n\nArchitect an idempotent webhook dispatcher handling [Tenant_Scale] events/min with exponential backoff and dead-letter replay.",
+    draft: {
+      rawInput:
+        "Design a resilient webhook delivery pipeline for [Tenant_Scale] events per minute.",
+      mode: "text",
+      modelId: "claude-3-7-sonnet",
+      framework: "costar",
+      constraints: ["Bounded retry budget"],
+      guardrails: [],
+      advanced: {},
+    },
+    inputImageUrl: null,
+    mode: "text",
+    framework: "costar",
+    modelId: "claude-3-7-sonnet",
+    providerId: "anthropic",
+    latencyMs: 148,
+    createdAt: "2026-11-10T10:15:00.000Z",
+  },
+  {
+    id: "gen_seed_reveng_1",
+    kind: "reverse_engineer",
+    rawInput: "Match editorial rim lighting and moody cyberpunk street composition",
+    compiledPrompt:
+      "# RECONSTRUCTED VISUAL PROMPT\nSubject: Rain-slicked neon alley with lone courier silhouette.\nLighting: Cool cyan fill with sharp amber rim light.",
+    draft: {
+      rawInput:
+        "Rain-slicked neon alley with lone courier silhouette, cool cyan fill with sharp amber rim light.",
+      mode: "image",
+      modelId: "imagen-3-pro",
+      framework: "costar",
+      constraints: [],
+      guardrails: [],
+      advanced: {},
+    },
+    inputImageUrl: SAMPLE_THUMB_DATA_URL,
+    mode: "image",
+    framework: "costar",
+    modelId: "imagen-3-pro",
+    providerId: "gemini",
+    latencyMs: 312,
+    createdAt: "2026-11-11T16:40:00.000Z",
+  },
+  {
+    id: "gen_seed_autopsy_1",
+    kind: "autopsy",
+    rawInput: "Summarize support tickets into JSON.",
+    compiledPrompt:
+      "# OPTIMIZED SPECIFICATION\nReturn valid JSON matching `{ summary: string, severity: 'low' | 'medium' | 'high' }` for [Support_Thread].",
+    draft: null,
+    inputImageUrl: null,
+    mode: "text",
+    framework: "costar",
+    modelId: "gpt-4.1",
+    providerId: "openai",
+    latencyMs: 195,
+    createdAt: "2026-11-12T08:25:00.000Z",
+  },
+];
+
+let generationsStore: PromptGenerationItem[] = [...SEED_GENERATIONS];
+
 let onboardingPrefsStore: OnboardingPreferences = {
   dismissedHotspots: {},
   completedTours: {},
@@ -286,6 +363,7 @@ let onboardingPrefsStore: OnboardingPreferences = {
 export function resetOrpcTestState(): void {
   importedInteractionIds.clear();
   guestRemainingQuota = 5;
+  generationsStore = [...SEED_GENERATIONS];
   onboardingPrefsStore = {
     dismissedHotspots: {},
     completedTours: {},
@@ -394,6 +472,17 @@ async function readServerSentEvents(
       if (dataLines.length > 0) onEvent(event, dataLines.join("\n"));
     }
   }
+}
+
+let emulatedPlanOverride: BillingStatus["plan"] | null = null;
+authClient.subscribe(() => {
+  emulatedPlanOverride = null;
+});
+
+function emulatedLimitFor(plan: BillingStatus["plan"]): number {
+  if (plan === "team") return 2000;
+  if (plan === "pro") return 500;
+  return 50;
 }
 
 export const orpcClient = {
@@ -506,6 +595,24 @@ export const orpcClient = {
 
       if (!session.isAuthenticated) {
         guestRemainingQuota = Math.max(0, guestRemainingQuota - 1);
+      } else {
+        generationsStore = [
+          {
+            id: `gen_compose_${Date.now().toString(36)}`,
+            kind: "compose",
+            rawInput: input.draft.rawInput,
+            compiledPrompt: synthesized.compiledPrompt,
+            draft: input.draft,
+            inputImageUrl: null,
+            mode: input.draft.mode,
+            framework: input.draft.framework ?? "costar",
+            modelId: input.draft.modelId,
+            providerId: synthesized.providerId,
+            latencyMs: synthesized.latencyMs,
+            createdAt: new Date().toISOString(),
+          },
+          ...generationsStore,
+        ];
       }
 
       return {
@@ -535,6 +642,23 @@ export const orpcClient = {
         return postRpc<RefinePromptOutput>("/rpc/prompts/refine", input, undefined, headers);
       }
       const res = diagnoseAndRefinePrompt(input);
+      generationsStore = [
+        {
+          id: `gen_${input.mode === "autopsy" ? "autopsy" : "refine"}_${Date.now().toString(36)}`,
+          kind: input.mode === "autopsy" ? "autopsy" : "refine",
+          rawInput: input.originalPrompt,
+          compiledPrompt: res.optimizedPrompt,
+          draft: null,
+          inputImageUrl: null,
+          mode: "text",
+          framework: "costar",
+          modelId: res.modelId,
+          providerId: res.providerId,
+          latencyMs: res.latencyMs,
+          createdAt: new Date().toISOString(),
+        },
+        ...generationsStore,
+      ];
       return {
         ...res,
         requestId: headers["x-request-id"],
@@ -562,6 +686,53 @@ export const orpcClient = {
         return postRpc<RefinePromptOutput>("/rpc/prompts/autopsy", enriched, undefined, headers);
       }
       return orpcClient.prompts.refine(enriched);
+    },
+
+    async reverseEngineer(input: ReverseEngineerInput): Promise<ReverseEngineerOutput> {
+      const headers = createCorrelationHeaders();
+      if (!input.imageBase64.trim()) {
+        throw new OrpcClientError(
+          "VALIDATION_ERROR",
+          "Image payload is required for reverse engineering.",
+          headers["x-request-id"],
+        );
+      }
+      if (remoteApiUrl() !== undefined) {
+        return postRpc<ReverseEngineerOutput>(
+          "/rpc/prompts/reverseEngineer",
+          input,
+          undefined,
+          headers,
+        );
+      }
+      const res = synthesizeReverseEngineeredPrompt(input);
+      const offlinePreview =
+        input.previewImageDataUrl ??
+        (input.imageBase64.length <= 120_000
+          ? `data:${input.mimeType};base64,${input.imageBase64}`
+          : null);
+      generationsStore = [
+        {
+          id: `gen_reveng_${Date.now().toString(36)}`,
+          kind: "reverse_engineer",
+          rawInput: input.focusNotes?.trim() || `[Image Upload: ${input.mimeType}]`,
+          compiledPrompt: res.reconstructedPrompt,
+          draft: res.suggestedDraft,
+          inputImageUrl: offlinePreview,
+          mode: input.targetMode,
+          framework: "costar",
+          modelId: res.modelId,
+          providerId: res.providerId,
+          latencyMs: res.latencyMs,
+          createdAt: new Date().toISOString(),
+        },
+        ...generationsStore,
+      ];
+      return {
+        ...res,
+        remainingDailyRuns: 2,
+        requestId: headers["x-request-id"],
+      };
     },
 
     async importGuestInteraction(
@@ -655,6 +826,44 @@ export const orpcClient = {
             item.rawInput.toLowerCase().includes(q) ||
             item.compiledPrompt.toLowerCase().includes(q) ||
             item.tags.some((t) => t.toLowerCase().includes(q)),
+        );
+      }
+      return {
+        items,
+        nextCursor: null,
+      };
+    },
+
+    async generations(filters?: {
+      kind?: GenerationKind;
+      mode?: ComposerMode;
+      search?: string;
+      cursor?: string;
+      limit?: number;
+    }): Promise<{ items: PromptGenerationItem[]; nextCursor: string | null }> {
+      const headers = createCorrelationHeaders();
+      if (remoteApiUrl() !== undefined) {
+        return postRpc<{ items: PromptGenerationItem[]; nextCursor: string | null }>(
+          "/rpc/prompts/generations",
+          filters ?? {},
+          undefined,
+          headers,
+        );
+      }
+
+      let items = [...generationsStore];
+      if (filters?.kind) {
+        items = items.filter((item) => item.kind === filters.kind);
+      }
+      if (filters?.mode) {
+        items = items.filter((item) => item.mode === filters.mode);
+      }
+      if (filters?.search?.trim()) {
+        const q = filters.search.trim().toLowerCase();
+        items = items.filter(
+          (item) =>
+            item.rawInput.toLowerCase().includes(q) ||
+            item.compiledPrompt.toLowerCase().includes(q),
         );
       }
       return {
@@ -887,15 +1096,16 @@ export const orpcClient = {
       const session = authClient.getSession();
       const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
       if (session.isAuthenticated) {
-        const isPro = session.user?.plan === "pro";
+        const plan = emulatedPlanOverride ?? session.user?.plan ?? "free";
+        const limit = emulatedLimitFor(plan);
         return {
-          plan: session.user?.plan ?? "free",
+          plan,
           status: "active",
-          remainingDailyPrompts: isPro ? 500 : 48,
-          dailyLimit: isPro ? 500 : 50,
+          remainingDailyPrompts: limit,
+          dailyLimit: limit,
           resetAt: tomorrow,
           seats: 1,
-          currentPeriodEnd: tomorrow,
+          currentPeriodEnd: plan === "free" ? null : tomorrow,
         };
       }
       return {
@@ -918,15 +1128,33 @@ export const orpcClient = {
     },
 
     async checkout(input: CheckoutInput): Promise<{ url: string }> {
+      const headers = createCorrelationHeaders();
+      if (remoteApiUrl() !== undefined) {
+        return postRpc<{ url: string }>("/rpc/billing/checkout", input, undefined, headers);
+      }
+      emulatedPlanOverride = input.plan;
       return {
-        url: `/billing/return?plan=${input.plan}&interval=${input.interval}&status=success`,
+        url: `/billing/return?plan=${input.plan}&emulated=1`,
       };
     },
 
     async portal(): Promise<{ url: string }> {
+      const headers = createCorrelationHeaders();
+      if (remoteApiUrl() !== undefined) {
+        return postRpc<{ url: string }>("/rpc/billing/portal", {}, undefined, headers);
+      }
       return {
-        url: "/settings/profile",
+        url: "/settings/profile?portal=emulated",
       };
+    },
+
+    async emulatePlan(input: EmulatePlanSwitchInput): Promise<BillingStatus> {
+      const headers = createCorrelationHeaders();
+      if (remoteApiUrl() !== undefined) {
+        return postRpc<BillingStatus>("/rpc/billing/emulatePlan", input, undefined, headers);
+      }
+      emulatedPlanOverride = input.plan;
+      return orpcClient.billing.status();
     },
   },
 };

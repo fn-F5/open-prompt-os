@@ -4,6 +4,8 @@ import type {
   ComposePromptOutput,
   RefinePromptInput,
   RefinePromptOutput,
+  ReverseEngineerInput,
+  ReverseEngineerOutput,
 } from "@open-prompt-os/contracts";
 import { isInputGuardError, redactSecrets } from "@open-prompt-os/core";
 import { ORPCError } from "@orpc/server";
@@ -106,6 +108,56 @@ export async function executeRefine(
     });
 
     return result;
+  } catch (error) {
+    failure(error, ctx.requestId);
+  }
+}
+
+export async function executeReverseEngineer(
+  orchestrator: PromptOrchestrator,
+  input: ReverseEngineerInput,
+  ctx: OrchestratorContext & { actor: ResolvedActor },
+): Promise<ReverseEngineerOutput> {
+  const quota = await checkQuota(ctx.actor, "reverse_engineer");
+  if (!quota.allowed) {
+    throw new ORPCError("FORBIDDEN", {
+      message:
+        "QUOTA_EXCEEDED: Daily limit reached for Reverse Engineer. Upgrade your plan or try again tomorrow.",
+      data: { requestId: ctx.requestId, code: "QUOTA_EXCEEDED" },
+    });
+  }
+
+  try {
+    const started = Date.now();
+    const result = await orchestrator.reverseEngineer(input, ctx);
+    const latencyMs = result.latencyMs || Date.now() - started;
+
+    await recordUsage(ctx.actor, "reverse_engineer");
+
+    const fallbackPreview =
+      input.imageBase64.length <= 120_000
+        ? `data:${input.mimeType};base64,${input.imageBase64}`
+        : undefined;
+    const sourcePreviewDataUrl = input.previewImageDataUrl ?? fallbackPreview;
+
+    await recordPromptGeneration(ctx.actor, {
+      kind: "reverse_engineer",
+      rawInput: input.focusNotes?.trim() || `[Image Upload: ${input.mimeType}]`,
+      compiledPrompt: result.reconstructedPrompt,
+      draft: sourcePreviewDataUrl
+        ? { ...result.suggestedDraft, sourcePreviewDataUrl }
+        : result.suggestedDraft,
+      mode: input.targetMode,
+      framework: "costar",
+      modelId: result.modelId,
+      providerId: result.providerId,
+      latencyMs,
+    });
+
+    return {
+      ...result,
+      remainingDailyRuns: Math.max(0, quota.remainingDaily - 1),
+    };
   } catch (error) {
     failure(error, ctx.requestId);
   }

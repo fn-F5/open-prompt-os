@@ -1,4 +1,4 @@
-import type { ComposerMode, PromptFramework } from "@open-prompt-os/contracts";
+import type { ComposerMode, GenerationKind, PromptFramework } from "@open-prompt-os/contracts";
 import { QueryClient } from "@tanstack/react-query";
 
 export const queryKeys = {
@@ -6,6 +6,8 @@ export const queryKeys = {
     all: ["prompts"] as const,
     history: (filters?: { search?: string; category?: string; mode?: ComposerMode }) =>
       ["prompts", "history", filters ?? {}] as const,
+    generations: (filters?: { kind?: GenerationKind; mode?: ComposerMode; search?: string }) =>
+      ["prompts", "generations", filters ?? {}] as const,
     library: (filters?: { search?: string; category?: string; mode?: ComposerMode }) =>
       ["prompts", "library", filters ?? {}] as const,
     shared: (shareId: string) => ["prompts", "shared", shareId] as const,

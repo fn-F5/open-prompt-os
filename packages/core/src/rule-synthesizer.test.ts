@@ -5,6 +5,7 @@ import {
   diagnoseAndRefinePrompt,
   generateFollowUpQuestions,
   synthesizeCompiledPrompt,
+  synthesizeReverseEngineeredPrompt,
 } from "./rule-synthesizer.js";
 
 function makeDraft(overrides: Partial<ComposerDraft> = {}): ComposerDraft {
@@ -131,5 +132,39 @@ describe("diagnoseAndRefinePrompt", () => {
     expect(autopsy.optimizedPrompt).toContain("REJECT prior failure pattern");
     expect(autopsy.modelId).toBe("gpt-4.1");
     expect(autopsy.summary).toContain("Diagnosed 1 structural failure vectors");
+  });
+});
+
+describe("synthesizeReverseEngineeredPrompt", () => {
+  it("builds structured visual and video motion prompts with breakdown and suggestedDraft", () => {
+    const baseInput = {
+      imageBase64: "A".repeat(64),
+      mimeType: "image/png" as const,
+      focusNotes: "Emphasize chiaroscuro shadows",
+    };
+
+    const imageOut = synthesizeReverseEngineeredPrompt({
+      ...baseInput,
+      targetMode: "image",
+    });
+    expect(imageOut.providerId).toBe("rule-synthesizer");
+    expect(imageOut.modelId).toBe("imagen-3-pro");
+    expect(imageOut.reconstructedPrompt).toContain("RECONSTRUCTED VISUAL PROMPT");
+    expect(imageOut.reconstructedPrompt).toContain("Emphasize chiaroscuro shadows");
+    expect(imageOut.detectedVariables).toEqual(["Primary_Subject", "Color_Palette"]);
+    expect(imageOut.breakdown.subject).toContain("[Primary_Subject]");
+    expect(imageOut.breakdown.negativePrompt.length).toBeGreaterThan(0);
+    expect(imageOut.suggestedDraft.mode).toBe("image");
+    expect(imageOut.suggestedDraft.rawInput).toBe(imageOut.reconstructedPrompt);
+
+    const videoOut = synthesizeReverseEngineeredPrompt({
+      ...baseInput,
+      targetMode: "video",
+      targetModelId: "sora-turbo",
+    });
+    expect(videoOut.modelId).toBe("sora-turbo");
+    expect(videoOut.reconstructedPrompt).toContain("RECONSTRUCTED VIDEO MOTION PROMPT");
+    expect(videoOut.suggestedDraft.mode).toBe("video");
+    expect(videoOut.suggestedDraft.modelId).toBe("sora-turbo");
   });
 });

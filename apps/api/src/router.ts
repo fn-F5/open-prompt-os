@@ -1,15 +1,22 @@
-import type { PromptOrchestrator } from "@open-prompt-os/adapter-kit";
+import type { BillingProvider, PromptOrchestrator } from "@open-prompt-os/adapter-kit";
 import { MODEL_CATALOG } from "@open-prompt-os/adapters";
 import { appContract } from "@open-prompt-os/contracts";
 import type { ComposerMode } from "@open-prompt-os/contracts";
 import { prisma } from "@open-prompt-os/db";
-import { ORPCError, implement } from "@orpc/server";
+import { implement } from "@orpc/server";
 import type { ResolvedActor } from "./auth/session-resolver.js";
-import { executeCompose, executeRefine } from "./procedures/prompts.js";
+import { executeCompose, executeRefine, executeReverseEngineer } from "./procedures/prompts.js";
+import {
+  createCustomerPortalSession,
+  refreshBillingStatus,
+  startCheckoutSession,
+  switchEmulatedPlan,
+} from "./services/billing-service.js";
 import {
   deletePrompt,
   getSharedPrompt,
   importGuestInteraction,
+  listPromptGenerations,
   listPromptHistory,
   savePrompt,
   sharePrompt,
@@ -26,6 +33,7 @@ export interface RequestContext {
 
 export interface RouterDeps {
   orchestrator: PromptOrchestrator;
+  billingProvider: BillingProvider;
   webOrigins?: readonly string[];
 }
 
@@ -90,6 +98,13 @@ export function createRouter(deps: RouterDeps) {
           },
         );
       }),
+      reverseEngineer: os.prompts.reverseEngineer.handler(async ({ input, context, signal }) => {
+        return executeReverseEngineer(deps.orchestrator, input, {
+          requestId: context.requestId,
+          actor: context.actor,
+          signal: signal ?? context.signal,
+        });
+      }),
       importGuestInteraction: os.prompts.importGuestInteraction.handler(
         async ({ input, context }) => {
           return importGuestInteraction(context.actor, input);
@@ -97,6 +112,9 @@ export function createRouter(deps: RouterDeps) {
       ),
       history: os.prompts.history.handler(async ({ input, context }) => {
         return listPromptHistory(context.actor, input);
+      }),
+      generations: os.prompts.generations.handler(async ({ input, context }) => {
+        return listPromptGenerations(context.actor, input);
       }),
       save: os.prompts.save.handler(async ({ input, context }) => {
         return savePrompt(context.actor, input);
@@ -158,13 +176,18 @@ export function createRouter(deps: RouterDeps) {
         return getBillingStatus(context.actor);
       }),
       refresh: os.billing.refresh.handler(async ({ context }) => {
-        return getBillingStatus(context.actor);
+        return refreshBillingStatus(context.actor, deps.billingProvider);
       }),
-      checkout: os.billing.checkout.handler(async () => {
-        throw new ORPCError("BAD_REQUEST", { message: "Billing is not enabled." });
+      checkout: os.billing.checkout.handler(async ({ input, context }) => {
+        const origin = deps.webOrigins?.[0] ?? "http://localhost:5173";
+        return startCheckoutSession(context.actor, input, deps.billingProvider, origin);
       }),
-      portal: os.billing.portal.handler(async () => {
-        throw new ORPCError("BAD_REQUEST", { message: "Billing is not enabled." });
+      portal: os.billing.portal.handler(async ({ context }) => {
+        const origin = deps.webOrigins?.[0] ?? "http://localhost:5173";
+        return createCustomerPortalSession(context.actor, deps.billingProvider, origin);
+      }),
+      emulatePlan: os.billing.emulatePlan.handler(async ({ input, context }) => {
+        return switchEmulatedPlan(context.actor, input, deps.billingProvider);
       }),
     },
   });
