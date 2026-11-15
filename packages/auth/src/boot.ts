@@ -3,7 +3,10 @@ const PRODUCTION_ORIGIN = "https://openpromptos.com";
 export interface AuthBootConfig {
   readonly nodeEnv: "development" | "test" | "production";
   readonly databaseUrl: string;
-  readonly secret: string;
+  /** Legacy single secret. With `secrets`, only used to decrypt pre-rotation payloads. */
+  readonly secret?: string;
+  /** Versioned secrets, current first. Older entries are decrypt/verify-only. */
+  readonly secrets?: readonly AuthSecret[];
   readonly baseURL: string;
   readonly trustedOrigins: readonly string[];
   readonly rpID: string;
@@ -21,6 +24,57 @@ export interface AuthBootConfig {
   readonly secureCookies: boolean;
 }
 
+export interface AuthSecret {
+  readonly version: number;
+  readonly value: string;
+}
+
+const MIN_SECRET_LENGTH = 32;
+
+function fail(message: string): never {
+  throw new Error(`Refusing to start. ${message}`);
+}
+
+/** Parses `BETTER_AUTH_SECRETS` (`<version>:<secret>,...`, current first). */
+export function parseAuthSecrets(raw: string | undefined): AuthSecret[] | undefined {
+  const trimmed = raw?.trim();
+  if (!trimmed) return undefined;
+  const seen = new Set<number>();
+  return trimmed.split(",").map((entry, index) => {
+    const position = index + 1;
+    const colon = entry.indexOf(":");
+    if (colon === -1) {
+      fail(`BETTER_AUTH_SECRETS entry ${position} must use the format <version>:<secret>.`);
+    }
+    const versionText = entry.slice(0, colon).trim();
+    const value = entry.slice(colon + 1).trim();
+    if (!/^\d+$/.test(versionText)) {
+      fail(`BETTER_AUTH_SECRETS entry ${position} must have a non-negative integer version.`);
+    }
+    const version = Number(versionText);
+    if (seen.has(version)) fail(`BETTER_AUTH_SECRETS has duplicate version ${version}.`);
+    seen.add(version);
+    if (!value) fail(`BETTER_AUTH_SECRETS version ${version} has an empty secret.`);
+    return { version, value };
+  });
+}
+
+function assertProductionSecret(name: string, value: string): void {
+  if (value.length < MIN_SECRET_LENGTH || value.toLowerCase().includes("development")) {
+    fail(`${name} is not a production secret.`);
+  }
+}
+
+function assertSecretLength(name: string, value: string): void {
+  if (value.length < MIN_SECRET_LENGTH) {
+    fail(`${name} must be at least ${MIN_SECRET_LENGTH} characters.`);
+  }
+}
+
+function secretsLabel(secret: AuthSecret): string {
+  return `BETTER_AUTH_SECRETS version ${secret.version}`;
+}
+
 function required(env: Record<string, string | undefined>, name: string): string {
   const value = env[name]?.trim() ?? "";
   if (!value) throw new Error(`Refusing to start. ${name} is required.`);
@@ -32,10 +86,15 @@ export function loadAuthBoot(env: Record<string, string | undefined>): AuthBootC
   if (nodeEnv !== "development" && nodeEnv !== "test" && nodeEnv !== "production") {
     throw new Error("Refusing to start. Set NODE_ENV to development, test, or production.");
   }
+  const secrets = parseAuthSecrets(env.BETTER_AUTH_SECRETS);
+  const legacySecret = env.BETTER_AUTH_SECRET?.trim() || undefined;
+
   if (nodeEnv === "production") {
-    const secret = required(env, "BETTER_AUTH_SECRET");
-    if (secret.length < 32 || secret.toLowerCase().includes("development")) {
-      throw new Error("Refusing to start. BETTER_AUTH_SECRET is not a production secret.");
+    if (secrets) {
+      for (const entry of secrets) assertProductionSecret(secretsLabel(entry), entry.value);
+      if (legacySecret) assertProductionSecret("BETTER_AUTH_SECRET", legacySecret);
+    } else {
+      assertProductionSecret("BETTER_AUTH_SECRET", required(env, "BETTER_AUTH_SECRET"));
     }
     if (env.BETTER_AUTH_URL !== PRODUCTION_ORIGIN) {
       throw new Error("Refusing to start. BETTER_AUTH_URL must be https://openpromptos.com.");
@@ -55,9 +114,11 @@ export function loadAuthBoot(env: Record<string, string | undefined>): AuthBootC
 
   const databaseUrl = env.DATABASE_URL?.trim();
   if (!databaseUrl) return null;
-  const secret = env.BETTER_AUTH_SECRET?.trim() ?? "";
-  if (secret.length < 32) {
-    throw new Error("Refusing to start. BETTER_AUTH_SECRET must be at least 32 characters.");
+  if (secrets) {
+    for (const entry of secrets) assertSecretLength(secretsLabel(entry), entry.value);
+    if (legacySecret) assertSecretLength("BETTER_AUTH_SECRET", legacySecret);
+  } else {
+    assertSecretLength("BETTER_AUTH_SECRET", legacySecret ?? "");
   }
   const baseURL = (env.BETTER_AUTH_URL ?? "http://localhost:3001").replace(/\/$/, "");
   const trustedOrigins = (env.WEB_ORIGINS ?? "http://localhost:5173")
@@ -70,7 +131,8 @@ export function loadAuthBoot(env: Record<string, string | undefined>): AuthBootC
   return {
     nodeEnv,
     databaseUrl,
-    secret,
+    secret: legacySecret,
+    secrets,
     baseURL,
     trustedOrigins,
     rpID,

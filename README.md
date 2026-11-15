@@ -142,8 +142,27 @@ pnpm --filter @open-prompt-os/db db:seed        # plan limits + gallery template
    openssl rand -hex 32
    ```
 
+   To rotate the secret later without logging users out, see [Rotating the auth secret](#rotating-the-auth-secret).
+
 2. Optionally add one or more LLM provider keys (`GEMINI_API_KEY`, `OPENAI_API_KEY`, `GROQ_API_KEY`, `OPENROUTER_API_KEY`, `ANTHROPIC_API_KEY`, or `OLLAMA_BASE_URL`). Without external keys, the API boots with the built-in synthesizer adapter.
 3. For email OTP sign-in in local development, keep `MAIL_PROVIDER=console` — sign-in codes are printed to the API terminal.
+
+### Rotating the auth secret
+
+`BETTER_AUTH_SECRETS` holds versioned secrets as comma-separated `<version>:<secret>` pairs, current first. The first entry signs and encrypts all new data; older entries only decrypt or verify existing data, which is re-encrypted with the current key on its next write. Every entry must meet the same rules as `BETTER_AUTH_SECRET`.
+
+1. **First switch:** keep your existing secret as version 1 so current sessions keep working, and leave `BETTER_AUTH_SECRET` set as the fallback for data written before versioning:
+
+   ```bash
+   BETTER_AUTH_SECRET=<existing-secret>
+   BETTER_AUTH_SECRETS=1:<existing-secret>
+   ```
+
+2. **Rotate:** put a new secret in front with a higher version: `BETTER_AUTH_SECRETS=2:<new-secret>,1:<existing-secret>`.
+3. **Retire:** drop old entries once your longest session lifetime has passed.
+
+> [!WARNING]
+> Rotation is for routine key changes. If a secret leaks, remove it immediately instead of keeping it as an older entry. That logs out affected users and makes data encrypted only with that key unreadable, which is the point.
 
 ### Running the Application
 

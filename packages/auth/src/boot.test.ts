@@ -24,6 +24,7 @@ describe("production boot", () => {
       nodeEnv: "production",
       databaseUrl: "postgresql://app@db.internal:5432/open_prompt_os",
       secret: "a".repeat(40),
+      secrets: undefined,
       baseURL: "https://openpromptos.com",
       trustedOrigins: ["https://openpromptos.com"],
       rpID: "openpromptos.com",
@@ -66,7 +67,7 @@ describe("production boot", () => {
     expect(() => loadAuthBoot({ ...production, BETTER_AUTH_SECRET: "a".repeat(31) })).toThrow(
       "Refusing to start. BETTER_AUTH_SECRET is not a production secret.",
     );
-    expect(loadAuthBoot({ ...production, BETTER_AUTH_SECRET: "a".repeat(32) })?.secret.length).toBe(
+    expect(loadAuthBoot({ ...production, BETTER_AUTH_SECRET: "a".repeat(32) })?.secret?.length).toBe(
       32,
     );
     expect(() =>
@@ -244,5 +245,79 @@ describe("production boot", () => {
         BETTER_AUTH_SECRET: "too-short",
       }),
     ).toThrow(/BETTER_AUTH_SECRET must be at least 32 characters/);
+  });
+});
+
+describe("versioned secrets (BETTER_AUTH_SECRETS)", () => {
+  const current = "n".repeat(40);
+  const previous = "o".repeat(40);
+  const productionRotation = {
+    ...production,
+    BETTER_AUTH_SECRET: undefined,
+    BETTER_AUTH_SECRETS: `2:${current}, 1:${previous}`,
+  };
+
+  it("parses versions in order with the current secret first", () => {
+    const boot = loadAuthBoot(productionRotation);
+    expect(boot?.secrets).toEqual([
+      { version: 2, value: current },
+      { version: 1, value: previous },
+    ]);
+    expect(boot?.secret).toBeUndefined();
+  });
+
+  it("keeps BETTER_AUTH_SECRET as the legacy fallback alongside versioned secrets", () => {
+    const boot = loadAuthBoot({ ...productionRotation, BETTER_AUTH_SECRET: "a".repeat(40) });
+    expect(boot?.secret).toBe("a".repeat(40));
+    expect(boot?.secrets).toHaveLength(2);
+  });
+
+  it("keeps the colon inside secret values", () => {
+    const value = `abc:${"d".repeat(40)}`;
+    const boot = loadAuthBoot({ ...baseTestEnv, BETTER_AUTH_SECRETS: `1:${value}` });
+    expect(boot?.secrets).toEqual([{ version: 1, value }]);
+  });
+
+  it("rejects malformed entries", () => {
+    expect(() => loadAuthBoot({ ...productionRotation, BETTER_AUTH_SECRETS: current })).toThrow(
+      "BETTER_AUTH_SECRETS entry 1 must use the format <version>:<secret>.",
+    );
+    expect(() =>
+      loadAuthBoot({ ...productionRotation, BETTER_AUTH_SECRETS: `v2:${current}` }),
+    ).toThrow("BETTER_AUTH_SECRETS entry 1 must have a non-negative integer version.");
+    expect(() =>
+      loadAuthBoot({ ...productionRotation, BETTER_AUTH_SECRETS: `1.5:${current}` }),
+    ).toThrow(/non-negative integer version/);
+    expect(() =>
+      loadAuthBoot({ ...productionRotation, BETTER_AUTH_SECRETS: `2:${current},2:${previous}` }),
+    ).toThrow("BETTER_AUTH_SECRETS has duplicate version 2.");
+    expect(() =>
+      loadAuthBoot({ ...productionRotation, BETTER_AUTH_SECRETS: `2:${current},1:` }),
+    ).toThrow("BETTER_AUTH_SECRETS version 1 has an empty secret.");
+  });
+
+  it("applies production checks to every versioned secret", () => {
+    expect(() =>
+      loadAuthBoot({ ...productionRotation, BETTER_AUTH_SECRETS: `2:${current},1:short` }),
+    ).toThrow("Refusing to start. BETTER_AUTH_SECRETS version 1 is not a production secret.");
+    expect(() =>
+      loadAuthBoot({
+        ...productionRotation,
+        BETTER_AUTH_SECRETS: `2:DEVELOPMENT_${"x".repeat(25)}`,
+      }),
+    ).toThrow("Refusing to start. BETTER_AUTH_SECRETS version 2 is not a production secret.");
+    expect(() => loadAuthBoot({ ...productionRotation, BETTER_AUTH_SECRET: "short" })).toThrow(
+      "Refusing to start. BETTER_AUTH_SECRET is not a production secret.",
+    );
+  });
+
+  it("applies the minimum length outside production", () => {
+    expect(() =>
+      loadAuthBoot({ ...baseTestEnv, BETTER_AUTH_SECRETS: `1:${"b".repeat(31)}` }),
+    ).toThrow("Refusing to start. BETTER_AUTH_SECRETS version 1 must be at least 32 characters.");
+  });
+
+  it("treats a blank BETTER_AUTH_SECRETS as unset", () => {
+    expect(loadAuthBoot({ ...baseTestEnv, BETTER_AUTH_SECRETS: "  " })?.secrets).toBeUndefined();
   });
 });

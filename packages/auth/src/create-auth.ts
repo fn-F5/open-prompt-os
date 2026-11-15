@@ -112,6 +112,9 @@ export function createAuth(options: CreateAuthOptions): AuthServer {
   return betterAuth({
     appName: "OpenPrompt OS",
     secret: options.boot.secret,
+    ...(options.boot.secrets
+      ? { secrets: options.boot.secrets.map((entry) => ({ ...entry })) }
+      : {}),
     baseURL: options.boot.baseURL,
     trustedOrigins: [...options.boot.trustedOrigins],
     database: prismaAdapter(options.db, { provider: "postgresql" }),
