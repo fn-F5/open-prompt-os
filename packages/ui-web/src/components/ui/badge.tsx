@@ -8,19 +8,19 @@ export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 
 const BADGE_CLASSES: Record<BadgeVariant, string> = {
   neutral:
-    "bg-[var(--surface-2)] text-[var(--text-secondary)] border border-[var(--separator-subtle)] font-medium",
+    "bg-[var(--surface-2)] text-[var(--text-secondary)] border border-[var(--separator-subtle)] font-normal",
   framework:
-    "bg-[var(--accent-subtle-bg)] text-[var(--accent-text)] border border-[var(--separator-strong)] font-medium",
+    "bg-[var(--accent-subtle-bg)] text-[var(--accent-text)] border border-[var(--separator-strong)] font-normal",
   diagnostic:
-    "bg-[var(--cyan-subtle-bg)] text-[var(--cyan-text)] border border-[var(--accent-cyan)] font-medium",
+    "bg-[var(--cyan-subtle-bg)] text-[var(--cyan-text)] border border-[var(--accent-cyan)] font-normal",
   danger:
-    "bg-[var(--danger-bg)] text-[var(--danger-text)] border border-[var(--danger-text)] font-medium",
+    "bg-[var(--danger-bg)] text-[var(--danger-text)] border border-[var(--danger-text)] font-normal",
 };
 
 export function Badge({ className = "", variant = "neutral", ...props }: BadgeProps) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs sm:text-sm rounded-full leading-5 ${BADGE_CLASSES[variant]} ${className}`}
+      className={`inline-flex items-center gap-1.5 px-3 py-1 font-mono text-xs uppercase tracking-[0.08em] rounded-full leading-5 ${BADGE_CLASSES[variant]} ${className}`}
       {...props}
     />
   );

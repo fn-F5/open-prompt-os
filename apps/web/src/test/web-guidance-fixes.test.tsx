@@ -4,14 +4,19 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import * as React from "react";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { AppRoutes } from "../app-routes.js";
 import { GuidedParameters } from "../components/composer/guided-parameters.js";
 import { ModelPicker } from "../components/composer/model-picker.js";
 import { PromptComposer } from "../components/composer/prompt-composer.js";
 import { MarketingNavbar } from "../components/navigation/navbar.js";
+import { useCardParallax } from "../hooks/use-card-parallax.js";
 import { useTypingPlaceholder } from "../hooks/use-typing-placeholder.js";
+import { authClient } from "../lib/auth-client.js";
+import { clearGuestInteraction } from "../lib/guest-session-manager.js";
 import { resetOrpcTestState } from "../lib/orpc.js";
 import { createAppQueryClient } from "../lib/query-client.js";
 import { clearStorageForTest } from "../lib/storage.js";
+import { resetAuthDialogStoreForTest } from "../state/auth-dialog-store.js";
 import { composerActions } from "../state/composer-store.js";
 
 describe("Modern Web Guidance fixes", () => {
@@ -125,9 +130,24 @@ describe("Modern Web Guidance fixes", () => {
       const listbox = await screen.findByRole("listbox", { name: "Compatible AI models" });
       expect(trigger).toHaveAttribute("aria-expanded", "true");
       expect(listbox.closest("[popover]")).not.toBeNull();
+      expect(screen.getByText("Text Model Providers")).toBeInTheDocument();
 
       const options = screen.getAllByRole("option");
-      expect(options.length).toBeGreaterThan(1);
+      expect(options.length).toBe(7);
+      expect(trigger.querySelector("svg")).not.toBeNull();
+      for (const opt of options) {
+        expect(opt.querySelector("svg")).not.toBeNull();
+      }
+      expect(options.map((opt) => opt.textContent)).toEqual([
+        "OpenAI (ChatGPT, GPT models)",
+        "Google (Gemini models)",
+        "Anthropic (Claude models)",
+        "Alibaba (Qwen models)",
+        "MiniMax (M3 model)",
+        "xAI (Grok models)",
+        "DeepSeek (DeepSeek models)",
+      ]);
+      expect(listbox.textContent).not.toMatch(/compile/i);
       expect(document.activeElement).toBe(options[0]);
 
       // Move focus with ArrowDown, End, Home
@@ -204,7 +224,7 @@ describe("Modern Web Guidance fixes", () => {
     it("syncs meta[name='theme-color'] when switching between dark and light theme", () => {
       const meta = document.createElement("meta");
       meta.setAttribute("name", "theme-color");
-      meta.setAttribute("content", "#07090E");
+      meta.setAttribute("content", "#0F0F11");
       document.head.appendChild(meta);
 
       try {
@@ -222,14 +242,14 @@ describe("Modern Web Guidance fixes", () => {
         expect(darkSwitch).toBeDefined();
         if (darkSwitch) fireEvent.click(darkSwitch);
         expect(document.documentElement.getAttribute("data-theme")).toBe("light");
-        expect(meta.getAttribute("content")).toBe("#F1F5F9");
+        expect(meta.getAttribute("content")).toBe("#F2F5FA");
 
         const lightSwitches = screen.getAllByRole("button", { name: /Theme is light/i });
         const lightSwitch = lightSwitches[0];
         expect(lightSwitch).toBeDefined();
         if (lightSwitch) fireEvent.click(lightSwitch);
         expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
-        expect(meta.getAttribute("content")).toBe("#07090E");
+        expect(meta.getAttribute("content")).toBe("#0F0F11");
       } finally {
         meta.remove();
       }
@@ -317,6 +337,230 @@ describe("Modern Web Guidance fixes", () => {
       // Focusing pauses animation without trailing cursor
       fireEvent.focus(textarea);
       expect(textarea.placeholder.endsWith("|")).toBe(false);
+    });
+  });
+
+  describe("8. 3D card parallax tilt and cursor-following spotlight", () => {
+    it("updates --rx, --ry, --mx, and --my on mouse pointermove and resets tilt on pointerout", () => {
+      function CardHarness() {
+        useCardParallax(true);
+        return (
+          <article data-testid="parallax-card" className="flat-surface">
+            <span>Card content</span>
+          </article>
+        );
+      }
+
+      render(<CardHarness />);
+      const card = screen.getByTestId("parallax-card");
+
+      vi.spyOn(card, "getBoundingClientRect").mockReturnValue({
+        left: 0,
+        top: 0,
+        right: 200,
+        bottom: 100,
+        width: 200,
+        height: 100,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      });
+
+      const moveEvent = new MouseEvent("pointermove", {
+        bubbles: true,
+        clientX: 150,
+        clientY: 25,
+      });
+      Object.defineProperty(moveEvent, "pointerType", { value: "mouse" });
+      act(() => {
+        card.dispatchEvent(moveEvent);
+      });
+
+      expect(card.style.getPropertyValue("--rx")).toBe("1.50deg");
+      expect(card.style.getPropertyValue("--ry")).toBe("2.00deg");
+      expect(card.style.getPropertyValue("--mx")).toBe("75.0%");
+      expect(card.style.getPropertyValue("--my")).toBe("25.0%");
+
+      const outEvent = new MouseEvent("pointerout", {
+        bubbles: true,
+        relatedTarget: document.body,
+      });
+      act(() => {
+        card.dispatchEvent(outEvent);
+      });
+
+      expect(card.style.getPropertyValue("--rx")).toBe("0deg");
+      expect(card.style.getPropertyValue("--ry")).toBe("0deg");
+    });
+  });
+
+  describe("9. One-scroll-per-section navigation on landing page", () => {
+    it("slides full-viewport track one section per gesture, updates dots/hint, and yields to modals/scrollable textareas", async () => {
+      clearGuestInteraction();
+      resetAuthDialogStoreForTest();
+      await authClient.signOut();
+
+      let now = 10_000;
+      vi.spyOn(Date, "now").mockImplementation(() => now);
+
+      const qc = createAppQueryClient();
+      render(
+        <QueryClientProvider client={qc}>
+          <MemoryRouter initialEntries={["/"]}>
+            <AppRoutes />
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+
+      await screen.findByTestId("anonymous-marketing-content");
+      const track = screen.getByTestId("fullpage-track");
+      const nav = screen.getByTestId("fullpage-nav");
+      const scrollHint = screen.getByTestId("fullpage-scroll-hint");
+
+      // Wait for ModelPicker query to mount .model-picker-popover and simulate native popover="auto" support
+      const modelTrigger = await screen.findByRole("button", { name: /Target AI model/i });
+      const modelPopover = document.querySelector<HTMLElement>(".model-picker-popover");
+      expect(modelPopover).not.toBeNull();
+      modelPopover?.removeAttribute("hidden");
+
+      expect(document.documentElement.getAttribute("data-active-section")).toBe(
+        "landing_workspace",
+      );
+      expect(track.style.transform).toMatch(/translate3d\(0,\s*-?0%,\s*0(?:px)?\)/);
+      expect(scrollHint).toHaveTextContent("See the Difference");
+
+      // Right-hand active nav label stays hidden until hover; dot uses high-contrast --accent-primary
+      const firstNavButton = nav.querySelector('button[aria-label="Go to Prompt Compiler"]');
+      const firstNavLabel = firstNavButton?.querySelectorAll("span")[0];
+      const firstNavDot = firstNavButton?.querySelectorAll("span")[1];
+      expect(firstNavLabel?.className).toContain("opacity-0");
+      expect(firstNavDot?.className).toContain("bg-[var(--accent-primary)]");
+
+      const dispatchWheel = (deltaY: number, target: EventTarget = window) => {
+        const event = new WheelEvent("wheel", {
+          deltaY,
+          bubbles: true,
+          cancelable: true,
+        });
+        act(() => {
+          target.dispatchEvent(event);
+        });
+        return event;
+      };
+
+      // Yield when the model picker listbox trigger is genuinely expanded
+      modelTrigger.setAttribute("aria-expanded", "true");
+      const expandedModelWheel = dispatchWheel(120);
+      expect(expandedModelWheel.defaultPrevented).toBe(false);
+      expect(document.documentElement.getAttribute("data-active-section")).toBe(
+        "landing_workspace",
+      );
+      modelTrigger.setAttribute("aria-expanded", "false");
+
+      // 1st scroll down -> See the Difference + continuous inertia stream (dt <= 100ms) does not skip
+      const firstDown = dispatchWheel(120);
+      expect(firstDown.defaultPrevented).toBe(true);
+      expect(document.documentElement.getAttribute("data-active-section")).toBe(
+        "before_after_showcase",
+      );
+      expect(track.style.transform).toBe("translate3d(0, -100%, 0)");
+      expect(scrollHint).toHaveTextContent("Built for Everyday Speed");
+
+      // Continuous trackpad inertia stream (dt = 90ms <= 120ms) past cooldown with slight delta fluctuation
+      const inertiaDeltas = [64, 32, 16, 12, 8, 9, 10, 8, 6];
+      for (const deltaY of inertiaDeltas) {
+        now += 90;
+        dispatchWheel(deltaY);
+      }
+      expect(document.documentElement.getAttribute("data-active-section")).toBe(
+        "before_after_showcase",
+      );
+      expect(track.style.transform).toBe("translate3d(0, -100%, 0)");
+
+      // Brief 140ms pause (stream ended) + total >= 350ms after step -> moves immediately on 1st wheel
+      now += 140;
+      dispatchWheel(80);
+      expect(document.documentElement.getAttribute("data-active-section")).toBe("features_grid");
+      expect(track.style.transform).toBe("translate3d(0, -200%, 0)");
+
+      // 3rd scroll down -> Curated Template Gallery (after 350ms idle pause, moves on 1st wheel)
+      now += 360;
+      dispatchWheel(120);
+      expect(document.documentElement.getAttribute("data-active-section")).toBe("use_cases");
+      expect(track.style.transform).toBe("translate3d(0, -300%, 0)");
+
+      // 4th scroll down -> Privacy by Default Guarantee
+      now += 360;
+      dispatchWheel(120);
+      expect(document.documentElement.getAttribute("data-active-section")).toBe(
+        "privacy_commitment",
+      );
+      expect(track.style.transform).toBe("translate3d(0, -400%, 0)");
+
+      // 5th scroll down -> Simple, Fair Pricing
+      now += 360;
+      dispatchWheel(120);
+      expect(document.documentElement.getAttribute("data-active-section")).toBe(
+        "pricing_options",
+      );
+      expect(track.style.transform).toBe("translate3d(0, -500%, 0)");
+      expect(scrollHint).toHaveTextContent("Prompt Compiler");
+
+      // Yield when an open dialog is present
+      const openDialog = document.createElement("dialog");
+      openDialog.setAttribute("open", "");
+      document.body.appendChild(openDialog);
+      now += 800;
+      const dialogWheel = dispatchWheel(-120);
+      expect(dialogWheel.defaultPrevented).toBe(false);
+      expect(document.documentElement.getAttribute("data-active-section")).toBe(
+        "pricing_options",
+      );
+      openDialog.remove();
+
+      // Yield when scrolling inside an overflowing textarea
+      const textarea = screen.getByLabelText<HTMLTextAreaElement>(
+        /Prompt intent and instructions/i,
+      );
+      vi.spyOn(textarea, "scrollHeight", "get").mockReturnValue(240);
+      vi.spyOn(textarea, "clientHeight", "get").mockReturnValue(120);
+      now += 800;
+      const textareaWheel = dispatchWheel(-120, textarea);
+      expect(textareaWheel.defaultPrevented).toBe(false);
+      expect(document.documentElement.getAttribute("data-active-section")).toBe(
+        "pricing_options",
+      );
+
+      // Scroll up step-by-step in exact reverse order
+      const expectedReverse = [
+        { id: "privacy_commitment", transform: "translate3d(0, -400%, 0)" },
+        { id: "use_cases", transform: "translate3d(0, -300%, 0)" },
+        { id: "features_grid", transform: "translate3d(0, -200%, 0)" },
+        { id: "before_after_showcase", transform: "translate3d(0, -100%, 0)" },
+        { id: "landing_workspace", transform: "translate3d(0, -0%, 0)" },
+      ];
+      for (const step of expectedReverse) {
+        now += 800;
+        dispatchWheel(-120);
+        expect(document.documentElement.getAttribute("data-active-section")).toBe(step.id);
+        expect(track.style.transform).toBe(step.transform);
+      }
+
+      // Clicking scroll hint steps to the next section
+      now += 800;
+      fireEvent.click(scrollHint);
+      expect(document.documentElement.getAttribute("data-active-section")).toBe(
+        "before_after_showcase",
+      );
+      expect(track.style.transform).toBe("translate3d(0, -100%, 0)");
+
+      // Clicking a right-hand nav dot jumps directly to the target section
+      const galleryDot = nav.querySelector('button[aria-label="Go to Curated Template Gallery"]');
+      expect(galleryDot).not.toBeNull();
+      now += 800;
+      if (galleryDot) fireEvent.click(galleryDot);
+      expect(document.documentElement.getAttribute("data-active-section")).toBe("use_cases");
+      expect(track.style.transform).toBe("translate3d(0, -300%, 0)");
     });
   });
 });

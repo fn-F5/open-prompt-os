@@ -6,7 +6,6 @@ import {
   ArrowRight,
   CornerDownLeft,
   ShieldCheck,
-  Sliders,
   SlidersHorizontal,
   Sparkles,
   Square,
@@ -119,7 +118,7 @@ export function PromptComposer({
   const [validationError, setValidationError] = React.useState<string | null>(null);
   const [followUpAnswers, setFollowUpAnswers] = React.useState<Record<string, string>>({});
   const [showFollowUps, setShowFollowUps] = React.useState(false);
-  const [parametersExpandedManual, setParametersExpandedManual] = React.useState(false);
+  const [parametersExpandedManual] = React.useState(false);
   const [isTextareaFocused, setIsTextareaFocused] = React.useState(false);
 
   const { prefersReducedMotion } = useReducedEffects();
@@ -146,18 +145,7 @@ export function PromptComposer({
     [activeDraft],
   );
 
-  const hasTypedOrConfigured = Boolean(
-    activeDraft.rawInput.trim().length > 0 ||
-      activeDraft.goal ||
-      activeDraft.audience ||
-      activeDraft.format ||
-      activeDraft.persona ||
-      activeDraft.tone ||
-      activeDraft.constraints.length > 0 ||
-      activeDraft.guardrails.length > 0 ||
-      parametersExpandedManual ||
-      isAdvancedOpen,
-  );
+  const hasTypedOrConfigured = parametersExpandedManual;
 
   const validateAndSubmit = () => {
     const trimmed = activeDraft.rawInput.trim();
@@ -196,12 +184,12 @@ export function PromptComposer({
       {/* Dedicated Hero Section for Anonymous Visitors (Compact on mobile so textarea is visible on screen 1) */}
       {!isAuthenticated ? (
         <div className="text-center max-w-4xl mx-auto pt-1 pb-4 sm:pt-8 sm:pb-12 space-y-2.5 sm:space-y-5">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 sm:px-4 sm:py-1.5 rounded-full bg-[var(--accent-subtle-bg)] border border-[var(--separator-strong)] text-xs sm:text-sm font-medium text-[var(--text-primary)]">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 sm:px-4 sm:py-1.5 rounded-full bg-[var(--accent-subtle-bg)] border border-[var(--separator-strong)] font-mono text-xs uppercase tracking-[0.08em] font-normal text-[var(--text-primary)]">
             <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--accent-text)]" />
             <span>The Operating System for Prompts · Instant free use</span>
           </div>
 
-          <h1 className="text-[28px] sm:text-6xl lg:text-[64px] font-extrabold tracking-tight leading-[1.1] sm:leading-[1.08] text-balance text-[var(--text-primary)]">
+          <h1 className="text-[28px] sm:text-6xl lg:text-[64px] font-medium tracking-[-0.03em] leading-[1.06] text-balance text-[var(--text-primary)]">
             Write prompts that work{" "}
             <span className="text-gradient-brand whitespace-nowrap">on the first try.</span>
           </h1>
@@ -219,7 +207,7 @@ export function PromptComposer({
       ) : (
         <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3">
           <div>
-            <h1 className="text-xl sm:text-3xl font-bold tracking-tight">Prompt Composer</h1>
+            <h1 className="text-xl sm:text-3xl font-medium tracking-[-0.03em]">Prompt Composer</h1>
             <p className="text-sm sm:text-base text-[var(--text-secondary)] max-w-2xl">
               Draft, parameterize, and dispatch model-specific prompts from your workspace.
             </p>
@@ -230,7 +218,7 @@ export function PromptComposer({
       {/* Main Frosted Glass Composer Card */}
       <section
         aria-label="Prompt operating system composer"
-        className="relative rounded-2xl sm:rounded-3xl p-4 sm:p-8 glass-surface space-y-3.5 sm:space-y-5"
+        className="relative p-4 sm:p-8 glass-surface space-y-3.5 sm:space-y-5"
       >
         {/* Top Row: Mode Switcher + Single-Line Scrollable Quick Example Strip */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 sm:pb-4 border-b border-[var(--separator-subtle)]">
@@ -364,17 +352,7 @@ export function PromptComposer({
               disabled={isPending}
             />
 
-            {!hasTypedOrConfigured ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setParametersExpandedManual(true)}
-                aria-label="Customize prompt parameters"
-              >
-                <Sliders className="w-4 h-4 text-[var(--accent-text)]" />
-                <span>Add Goal, Tone & Format</span>
-              </Button>
-            ) : (
+            {!hasTypedOrConfigured ? null : (
               <div className="inline-flex items-center gap-2">
                 <Button
                   variant="secondary"

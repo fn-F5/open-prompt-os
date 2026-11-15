@@ -18,21 +18,32 @@ import {
 } from "lucide-react";
 import * as React from "react";
 import { Link } from "react-router";
+import { scrollToLandingSection } from "../../hooks/use-section-scroll.js";
 import { trackEvent } from "../../lib/telemetry.js";
 import { openAuthDialog } from "../../state/auth-dialog-store.js";
 import { composerActions } from "../../state/composer-store.js";
 
 function ObservedSection({
   sectionId,
+  activeSectionId,
   children,
   className = "",
 }: {
   readonly sectionId: string;
+  readonly activeSectionId?: string;
   readonly children: React.ReactNode;
   readonly className?: string;
 }) {
   const ref = React.useRef<HTMLElement | null>(null);
   const viewedRef = React.useRef(false);
+  const isActive = activeSectionId === sectionId;
+
+  React.useEffect(() => {
+    if (isActive && !viewedRef.current) {
+      viewedRef.current = true;
+      trackEvent("marketing_section_viewed", { sectionId });
+    }
+  }, [isActive, sectionId]);
 
   React.useEffect(() => {
     const el = ref.current;
@@ -57,8 +68,15 @@ function ObservedSection({
   }, [sectionId]);
 
   return (
-    <section ref={ref} data-section-id={sectionId} className={className}>
-      {children}
+    <section
+      ref={ref}
+      data-section-id={sectionId}
+      data-fp-active={isActive ? "true" : "false"}
+      className="fp-slide h-full w-full shrink-0 overflow-y-auto overscroll-contain flex flex-col justify-center px-4 sm:px-8 py-4 sm:py-6"
+    >
+      <div className={`fp-slide-inner mx-auto w-full max-w-[1360px] ${className}`.trim()}>
+        {children}
+      </div>
     </section>
   );
 }
@@ -159,25 +177,30 @@ const USE_CASE_SHOWCASE: ReadonlyArray<{
   },
 ];
 
-export function MarketingScrollContent() {
+export function MarketingScrollContent({
+  activeSectionId,
+  footer,
+}: {
+  readonly activeSectionId?: string;
+  readonly footer?: React.ReactNode;
+} = {}) {
   const [selectedUseCase, setSelectedUseCase] = React.useState<ComposerMode>("text");
   const activeShowcase =
     USE_CASE_SHOWCASE.find((u) => u.mode === selectedUseCase) ?? USE_CASE_SHOWCASE[0]!;
 
   return (
-    <div
-      data-testid="anonymous-marketing-content"
-      className="mx-auto max-w-[1360px] px-4 sm:px-8 pt-6 sm:pt-12 pb-12 sm:pb-24 space-y-14 sm:space-y-24"
-    >
+    <div data-testid="anonymous-marketing-content" className="contents">
       {/* SECTION 1: Simplified Before & After Product Showcase */}
       <ObservedSection
         sectionId="before_after_showcase"
-        className="relative space-y-6 sm:space-y-10"
+        activeSectionId={activeSectionId}
+        className="relative space-y-4 sm:space-y-6"
       >
         <div className="text-center max-w-2xl mx-auto space-y-2.5 sm:space-y-3">
           <Badge variant="framework">See the Difference</Badge>
-          <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-balance">
-            Why one-line prompts fail—and how Open Prompt OS fixes them
+          <h2 className="text-2xl sm:text-4xl font-medium tracking-[-0.025em] text-balance">
+            Why one-line prompts fail—and how Open Prompt OS{" "}
+            <span className="text-gradient-brand">fixes them</span>
           </h2>
           <p className="text-sm sm:text-lg text-[var(--text-secondary)] leading-relaxed">
             When you type a vague sentence into AI, it guesses your tone, audience, and format. We
@@ -187,10 +210,10 @@ export function MarketingScrollContent() {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 items-stretch">
           {/* Before Card */}
-          <div className="lg:col-span-5 rounded-2xl sm:rounded-3xl p-5 sm:p-8 flat-surface flex flex-col justify-between space-y-4 sm:space-y-6">
+          <div className="lg:col-span-5 p-5 sm:p-8 flat-surface flex flex-col justify-between space-y-4 sm:space-y-6">
             <div className="space-y-4">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-base font-semibold text-[var(--danger-text)]">
+                <span className="text-base font-medium text-[var(--danger-text)]">
                   Before: Typical 1-Line Prompt
                 </span>
                 <Badge variant="danger">Unpredictable</Badge>
@@ -213,13 +236,13 @@ export function MarketingScrollContent() {
                 </li>
               </ul>
             </div>
-            <div className="pt-3.5 border-t border-[var(--separator-subtle)] text-xs sm:text-sm text-[var(--text-muted)]">
+            <div className="pt-3.5 border-t border-[var(--separator-subtle)] font-mono text-[13px] leading-[1.4] text-[var(--text-muted)]">
               Result: 4–5 rounds of frustrating follow-up edits.
             </div>
           </div>
 
           {/* After Card: 4 Calm Divided Rows */}
-          <div className="lg:col-span-7 rounded-2xl sm:rounded-3xl p-5 sm:p-8 glow-card flex flex-col justify-between space-y-4 sm:space-y-6">
+          <div className="lg:col-span-7 p-5 sm:p-8 glow-card flex flex-col justify-between space-y-4 sm:space-y-6">
             <div className="space-y-3 sm:space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[var(--separator-subtle)]">
                 <span className="inline-flex items-center gap-2 text-base font-semibold text-[var(--accent-text)]">
@@ -268,11 +291,16 @@ export function MarketingScrollContent() {
       </ObservedSection>
 
       {/* SECTION 2: Asymmetric Bento Feature Grid with Consistent Centered Header */}
-      <ObservedSection sectionId="features_grid" className="space-y-6 sm:space-y-10">
+      <ObservedSection
+        sectionId="features_grid"
+        activeSectionId={activeSectionId}
+        className="space-y-4 sm:space-y-6"
+      >
         <div className="text-center max-w-2xl mx-auto space-y-2.5 sm:space-y-3">
           <Badge variant="framework">Built for Everyday Speed</Badge>
-          <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-balance">
-            Everything you need to write better prompts, faster
+          <h2 className="text-2xl sm:text-4xl font-medium tracking-[-0.025em] text-balance">
+            Everything you need to write better prompts,{" "}
+            <span className="text-gradient-brand">faster</span>
           </h2>
           <p className="text-sm sm:text-lg text-[var(--text-secondary)] leading-relaxed">
             No complex syntax to memorize. Pick what you need from visual cards and let the studio
@@ -282,15 +310,15 @@ export function MarketingScrollContent() {
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 sm:gap-5">
           {/* Wide Spotlight 1 (7 cols) */}
-          <article className="md:col-span-7 rounded-2xl p-5 sm:p-8 flat-surface flex flex-col justify-between gap-4 sm:gap-6">
+          <article className="md:col-span-7 p-5 sm:p-8 flat-surface flex flex-col justify-between gap-4 sm:gap-6">
             <div className="space-y-3 sm:space-y-4">
               <div className="flex items-center justify-between gap-3">
-                <span className="inline-flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-[var(--accent-subtle-bg)] text-[var(--accent-text)] border border-[var(--separator-strong)]">
+                <span className="inline-flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-[10px] bg-[var(--accent-subtle-bg)] text-[var(--accent-text)] border border-[var(--separator-strong)]">
                   <Compass className="w-5 h-5 sm:w-6 sm:h-6" />
                 </span>
                 <Badge variant="framework">Text · Image · Video</Badge>
               </div>
-              <h3 className="text-lg sm:text-2xl font-bold">
+              <h3 className="text-xl sm:text-2xl font-medium tracking-[-0.02em]">
                 Guided building blocks instead of blank-page guesswork
               </h3>
               <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed">
@@ -304,7 +332,7 @@ export function MarketingScrollContent() {
                 (chip) => (
                   <span
                     key={chip}
-                    className="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium bg-[var(--surface-2)] text-[var(--text-primary)] border border-[var(--separator-subtle)]"
+                    className="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg font-mono text-xs font-normal bg-[var(--surface-2)] text-[var(--text-primary)] border border-[var(--separator-subtle)]"
                   >
                     + {chip}
                   </span>
@@ -314,15 +342,15 @@ export function MarketingScrollContent() {
           </article>
 
           {/* Spotlight 2 (5 cols) */}
-          <article className="md:col-span-5 rounded-2xl p-5 sm:p-8 flat-surface flex flex-col justify-between gap-4 sm:gap-6">
+          <article className="md:col-span-5 p-5 sm:p-8 flat-surface flex flex-col justify-between gap-4 sm:gap-6">
             <div className="space-y-3 sm:space-y-4">
               <div className="flex items-center justify-between gap-3">
-                <span className="inline-flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-[var(--cyan-subtle-bg)] text-[var(--cyan-text)] border border-[var(--accent-cyan)]">
+                <span className="inline-flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-[10px] bg-[var(--cyan-subtle-bg)] text-[var(--cyan-text)] border border-[var(--accent-cyan)]">
                   <Wrench className="w-5 h-5 sm:w-6 sm:h-6" />
                 </span>
                 <Badge variant="diagnostic">Prompt Autopsy</Badge>
               </div>
-              <h3 className="text-lg sm:text-2xl font-bold">
+              <h3 className="text-xl sm:text-2xl font-medium tracking-[-0.02em]">
                 Find out why a prompt failed—and fix it in seconds
               </h3>
               <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed">
@@ -332,7 +360,7 @@ export function MarketingScrollContent() {
             </div>
             <Link
               to="/improve"
-              className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--cyan-text)] hover:underline focus-ring rounded"
+              className="inline-flex items-center gap-2 font-mono text-[13px] font-normal text-[var(--cyan-text)] hover:underline focus-ring rounded"
             >
               <span>Open Improve & Prompt Autopsy</span>
               <ArrowRight className="w-4 h-4" />
@@ -340,44 +368,44 @@ export function MarketingScrollContent() {
           </article>
 
           {/* 4 Focused Cards below */}
-          <article className="md:col-span-6 lg:col-span-3 rounded-2xl p-5 sm:p-6 flat-surface space-y-2.5">
-            <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-[var(--cyan-subtle-bg)] text-[var(--cyan-text)] border border-[var(--accent-cyan)]">
+          <article className="md:col-span-6 lg:col-span-3 p-5 sm:p-6 flat-surface space-y-2.5">
+            <span className="inline-flex items-center justify-center w-10 h-10 rounded-[10px] bg-[var(--cyan-subtle-bg)] text-[var(--cyan-text)] border border-[var(--accent-cyan)]">
               <Send className="w-5 h-5" />
             </span>
-            <h3 className="text-base sm:text-lg font-bold">One-Click Send</h3>
+            <h3 className="text-lg font-medium tracking-[-0.02em]">One-Click Send</h3>
             <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed">
               Open your finished prompt directly in ChatGPT, Claude, or Gemini, or copy it in a
               single click.
             </p>
           </article>
 
-          <article className="md:col-span-6 lg:col-span-3 rounded-2xl p-5 sm:p-6 flat-surface space-y-2.5">
-            <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-[var(--accent-subtle-bg)] text-[var(--accent-text)] border border-[var(--separator-strong)]">
+          <article className="md:col-span-6 lg:col-span-3 p-5 sm:p-6 flat-surface space-y-2.5">
+            <span className="inline-flex items-center justify-center w-10 h-10 rounded-[10px] bg-[var(--accent-subtle-bg)] text-[var(--accent-text)] border border-[var(--separator-strong)]">
               <Layers className="w-5 h-5" />
             </span>
-            <h3 className="text-base sm:text-lg font-bold">Proven Frameworks</h3>
+            <h3 className="text-lg font-medium tracking-[-0.02em]">Proven Frameworks</h3>
             <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed">
               Apply techniques inspired by CO-STAR, RISE, CARE, and Chain-of-Thought with one
               toggle.
             </p>
           </article>
 
-          <article className="md:col-span-6 lg:col-span-3 rounded-2xl p-5 sm:p-6 flat-surface space-y-2.5">
-            <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-[var(--success-subtle-bg)] text-[var(--success-text)] border border-[var(--separator-subtle)]">
+          <article className="md:col-span-6 lg:col-span-3 p-5 sm:p-6 flat-surface space-y-2.5">
+            <span className="inline-flex items-center justify-center w-10 h-10 rounded-[10px] bg-[var(--success-subtle-bg)] text-[var(--success-text)] border border-[var(--separator-subtle)]">
               <Sparkles className="w-5 h-5" />
             </span>
-            <h3 className="text-base sm:text-lg font-bold">Instant Free Use</h3>
+            <h3 className="text-lg font-medium tracking-[-0.02em]">Instant Free Use</h3>
             <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed">
               Start right on this page without an account. Your latest work saves in your browser
               and syncs when you sign up.
             </p>
           </article>
 
-          <article className="md:col-span-6 lg:col-span-3 rounded-2xl p-5 sm:p-6 flat-surface space-y-2.5">
-            <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-[var(--accent-subtle-bg)] text-[var(--accent-text)] border border-[var(--separator-strong)]">
+          <article className="md:col-span-6 lg:col-span-3 p-5 sm:p-6 flat-surface space-y-2.5">
+            <span className="inline-flex items-center justify-center w-10 h-10 rounded-[10px] bg-[var(--accent-subtle-bg)] text-[var(--accent-text)] border border-[var(--separator-strong)]">
               <Lock className="w-5 h-5" />
             </span>
-            <h3 className="text-base sm:text-lg font-bold">Reusable Library</h3>
+            <h3 className="text-lg font-medium tracking-[-0.02em]">Reusable Library</h3>
             <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed">
               Stop hunting through old chat threads. Save your best prompts with custom{" "}
               <code className="font-mono text-[var(--accent-text)]">[Variables]</code> in one place.
@@ -387,11 +415,16 @@ export function MarketingScrollContent() {
       </ObservedSection>
 
       {/* SECTION 3: Templates Showcase with Non-Duplicated Mode Selector Strip + Detail Inspector */}
-      <ObservedSection sectionId="use_cases" className="relative space-y-6 sm:space-y-10">
+      <ObservedSection
+        sectionId="use_cases"
+        activeSectionId={activeSectionId}
+        className="relative space-y-4 sm:space-y-6"
+      >
         <div className="text-center max-w-2xl mx-auto space-y-2.5 sm:space-y-3">
           <Badge variant="framework">Curated Template Gallery</Badge>
-          <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-balance">
-            Prompts tuned for writing, images, and video
+          <h2 className="text-2xl sm:text-4xl font-medium tracking-[-0.025em] text-balance">
+            Prompts tuned for writing, images,{" "}
+            <span className="text-gradient-brand">and video</span>
           </h2>
           <p className="text-sm sm:text-lg text-[var(--text-secondary)] leading-relaxed">
             Pick a studio mode below to inspect a sample blueprint, or load it straight into the
@@ -409,14 +442,14 @@ export function MarketingScrollContent() {
                 key={item.mode}
                 type="button"
                 onClick={() => setSelectedUseCase(item.mode)}
-                className={`text-left p-4 sm:p-5 rounded-2xl transition-all focus-ring cursor-pointer flex flex-col justify-between gap-2 ${
+                className={`text-left p-4 sm:p-5 transition-all focus-ring cursor-pointer flex flex-col justify-between gap-2 ${
                   isSelected
                     ? "glow-card"
                     : "flat-surface opacity-85 hover:opacity-100"
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="inline-flex items-center gap-2 text-base font-bold text-[var(--text-primary)]">
+                  <span className="inline-flex items-center gap-2 text-base font-medium tracking-[-0.02em] text-[var(--text-primary)]">
                     <Icon className="w-4 h-4 text-[var(--accent-text)]" />
                     <span>{item.tabLabel}</span>
                   </span>
@@ -431,10 +464,12 @@ export function MarketingScrollContent() {
         </div>
 
         {/* Active Template Detail Inspector */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 rounded-2xl sm:rounded-3xl p-5 sm:p-10 glass-surface items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 p-5 sm:p-10 glass-surface items-center">
           <div className="lg:col-span-5 space-y-4 sm:space-y-5">
             <Badge variant="framework">Sample {activeShowcase.tabLabel} Blueprint</Badge>
-            <h3 className="text-xl sm:text-3xl font-bold leading-snug">{activeShowcase.title}</h3>
+            <h3 className="text-xl sm:text-2xl font-medium tracking-[-0.02em] leading-snug">
+              {activeShowcase.title}
+            </h3>
             <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed">
               {activeShowcase.summary}
             </p>
@@ -455,7 +490,7 @@ export function MarketingScrollContent() {
                 onClick={() => {
                   composerActions.setMode(activeShowcase.mode);
                   composerActions.updateActiveDraft({ rawInput: activeShowcase.rawInput });
-                  window.scrollTo({ top: 0, behavior: "smooth" });
+                  scrollToLandingSection(0);
                 }}
               >
                 <Cpu className="w-4 h-4" />
@@ -499,60 +534,65 @@ export function MarketingScrollContent() {
       </ObservedSection>
 
       {/* SECTION 4: Privacy & Trust Showcase (Uniform width, clean 3-column divided layout) */}
-      <ObservedSection
-        sectionId="privacy_commitment"
-        className="rounded-2xl sm:rounded-3xl p-6 sm:p-12 glass-surface"
-      >
-        <div className="text-center max-w-2xl mx-auto mb-6 sm:mb-10 space-y-2.5 sm:space-y-3">
-          <Badge variant="framework">Privacy by Default Guarantee</Badge>
-          <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-balance">
-            We never train on your prompts. Period.
-          </h2>
-          <p className="text-sm sm:text-lg text-[var(--text-secondary)] leading-relaxed">
-            Your prompts contain your company's strategy, code, and creative IP. Every draft and
-            compiled output remains strictly yours.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 pt-6 border-t border-[var(--separator-subtle)] md:divide-x md:divide-[var(--separator-subtle)]">
-          <div className="space-y-1.5 sm:space-y-2 md:pr-6">
-            <div className="inline-flex items-center gap-2 text-base font-semibold text-[var(--success-text)]">
-              <ShieldCheck className="w-5 h-5" />
-              <span>Zero Model Training</span>
-            </div>
-            <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed">
-              Your inputs and outputs are never used to train or fine-tune any AI model.
+      <ObservedSection sectionId="privacy_commitment" activeSectionId={activeSectionId}>
+        <div className="p-6 sm:p-12 glass-surface">
+          <div className="text-center max-w-2xl mx-auto mb-6 sm:mb-10 space-y-2.5 sm:space-y-3">
+            <Badge variant="framework">Privacy by Default Guarantee</Badge>
+            <h2 className="text-2xl sm:text-4xl font-medium tracking-[-0.025em] text-balance">
+              We never train on your prompts.{" "}
+              <span className="text-gradient-brand">Period.</span>
+            </h2>
+            <p className="text-sm sm:text-lg text-[var(--text-secondary)] leading-relaxed">
+              Your prompts contain your company's strategy, code, and creative IP. Every draft and
+              compiled output remains strictly yours.
             </p>
           </div>
 
-          <div className="space-y-1.5 sm:space-y-2 md:px-6">
-            <div className="inline-flex items-center gap-2 text-base font-semibold text-[var(--accent-text)]">
-              <EyeOff className="w-5 h-5" />
-              <span>Redacted Telemetry</span>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 pt-6 border-t border-[var(--separator-subtle)] md:divide-x md:divide-[var(--separator-subtle)]">
+            <div className="space-y-1.5 sm:space-y-2 md:pr-6">
+              <div className="inline-flex items-center gap-2 text-base font-medium text-[var(--success-text)]">
+                <ShieldCheck className="w-5 h-5" />
+                <span>Zero Model Training</span>
+              </div>
+              <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed">
+                Your inputs and outputs are never used to train or fine-tune any AI model.
+              </p>
             </div>
-            <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed">
-              Analytics track feature performance only—never your prompt text, emails, or API keys.
-            </p>
-          </div>
 
-          <div className="space-y-1.5 sm:space-y-2 md:pl-6">
-            <div className="inline-flex items-center gap-2 text-base font-semibold text-[var(--cyan-text)]">
-              <Lock className="w-5 h-5" />
-              <span>Isolated Workspaces</span>
+            <div className="space-y-1.5 sm:space-y-2 md:px-6">
+              <div className="inline-flex items-center gap-2 text-base font-medium text-[var(--accent-text)]">
+                <EyeOff className="w-5 h-5" />
+                <span>Redacted Telemetry</span>
+              </div>
+              <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed">
+                Analytics track feature performance only—never your prompt text, emails, or API keys.
+              </p>
             </div>
-            <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed">
-              Saved prompts are protected by tenant-isolated PostgreSQL Row-Level Security.
-            </p>
+
+            <div className="space-y-1.5 sm:space-y-2 md:pl-6">
+              <div className="inline-flex items-center gap-2 text-base font-medium text-[var(--cyan-text)]">
+                <Lock className="w-5 h-5" />
+                <span>Isolated Workspaces</span>
+              </div>
+              <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed">
+                Saved prompts are protected by tenant-isolated PostgreSQL Row-Level Security.
+              </p>
+            </div>
           </div>
         </div>
       </ObservedSection>
 
       {/* SECTION 5: Pricing with Horizontally Aligned Headers Across All 3 Cards */}
-      <ObservedSection sectionId="pricing_options" className="space-y-6 sm:space-y-10">
+      <ObservedSection
+        sectionId="pricing_options"
+        activeSectionId={activeSectionId}
+        className="space-y-4 sm:space-y-6"
+      >
         <div className="text-center max-w-2xl mx-auto space-y-2.5 sm:space-y-3">
           <Badge variant="framework">Simple, Fair Pricing</Badge>
-          <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-balance">
-            Start free without an account. Upgrade when you need more volume.
+          <h2 className="text-2xl sm:text-4xl font-medium tracking-[-0.025em] text-balance">
+            Start free without an account. Upgrade when you need{" "}
+            <span className="text-gradient-brand">more volume.</span>
           </h2>
           <p className="text-sm sm:text-lg text-[var(--text-secondary)] leading-relaxed">
             Only AI-powered compilations count toward your daily limit—editing, copying, and
@@ -562,18 +602,22 @@ export function MarketingScrollContent() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6 items-stretch pt-2">
           {/* Free Tier */}
-          <div className="rounded-2xl sm:rounded-3xl p-6 sm:p-8 flat-surface flex flex-col justify-between gap-6 sm:gap-8">
+          <div className="p-6 sm:p-8 flat-surface flex flex-col justify-between gap-6 sm:gap-8">
             <div className="space-y-4">
               <div className="flex items-center justify-between gap-2 pb-3 border-b border-[var(--separator-subtle)]">
                 <Badge variant="neutral">Free Forever</Badge>
-                <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                <span className="font-mono text-xs font-normal uppercase tracking-wider text-[var(--text-muted)]">
                   Starter
                 </span>
               </div>
-              <h3 className="text-2xl font-bold">Instant Guest & Free</h3>
-              <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-extrabold tabular-nums">$0</span>
-                <span className="text-sm text-[var(--text-secondary)]">/ forever</span>
+              <h3 className="text-xl sm:text-2xl font-medium tracking-[-0.02em]">
+                Instant Guest & Free
+              </h3>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-[42px] font-semibold tracking-[-0.03em] leading-none tabular-nums">
+                  $0
+                </span>
+                <span className="font-mono text-[13px] text-[var(--text-secondary)]">/ forever</span>
               </div>
               <p className="text-sm sm:text-base text-[var(--text-secondary)]">
                 Everything you need to start writing better prompts right away.
@@ -603,18 +647,20 @@ export function MarketingScrollContent() {
           </div>
 
           {/* Recommended Pro Tier */}
-          <div className="rounded-2xl sm:rounded-3xl p-6 sm:p-8 glow-card flex flex-col justify-between gap-6 sm:gap-8 overflow-hidden">
+          <div className="p-6 sm:p-8 glow-card flex flex-col justify-between gap-6 sm:gap-8 overflow-hidden">
             <div className="space-y-4">
               <div className="flex items-center justify-between gap-2 pb-3 border-b border-[var(--separator-subtle)]">
                 <Badge variant="framework">Recommended · Most Popular</Badge>
-                <span className="text-xs font-semibold uppercase tracking-wider text-[var(--accent-text)]">
+                <span className="font-mono text-xs font-normal uppercase tracking-wider text-[var(--accent-text)]">
                   Power Users
                 </span>
               </div>
-              <h3 className="text-2xl font-bold">Pro Studio</h3>
-              <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-extrabold tabular-nums">$19</span>
-                <span className="text-sm text-[var(--text-secondary)]">/ month</span>
+              <h3 className="text-xl sm:text-2xl font-medium tracking-[-0.02em]">Pro Studio</h3>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-[42px] font-semibold tracking-[-0.03em] leading-none tabular-nums">
+                  $19
+                </span>
+                <span className="font-mono text-[13px] text-[var(--text-secondary)]">/ month</span>
               </div>
               <p className="text-sm sm:text-base text-[var(--text-secondary)]">
                 For builders, writers, and engineers who rely on AI every day.
@@ -648,18 +694,22 @@ export function MarketingScrollContent() {
           </div>
 
           {/* Team Tier */}
-          <div className="rounded-2xl sm:rounded-3xl p-6 sm:p-8 flat-surface flex flex-col justify-between gap-6 sm:gap-8">
+          <div className="p-6 sm:p-8 flat-surface flex flex-col justify-between gap-6 sm:gap-8">
             <div className="space-y-4">
               <div className="flex items-center justify-between gap-2 pb-3 border-b border-[var(--separator-subtle)]">
                 <Badge variant="neutral">Shared Library</Badge>
-                <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                <span className="font-mono text-xs font-normal uppercase tracking-wider text-[var(--text-muted)]">
                   Multi-Seat
                 </span>
               </div>
-              <h3 className="text-2xl font-bold">Team Workspace</h3>
-              <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-extrabold tabular-nums">$49</span>
-                <span className="text-sm text-[var(--text-secondary)]">/ seat / mo</span>
+              <h3 className="text-xl sm:text-2xl font-medium tracking-[-0.02em]">Team Workspace</h3>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-[42px] font-semibold tracking-[-0.03em] leading-none tabular-nums">
+                  $49
+                </span>
+                <span className="font-mono text-[13px] text-[var(--text-secondary)]">
+                  / seat / mo
+                </span>
               </div>
               <p className="text-sm sm:text-base text-[var(--text-secondary)]">
                 Standardize prompts and guardrails across your entire team.
@@ -687,6 +737,7 @@ export function MarketingScrollContent() {
             </Link>
           </div>
         </div>
+        {footer ? <div className="pt-4 sm:pt-6">{footer}</div> : null}
       </ObservedSection>
     </div>
   );
