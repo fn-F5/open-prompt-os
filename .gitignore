@@ -8,3 +8,6 @@ docs/
 .env
 .stryker-tmp/
 reports/
+
+# Prisma generated client
+packages/db/src/generated/

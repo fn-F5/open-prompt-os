@@ -3,12 +3,13 @@
 // (see migrations/*_rls). The app sets `app.space_id` / `app.user_id` per transaction.
 
 generator client {
-  provider = "prisma-client-js"
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 // ─────────────────────────────── Enums ───────────────────────────────

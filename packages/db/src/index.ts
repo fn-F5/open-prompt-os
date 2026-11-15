@@ -1,10 +1,12 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { resolveDatabaseUrl } from "./database-url.js";
+import { PrismaClient } from "./generated/prisma/client.js";
 
-export * from "@prisma/client";
+export * from "./generated/prisma/client.js";
 export { resolveDatabaseUrl } from "./database-url.js";
 
-export const prisma = new PrismaClient({ datasourceUrl: resolveDatabaseUrl() });
+const adapter = new PrismaPg({ connectionString: resolveDatabaseUrl() });
+export const prisma = new PrismaClient({ adapter });
 
 export type Tx = Parameters<Parameters<PrismaClient["$transaction"]>[0]>[0];
 
