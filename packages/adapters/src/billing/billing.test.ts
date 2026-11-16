@@ -178,4 +178,74 @@ describe("createStripeBillingProvider", () => {
       seats: 3,
     });
   });
+
+  it("retrieves live Stripe price catalog and maps monthly and yearly rates", async () => {
+    const fetchImpl = vi.fn(async (url: RequestInfo | URL) => {
+      const urlStr = String(url);
+      if (urlStr.endsWith("/v1/prices/price_pro_m")) {
+        return new Response(
+          JSON.stringify({
+            id: "price_pro_m",
+            unit_amount: 2400,
+            recurring: { interval: "month" },
+          }),
+          { status: 200 },
+        );
+      }
+      if (urlStr.endsWith("/v1/prices/price_pro_y")) {
+        return new Response(
+          JSON.stringify({
+            id: "price_pro_y",
+            unit_amount: 21600,
+            recurring: { interval: "year" },
+          }),
+          { status: 200 },
+        );
+      }
+      if (urlStr.endsWith("/v1/prices/price_team_m")) {
+        return new Response(
+          JSON.stringify({
+            id: "price_team_m",
+            unit_amount: 5900,
+            recurring: { interval: "month" },
+          }),
+          { status: 200 },
+        );
+      }
+      if (urlStr.endsWith("/v1/prices/price_team_y")) {
+        return new Response(
+          JSON.stringify({
+            id: "price_team_y",
+            unit_amount: 54000,
+            recurring: { interval: "year" },
+          }),
+          { status: 200 },
+        );
+      }
+      return new Response("Not found", { status: 404 });
+    });
+
+    const provider = createStripeBillingProvider({
+      secretKey: "sk_test_123",
+      prices,
+      fetchImpl,
+    });
+
+    const plans = await provider.listPlans();
+    expect(plans.find((p) => p.id === "free")).toMatchObject({
+      monthlyPriceUsd: 0,
+      yearlyPriceUsd: 0,
+      dailyPromptLimit: 20,
+    });
+    expect(plans.find((p) => p.id === "pro")).toMatchObject({
+      monthlyPriceUsd: 24,
+      yearlyPriceUsd: 18,
+      dailyPromptLimit: 500,
+    });
+    expect(plans.find((p) => p.id === "team")).toMatchObject({
+      monthlyPriceUsd: 59,
+      yearlyPriceUsd: 45,
+      dailyPromptLimit: 2000,
+    });
+  });
 });

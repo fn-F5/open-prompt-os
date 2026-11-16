@@ -1,4 +1,4 @@
-import type { BillingInterval, PlanTier } from "@open-prompt-os/contracts";
+import type { BillingInterval, PlanTier, PricingPlanItem } from "@open-prompt-os/contracts";
 
 export interface BillingSubscriptionSnapshot {
   readonly subscriptionId: string;
@@ -29,6 +29,7 @@ export type WebhookParseResult =
 
 export interface BillingProvider {
   readonly kind: "stripe" | "emulator";
+  listPlans(): Promise<PricingPlanItem[]>;
   createCustomer(input: { email: string; spaceId: string }): Promise<{ customerId: string }>;
   createCheckout(input: BillingCheckoutRequest): Promise<{ url: string }>;
   createPortal(input: { customerId: string; returnUrl: string }): Promise<{ url: string }>;

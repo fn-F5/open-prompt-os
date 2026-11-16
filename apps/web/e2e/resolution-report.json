@@ -1,0 +1,202 @@
+{
+  "generatedAt": "2026-11-16T06:58:11.878Z",
+  "auditedCount": 131,
+  "totalFindings": 10,
+  "bySeverity": {
+    "critical": 0,
+    "major": 0,
+    "minor": 10
+  },
+  "findings": [
+    {
+      "contextName": "anonymous-dark",
+      "theme": "dark",
+      "viewport": "Small Laptop lg (1024x768)",
+      "width": 1024,
+      "height": 768,
+      "route": "/improve",
+      "state": "route-view",
+      "severity": "minor",
+      "category": "container-overflow-clipped",
+      "element": "div\"Open Prompt OSCompilerImprove & AutopsyR\"",
+      "detail": "Container (visible) overflows horizontally: scrollWidth=666px > clientWidth=656px (+10px).",
+      "metrics": {
+        "scrollWidth": 666,
+        "clientWidth": 656,
+        "overflowPx": 10,
+        "overflowX": "visible"
+      }
+    },
+    {
+      "contextName": "anonymous-dark",
+      "theme": "dark",
+      "viewport": "Small Laptop lg (1024x768)",
+      "width": 1024,
+      "height": 768,
+      "route": "/improve",
+      "state": "route-view",
+      "severity": "minor",
+      "category": "container-overflow-clipped",
+      "element": "nav[aria-label=\"Primary marketing navigation\"]",
+      "detail": "Container (visible) overflows horizontally: scrollWidth=470px > clientWidth=460px (+10px).",
+      "metrics": {
+        "scrollWidth": 470,
+        "clientWidth": 460,
+        "overflowPx": 10,
+        "overflowX": "visible"
+      }
+    },
+    {
+      "contextName": "interactive-overlays",
+      "theme": "dark",
+      "viewport": "Short Laptop (1024x600)",
+      "width": 1024,
+      "height": 600,
+      "route": "/",
+      "state": "auth-dialog-open",
+      "severity": "minor",
+      "category": "container-overflow-clipped",
+      "element": "div\"Open Prompt OSCompilerImprove & AutopsyR\"",
+      "detail": "Container (visible) overflows horizontally: scrollWidth=664px > clientWidth=656px (+8px).",
+      "metrics": {
+        "scrollWidth": 664,
+        "clientWidth": 656,
+        "overflowPx": 8,
+        "overflowX": "visible"
+      }
+    },
+    {
+      "contextName": "interactive-overlays",
+      "theme": "dark",
+      "viewport": "Short Laptop (1024x600)",
+      "width": 1024,
+      "height": 600,
+      "route": "/",
+      "state": "auth-dialog-open",
+      "severity": "minor",
+      "category": "container-overflow-clipped",
+      "element": "nav[aria-label=\"Primary marketing navigation\"]",
+      "detail": "Container (visible) overflows horizontally: scrollWidth=468px > clientWidth=460px (+8px).",
+      "metrics": {
+        "scrollWidth": 468,
+        "clientWidth": 460,
+        "overflowPx": 8,
+        "overflowX": "visible"
+      }
+    },
+    {
+      "contextName": "interactive-overlays",
+      "theme": "dark",
+      "viewport": "Short Laptop (1024x600)",
+      "width": 1024,
+      "height": 600,
+      "route": "/",
+      "state": "model-picker-open",
+      "severity": "minor",
+      "category": "container-overflow-clipped",
+      "element": "div\"Open Prompt OSCompilerImprove & AutopsyR\"",
+      "detail": "Container (visible) overflows horizontally: scrollWidth=664px > clientWidth=656px (+8px).",
+      "metrics": {
+        "scrollWidth": 664,
+        "clientWidth": 656,
+        "overflowPx": 8,
+        "overflowX": "visible"
+      }
+    },
+    {
+      "contextName": "interactive-overlays",
+      "theme": "dark",
+      "viewport": "Short Laptop (1024x600)",
+      "width": 1024,
+      "height": 600,
+      "route": "/",
+      "state": "model-picker-open",
+      "severity": "minor",
+      "category": "container-overflow-clipped",
+      "element": "nav[aria-label=\"Primary marketing navigation\"]",
+      "detail": "Container (visible) overflows horizontally: scrollWidth=468px > clientWidth=460px (+8px).",
+      "metrics": {
+        "scrollWidth": 468,
+        "clientWidth": 460,
+        "overflowPx": 8,
+        "overflowX": "visible"
+      }
+    },
+    {
+      "contextName": "interactive-overlays",
+      "theme": "dark",
+      "viewport": "Short Laptop (1024x600)",
+      "width": 1024,
+      "height": 600,
+      "route": "/",
+      "state": "onboarding-tour-open",
+      "severity": "minor",
+      "category": "container-overflow-clipped",
+      "element": "div\"Open Prompt OSCompilerImprove & AutopsyR\"",
+      "detail": "Container (visible) overflows horizontally: scrollWidth=664px > clientWidth=656px (+8px).",
+      "metrics": {
+        "scrollWidth": 664,
+        "clientWidth": 656,
+        "overflowPx": 8,
+        "overflowX": "visible"
+      }
+    },
+    {
+      "contextName": "interactive-overlays",
+      "theme": "dark",
+      "viewport": "Short Laptop (1024x600)",
+      "width": 1024,
+      "height": 600,
+      "route": "/",
+      "state": "onboarding-tour-open",
+      "severity": "minor",
+      "category": "container-overflow-clipped",
+      "element": "nav[aria-label=\"Primary marketing navigation\"]",
+      "detail": "Container (visible) overflows horizontally: scrollWidth=468px > clientWidth=460px (+8px).",
+      "metrics": {
+        "scrollWidth": 468,
+        "clientWidth": 460,
+        "overflowPx": 8,
+        "overflowX": "visible"
+      }
+    },
+    {
+      "contextName": "interactive-overlays",
+      "theme": "dark",
+      "viewport": "Short Laptop (1024x600)",
+      "width": 1024,
+      "height": 600,
+      "route": "/",
+      "state": "composer-expanded-advanced",
+      "severity": "minor",
+      "category": "container-overflow-clipped",
+      "element": "div\"Open Prompt OSCompilerImprove & AutopsyR\"",
+      "detail": "Container (visible) overflows horizontally: scrollWidth=664px > clientWidth=656px (+8px).",
+      "metrics": {
+        "scrollWidth": 664,
+        "clientWidth": 656,
+        "overflowPx": 8,
+        "overflowX": "visible"
+      }
+    },
+    {
+      "contextName": "interactive-overlays",
+      "theme": "dark",
+      "viewport": "Short Laptop (1024x600)",
+      "width": 1024,
+      "height": 600,
+      "route": "/",
+      "state": "composer-expanded-advanced",
+      "severity": "minor",
+      "category": "container-overflow-clipped",
+      "element": "nav[aria-label=\"Primary marketing navigation\"]",
+      "detail": "Container (visible) overflows horizontally: scrollWidth=468px > clientWidth=460px (+8px).",
+      "metrics": {
+        "scrollWidth": 468,
+        "clientWidth": 460,
+        "overflowPx": 8,
+        "overflowX": "visible"
+      }
+    }
+  ]
+}

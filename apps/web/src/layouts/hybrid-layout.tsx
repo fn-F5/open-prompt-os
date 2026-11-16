@@ -1,13 +1,15 @@
 import { Button, ToastViewport } from "@open-prompt-os/ui-web";
-import { ShieldCheck, Terminal } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import * as React from "react";
 import { Link, Outlet, useLocation } from "react-router";
 import { AuthDialog } from "../components/auth/auth-dialog.js";
+import { BrandLogo } from "../components/brand/brand-logo.js";
 import { StorageAndNetworkBanner } from "../components/feedback/storage-banner.js";
 import { MarketingScrollContent } from "../components/marketing/marketing-scroll-content.js";
 import { AppNavbar, MarketingNavbar } from "../components/navigation/navbar.js";
 import { AnonymousTour } from "../components/onboarding/anonymous-tour.js";
 import { useAuthSession } from "../hooks/use-auth-session.js";
+import { useCardParallax } from "../hooks/use-card-parallax.js";
 import { useGuestHydration } from "../hooks/use-guest-hydration.js";
 import { useIdleTour } from "../hooks/use-idle-tour.js";
 import { useReducedEffects } from "../hooks/use-reduced-effects.js";
@@ -23,6 +25,9 @@ export function HybridLayout() {
 
   // Trigger post-authentication guest interaction migration
   useGuestHydration();
+
+  // Drive 3D tilt and cursor-following spotlight across cards
+  useCardParallax(!prefersReducedMotion);
 
   const isIndexRoute = location.pathname === "/";
   const isStreaming = streamingBuffer !== null;
@@ -55,31 +60,21 @@ export function HybridLayout() {
 
   return (
     <div className="relative min-h-[100dvh] flex flex-col bg-[var(--page-bg)] text-[var(--text-primary)] isolate overflow-x-hidden">
-      {/* Page-Wide Ambient Glow Backdrop (Absolute across the document so every scroll depth glows and stitched screenshots never repeat) */}
+      {/* Top Hero Warm Wash & Subtle Radial Bloom */}
       {!shouldReduceEffects ? (
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 -z-10 overflow-hidden"
         >
           <div
-            className="absolute -top-24 left-[12%] w-[560px] h-[560px] rounded-full blur-[135px]"
-            style={{ backgroundColor: "var(--ambient-indigo)" }}
+            className="absolute inset-x-0 top-0 h-[560px]"
+            style={{
+              background: "linear-gradient(180deg, var(--ambient-indigo) 0%, transparent 100%)",
+            }}
           />
           <div
-            className="absolute top-[6%] right-[10%] w-[500px] h-[500px] rounded-full blur-[135px]"
+            className="absolute -top-20 left-1/2 -translate-x-1/2 w-[780px] h-[440px] rounded-full blur-[120px]"
             style={{ backgroundColor: "var(--ambient-cyan)" }}
-          />
-          <div
-            className="absolute top-[32%] left-[20%] w-[580px] h-[580px] rounded-full blur-[145px]"
-            style={{ backgroundColor: "var(--ambient-cyan)" }}
-          />
-          <div
-            className="absolute top-[58%] right-[14%] w-[600px] h-[600px] rounded-full blur-[150px]"
-            style={{ backgroundColor: "var(--ambient-indigo)" }}
-          />
-          <div
-            className="absolute bottom-[4%] left-[25%] w-[560px] h-[560px] rounded-full blur-[145px]"
-            style={{ backgroundColor: "var(--ambient-indigo)" }}
           />
         </div>
       ) : null}
@@ -95,16 +90,12 @@ export function HybridLayout() {
       <StorageAndNetworkBanner />
 
       {/* 2. Navbar */}
-      {isAuthenticated ? (
-        <AppNavbar />
-      ) : (
-        <MarketingNavbar onReplayTour={tourController.replayTour} />
-      )}
+      {isAuthenticated ? <AppNavbar /> : <MarketingNavbar />}
 
       {/* 3. Main Product Workspace */}
       <main
         id="main-workspace"
-        className="flex-1 mx-auto w-full max-w-[1360px] px-4 sm:px-8 pt-3 sm:pt-8 pb-8 sm:pb-12"
+        className="flex-1 mx-auto w-full max-w-[1360px] px-4 sm:px-8 pt-2 sm:pt-4 pb-8 sm:pb-12"
       >
         <Outlet />
       </main>
@@ -134,12 +125,10 @@ export function HybridLayout() {
           aria-label="Site footer"
           className="border-t border-[var(--separator-subtle)] bg-[var(--surface-1)]/80 py-12 sm:py-16 px-4 sm:px-8 text-sm text-[var(--text-secondary)]"
         >
-          <div className="mx-auto max-w-[1360px] grid grid-cols-1 md:grid-cols-12 gap-8 sm:gap-10 pb-10 sm:pb-12 border-b border-[var(--separator-subtle)]">
-            <div className="md:col-span-5 space-y-4">
+          <div className="mx-auto max-w-[1360px] grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-8 sm:gap-10 pb-10 sm:pb-12 border-b border-[var(--separator-subtle)]">
+            <div className="sm:col-span-2 lg:col-span-4 space-y-4">
               <div className="inline-flex items-center gap-3 font-bold text-lg text-[var(--text-primary)]">
-                <span className="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-[var(--accent-subtle-bg)] text-[var(--accent-text)] border border-[var(--separator-strong)]">
-                  <Terminal className="w-4 h-4" />
-                </span>
+                <BrandLogo className="w-8 h-8 shrink-0 shadow-sm" />
                 <span>Open Prompt OS</span>
               </div>
               <p className="text-base text-[var(--text-secondary)] max-w-sm leading-relaxed">
@@ -152,7 +141,7 @@ export function HybridLayout() {
               </div>
             </div>
 
-            <div className="md:col-span-2 space-y-3">
+            <div className="lg:col-span-2 space-y-3">
               <div className="font-semibold text-[var(--text-primary)]">Product</div>
               <ul className="space-y-2.5">
                 <li>
@@ -166,6 +155,14 @@ export function HybridLayout() {
                     className="hover:text-[var(--text-primary)] focus-ring rounded"
                   >
                     Improve & Autopsy
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/reverse-engineer"
+                    className="hover:text-[var(--text-primary)] focus-ring rounded"
+                  >
+                    Reverse Engineer
                   </Link>
                 </li>
                 <li>
@@ -187,28 +184,57 @@ export function HybridLayout() {
               </ul>
             </div>
 
-            <div className="md:col-span-2 space-y-3">
-              <div className="font-semibold text-[var(--text-primary)]">Modes</div>
+            <div className="lg:col-span-3 space-y-3">
+              <div className="font-semibold text-[var(--text-primary)]">Docs & Guides</div>
               <ul className="space-y-2.5">
                 <li>
-                  <Link to="/" className="hover:text-[var(--text-primary)] focus-ring rounded">
-                    Text & Work Prompts
+                  <Link to="/docs" className="hover:text-[var(--text-primary)] focus-ring rounded">
+                    Documentation Hub
                   </Link>
                 </li>
                 <li>
-                  <Link to="/" className="hover:text-[var(--text-primary)] focus-ring rounded">
-                    Image Studio Prompts
+                  <Link
+                    to="/docs/prompt-frameworks-costar-rise-care-cot"
+                    className="hover:text-[var(--text-primary)] focus-ring rounded"
+                  >
+                    CO-STAR, RISE, CARE & CoT
                   </Link>
                 </li>
                 <li>
-                  <Link to="/" className="hover:text-[var(--text-primary)] focus-ring rounded">
-                    Cinema Video Prompts
+                  <Link
+                    to="/docs/prompt-autopsy-and-debugging"
+                    className="hover:text-[var(--text-primary)] focus-ring rounded"
+                  >
+                    Prompt Autopsy Guide
                   </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/docs/privacy-and-security"
+                    className="hover:text-[var(--text-primary)] focus-ring rounded"
+                  >
+                    Zero-Training Privacy
+                  </Link>
+                </li>
+                <li>
+                  <a
+                    href="/llms.txt"
+                    className="hover:text-[var(--text-primary)] focus-ring rounded font-mono text-xs"
+                  >
+                    llms.txt
+                  </a>
+                  {" · "}
+                  <a
+                    href="/sitemap.xml"
+                    className="hover:text-[var(--text-primary)] focus-ring rounded font-mono text-xs"
+                  >
+                    sitemap.xml
+                  </a>
                 </li>
               </ul>
             </div>
 
-            <div className="md:col-span-3 space-y-3">
+            <div className="sm:col-span-2 lg:col-span-3 space-y-3">
               <div className="font-semibold text-[var(--text-primary)]">Workspace</div>
               <p className="text-sm text-[var(--text-secondary)]">
                 Save your prompts and sync across devices with a free account.

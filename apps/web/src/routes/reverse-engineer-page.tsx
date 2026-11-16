@@ -5,8 +5,10 @@ import { ArrowRight, Check, Copy, ImagePlus, Sparkles, Trash2 } from "lucide-rea
 import * as React from "react";
 import { useNavigate } from "react-router";
 import { SanitizedPromptRenderer } from "../components/output/output-card.js";
+import { SeoHead } from "../components/seo/seo-head.js";
 import { copyTextToClipboard } from "../lib/dispatch.js";
 import { orpcClient } from "../lib/orpc.js";
+import { STATIC_ROUTE_SEO } from "../lib/seo.js";
 import { composerActions } from "../state/composer-store.js";
 
 const MAX_FILE_BYTES = 4 * 1024 * 1024;
@@ -152,11 +154,14 @@ export function ReverseEngineerPage() {
       ]
     : [];
 
+  const seoMeta = React.useMemo(() => STATIC_ROUTE_SEO.reverseEngineer(), []);
+
   return (
     <div className="space-y-6">
+      <SeoHead meta={seoMeta} />
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="inline-flex items-center gap-2 mb-1">
+          <div className="flex flex-wrap items-center gap-2 mb-1">
             <Badge variant="framework">Vision Extractor</Badge>
             <span className="text-xs text-[var(--text-secondary)]">
               Image-to-Prompt Reconstruction
@@ -266,7 +271,7 @@ export function ReverseEngineerPage() {
             />
           </div>
 
-          <div className="flex items-center justify-between gap-3 pt-2 border-t border-[var(--separator-subtle)]">
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-[var(--separator-subtle)]">
             <span className="text-xs text-[var(--text-secondary)]">
               {result?.remainingDailyRuns !== null && result?.remainingDailyRuns !== undefined
                 ? `${result.remainingDailyRuns} reverse-engineer run(s) left today`

@@ -1,5 +1,4 @@
-import type { PlanTier, UsageAction } from "@prisma/client";
-import { prisma } from "../src/index.js";
+import { type PlanTier, type UsageAction, prisma } from "../src/index.js";
 import { CURATED_TEMPLATES } from "./seed/templates.js";
 
 /** Daily limits per plan/action. Guest = anonymous visitor (no account). */

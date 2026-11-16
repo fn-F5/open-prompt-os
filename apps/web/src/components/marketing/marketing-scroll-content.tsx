@@ -2,7 +2,6 @@ import type { ComposerMode } from "@open-prompt-os/contracts";
 import { Badge, Button } from "@open-prompt-os/ui-web";
 import {
   ArrowRight,
-  Check,
   Compass,
   Cpu,
   EyeOff,
@@ -19,8 +18,9 @@ import {
 import * as React from "react";
 import { Link } from "react-router";
 import { trackEvent } from "../../lib/telemetry.js";
-import { openAuthDialog } from "../../state/auth-dialog-store.js";
+import { HOME_AEO_FAQS } from "../../content/docs-catalog.js";
 import { composerActions } from "../../state/composer-store.js";
+import { PricingPlansSection } from "../pricing/pricing-plans-section.js";
 
 function ObservedSection({
   sectionId,
@@ -130,7 +130,10 @@ const USE_CASE_SHOWCASE: ReadonlyArray<{
     rawInput:
       "Macro studio photograph of [Product_Subject] on matte basalt, 85mm f/2.0, rim lighting.",
     highlights: [
-      { label: "Subject", text: "[Product_Subject] crafted from [Material_Finish] on matte basalt" },
+      {
+        label: "Subject",
+        text: "[Product_Subject] crafted from [Material_Finish] on matte basalt",
+      },
       { label: "Optics", text: "16:9 widescreen, 85mm prime lens, f/2.0 shallow depth of field" },
       { label: "Lighting", text: "Soft volumetric key light with crisp silver rim highlights" },
       { label: "Negative Guardrail", text: "No neon cast, no distorted text, no plastic sheen" },
@@ -153,7 +156,10 @@ const USE_CASE_SHOWCASE: ReadonlyArray<{
         text: "[Opening_Frame] transitions smoothly around [Hero_Subject] to [Closing_Beat]",
       },
       { label: "Camera", text: "24fps, 16:9 cinema scope, 6-second continuous tracking shot" },
-      { label: "Motion Physics", text: "Consistent object geometry with natural 180° shutter blur" },
+      {
+        label: "Motion Physics",
+        text: "Consistent object geometry with natural 180° shutter blur",
+      },
       { label: "Guardrail", text: "Prevent morphing textures or sudden lighting flicker" },
     ],
   },
@@ -176,8 +182,9 @@ export function MarketingScrollContent() {
       >
         <div className="text-center max-w-2xl mx-auto space-y-2.5 sm:space-y-3">
           <Badge variant="framework">See the Difference</Badge>
-          <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-balance">
-            Why one-line prompts fail—and how Open Prompt OS fixes them
+          <h2 className="text-2xl sm:text-4xl font-medium tracking-[-0.025em] text-balance">
+            Why one-line prompts fail—and how Open Prompt OS{" "}
+            <span className="text-gradient-brand">fixes them</span>
           </h2>
           <p className="text-sm sm:text-lg text-[var(--text-secondary)] leading-relaxed">
             When you type a vague sentence into AI, it guesses your tone, audience, and format. We
@@ -187,10 +194,10 @@ export function MarketingScrollContent() {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 items-stretch">
           {/* Before Card */}
-          <div className="lg:col-span-5 rounded-2xl sm:rounded-3xl p-5 sm:p-8 flat-surface flex flex-col justify-between space-y-4 sm:space-y-6">
+          <div className="lg:col-span-5 p-5 sm:p-8 flat-surface flex flex-col justify-between space-y-4 sm:space-y-6">
             <div className="space-y-4">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-base font-semibold text-[var(--danger-text)]">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-base font-medium text-[var(--danger-text)]">
                   Before: Typical 1-Line Prompt
                 </span>
                 <Badge variant="danger">Unpredictable</Badge>
@@ -213,13 +220,13 @@ export function MarketingScrollContent() {
                 </li>
               </ul>
             </div>
-            <div className="pt-3.5 border-t border-[var(--separator-subtle)] text-xs sm:text-sm text-[var(--text-muted)]">
+            <div className="pt-3.5 border-t border-[var(--separator-subtle)] font-mono text-[13px] leading-[1.4] text-[var(--text-muted)]">
               Result: 4–5 rounds of frustrating follow-up edits.
             </div>
           </div>
 
           {/* After Card: 4 Calm Divided Rows */}
-          <div className="lg:col-span-7 rounded-2xl sm:rounded-3xl p-5 sm:p-8 glow-card flex flex-col justify-between space-y-4 sm:space-y-6">
+          <div className="lg:col-span-7 p-5 sm:p-8 glow-card flex flex-col justify-between space-y-4 sm:space-y-6">
             <div className="space-y-3 sm:space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[var(--separator-subtle)]">
                 <span className="inline-flex items-center gap-2 text-base font-semibold text-[var(--accent-text)]">
@@ -271,8 +278,9 @@ export function MarketingScrollContent() {
       <ObservedSection sectionId="features_grid" className="space-y-6 sm:space-y-10">
         <div className="text-center max-w-2xl mx-auto space-y-2.5 sm:space-y-3">
           <Badge variant="framework">Built for Everyday Speed</Badge>
-          <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-balance">
-            Everything you need to write better prompts, faster
+          <h2 className="text-2xl sm:text-4xl font-medium tracking-[-0.025em] text-balance">
+            Everything you need to write better prompts,{" "}
+            <span className="text-gradient-brand">faster</span>
           </h2>
           <p className="text-sm sm:text-lg text-[var(--text-secondary)] leading-relaxed">
             No complex syntax to memorize. Pick what you need from visual cards and let the studio
@@ -282,15 +290,15 @@ export function MarketingScrollContent() {
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 sm:gap-5">
           {/* Wide Spotlight 1 (7 cols) */}
-          <article className="md:col-span-7 rounded-2xl p-5 sm:p-8 flat-surface flex flex-col justify-between gap-4 sm:gap-6">
+          <article className="md:col-span-7 p-5 sm:p-8 flat-surface flex flex-col justify-between gap-4 sm:gap-6">
             <div className="space-y-3 sm:space-y-4">
               <div className="flex items-center justify-between gap-3">
-                <span className="inline-flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-[var(--accent-subtle-bg)] text-[var(--accent-text)] border border-[var(--separator-strong)]">
+                <span className="inline-flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-[10px] bg-[var(--accent-subtle-bg)] text-[var(--accent-text)] border border-[var(--separator-strong)]">
                   <Compass className="w-5 h-5 sm:w-6 sm:h-6" />
                 </span>
                 <Badge variant="framework">Text · Image · Video</Badge>
               </div>
-              <h3 className="text-lg sm:text-2xl font-bold">
+              <h3 className="text-xl sm:text-2xl font-medium tracking-[-0.02em]">
                 Guided building blocks instead of blank-page guesswork
               </h3>
               <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed">
@@ -304,7 +312,7 @@ export function MarketingScrollContent() {
                 (chip) => (
                   <span
                     key={chip}
-                    className="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium bg-[var(--surface-2)] text-[var(--text-primary)] border border-[var(--separator-subtle)]"
+                    className="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg font-mono text-xs font-normal bg-[var(--surface-2)] text-[var(--text-primary)] border border-[var(--separator-subtle)]"
                   >
                     + {chip}
                   </span>
@@ -314,15 +322,15 @@ export function MarketingScrollContent() {
           </article>
 
           {/* Spotlight 2 (5 cols) */}
-          <article className="md:col-span-5 rounded-2xl p-5 sm:p-8 flat-surface flex flex-col justify-between gap-4 sm:gap-6">
+          <article className="md:col-span-5 p-5 sm:p-8 flat-surface flex flex-col justify-between gap-4 sm:gap-6">
             <div className="space-y-3 sm:space-y-4">
               <div className="flex items-center justify-between gap-3">
-                <span className="inline-flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-[var(--cyan-subtle-bg)] text-[var(--cyan-text)] border border-[var(--accent-cyan)]">
+                <span className="inline-flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-[10px] bg-[var(--cyan-subtle-bg)] text-[var(--cyan-text)] border border-[var(--accent-cyan)]">
                   <Wrench className="w-5 h-5 sm:w-6 sm:h-6" />
                 </span>
                 <Badge variant="diagnostic">Prompt Autopsy</Badge>
               </div>
-              <h3 className="text-lg sm:text-2xl font-bold">
+              <h3 className="text-xl sm:text-2xl font-medium tracking-[-0.02em]">
                 Find out why a prompt failed—and fix it in seconds
               </h3>
               <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed">
@@ -332,7 +340,7 @@ export function MarketingScrollContent() {
             </div>
             <Link
               to="/improve"
-              className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--cyan-text)] hover:underline focus-ring rounded"
+              className="inline-flex items-center gap-2 font-mono text-[13px] font-normal text-[var(--cyan-text)] hover:underline focus-ring rounded"
             >
               <span>Open Improve & Prompt Autopsy</span>
               <ArrowRight className="w-4 h-4" />
@@ -340,44 +348,50 @@ export function MarketingScrollContent() {
           </article>
 
           {/* 4 Focused Cards below */}
-          <article className="md:col-span-6 lg:col-span-3 rounded-2xl p-5 sm:p-6 flat-surface space-y-2.5">
-            <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-[var(--cyan-subtle-bg)] text-[var(--cyan-text)] border border-[var(--accent-cyan)]">
+          <article className="md:col-span-6 lg:col-span-3 p-5 sm:p-6 flat-surface space-y-2.5">
+            <span className="inline-flex items-center justify-center w-10 h-10 rounded-[10px] bg-[var(--cyan-subtle-bg)] text-[var(--cyan-text)] border border-[var(--accent-cyan)]">
               <Send className="w-5 h-5" />
             </span>
-            <h3 className="text-base sm:text-lg font-bold">One-Click Send</h3>
+            <h3 className="text-lg font-medium tracking-[-0.02em]">One-Click Send</h3>
             <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed">
               Open your finished prompt directly in ChatGPT, Claude, or Gemini, or copy it in a
               single click.
             </p>
           </article>
 
-          <article className="md:col-span-6 lg:col-span-3 rounded-2xl p-5 sm:p-6 flat-surface space-y-2.5">
-            <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-[var(--accent-subtle-bg)] text-[var(--accent-text)] border border-[var(--separator-strong)]">
+          <article className="md:col-span-6 lg:col-span-3 p-5 sm:p-6 flat-surface space-y-2.5">
+            <span className="inline-flex items-center justify-center w-10 h-10 rounded-[10px] bg-[var(--accent-subtle-bg)] text-[var(--accent-text)] border border-[var(--separator-strong)]">
               <Layers className="w-5 h-5" />
             </span>
-            <h3 className="text-base sm:text-lg font-bold">Proven Frameworks</h3>
+            <h3 className="text-lg font-medium tracking-[-0.02em]">Proven Frameworks</h3>
             <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed">
               Apply techniques inspired by CO-STAR, RISE, CARE, and Chain-of-Thought with one
-              toggle.
+              toggle.{" "}
+              <Link
+                to="/docs/prompt-frameworks-costar-rise-care-cot"
+                className="text-[var(--accent-text)] font-medium hover:underline focus-ring rounded"
+              >
+                Compare frameworks →
+              </Link>
             </p>
           </article>
 
-          <article className="md:col-span-6 lg:col-span-3 rounded-2xl p-5 sm:p-6 flat-surface space-y-2.5">
-            <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-[var(--success-subtle-bg)] text-[var(--success-text)] border border-[var(--separator-subtle)]">
+          <article className="md:col-span-6 lg:col-span-3 p-5 sm:p-6 flat-surface space-y-2.5">
+            <span className="inline-flex items-center justify-center w-10 h-10 rounded-[10px] bg-[var(--success-subtle-bg)] text-[var(--success-text)] border border-[var(--separator-subtle)]">
               <Sparkles className="w-5 h-5" />
             </span>
-            <h3 className="text-base sm:text-lg font-bold">Instant Free Use</h3>
+            <h3 className="text-lg font-medium tracking-[-0.02em]">Instant Free Use</h3>
             <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed">
               Start right on this page without an account. Your latest work saves in your browser
               and syncs when you sign up.
             </p>
           </article>
 
-          <article className="md:col-span-6 lg:col-span-3 rounded-2xl p-5 sm:p-6 flat-surface space-y-2.5">
-            <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-[var(--accent-subtle-bg)] text-[var(--accent-text)] border border-[var(--separator-strong)]">
+          <article className="md:col-span-6 lg:col-span-3 p-5 sm:p-6 flat-surface space-y-2.5">
+            <span className="inline-flex items-center justify-center w-10 h-10 rounded-[10px] bg-[var(--accent-subtle-bg)] text-[var(--accent-text)] border border-[var(--separator-strong)]">
               <Lock className="w-5 h-5" />
             </span>
-            <h3 className="text-base sm:text-lg font-bold">Reusable Library</h3>
+            <h3 className="text-lg font-medium tracking-[-0.02em]">Reusable Library</h3>
             <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed">
               Stop hunting through old chat threads. Save your best prompts with custom{" "}
               <code className="font-mono text-[var(--accent-text)]">[Variables]</code> in one place.
@@ -390,8 +404,9 @@ export function MarketingScrollContent() {
       <ObservedSection sectionId="use_cases" className="relative space-y-6 sm:space-y-10">
         <div className="text-center max-w-2xl mx-auto space-y-2.5 sm:space-y-3">
           <Badge variant="framework">Curated Template Gallery</Badge>
-          <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-balance">
-            Prompts tuned for writing, images, and video
+          <h2 className="text-2xl sm:text-4xl font-medium tracking-[-0.025em] text-balance">
+            Prompts tuned for writing, images,{" "}
+            <span className="text-gradient-brand">and video</span>
           </h2>
           <p className="text-sm sm:text-lg text-[var(--text-secondary)] leading-relaxed">
             Pick a studio mode below to inspect a sample blueprint, or load it straight into the
@@ -409,20 +424,16 @@ export function MarketingScrollContent() {
                 key={item.mode}
                 type="button"
                 onClick={() => setSelectedUseCase(item.mode)}
-                className={`text-left p-4 sm:p-5 rounded-2xl transition-all focus-ring cursor-pointer flex flex-col justify-between gap-2 ${
-                  isSelected
-                    ? "glow-card"
-                    : "flat-surface opacity-85 hover:opacity-100"
+                className={`text-left p-4 sm:p-5 transition-all focus-ring cursor-pointer flex flex-col justify-between gap-2 ${
+                  isSelected ? "glow-card" : "flat-surface opacity-85 hover:opacity-100"
                 }`}
               >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="inline-flex items-center gap-2 text-base font-bold text-[var(--text-primary)]">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="inline-flex items-center gap-2 text-base font-medium tracking-[-0.02em] text-[var(--text-primary)]">
                     <Icon className="w-4 h-4 text-[var(--accent-text)]" />
                     <span>{item.tabLabel}</span>
                   </span>
-                  <Badge variant={isSelected ? "framework" : "neutral"}>
-                    {item.badge}
-                  </Badge>
+                  <Badge variant={isSelected ? "framework" : "neutral"}>{item.badge}</Badge>
                 </div>
                 <p className="text-sm text-[var(--text-secondary)]">{item.modeSummary}</p>
               </button>
@@ -431,10 +442,12 @@ export function MarketingScrollContent() {
         </div>
 
         {/* Active Template Detail Inspector */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 rounded-2xl sm:rounded-3xl p-5 sm:p-10 glass-surface items-center">
-          <div className="lg:col-span-5 space-y-4 sm:space-y-5">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 p-5 sm:p-10 glass-surface items-center">
+          <div className="lg:col-span-5 min-w-0 space-y-4 sm:space-y-5">
             <Badge variant="framework">Sample {activeShowcase.tabLabel} Blueprint</Badge>
-            <h3 className="text-xl sm:text-3xl font-bold leading-snug">{activeShowcase.title}</h3>
+            <h3 className="text-xl sm:text-2xl font-medium tracking-[-0.02em] leading-snug">
+              {activeShowcase.title}
+            </h3>
             <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed">
               {activeShowcase.summary}
             </p>
@@ -452,13 +465,14 @@ export function MarketingScrollContent() {
               <Button
                 variant="solid"
                 size="md"
+                className="max-w-full text-xs sm:text-sm px-3.5 sm:px-5"
                 onClick={() => {
                   composerActions.setMode(activeShowcase.mode);
                   composerActions.updateActiveDraft({ rawInput: activeShowcase.rawInput });
                   window.scrollTo({ top: 0, behavior: "smooth" });
                 }}
               >
-                <Cpu className="w-4 h-4" />
+                <Cpu className="w-4 h-4 shrink-0" />
                 <span>Load in {activeShowcase.tabLabel} Composer</span>
               </Button>
 
@@ -472,7 +486,7 @@ export function MarketingScrollContent() {
             </div>
           </div>
 
-          <div className="lg:col-span-7 lg:pl-8 lg:border-l lg:border-[var(--separator-subtle)] space-y-3.5 sm:space-y-4">
+          <div className="lg:col-span-7 min-w-0 lg:pl-8 lg:border-l lg:border-[var(--separator-subtle)] space-y-3.5 sm:space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-[var(--separator-subtle)]">
               <span className="text-sm font-semibold text-[var(--accent-text)]">
                 Compiled Specification Structure
@@ -499,14 +513,11 @@ export function MarketingScrollContent() {
       </ObservedSection>
 
       {/* SECTION 4: Privacy & Trust Showcase (Uniform width, clean 3-column divided layout) */}
-      <ObservedSection
-        sectionId="privacy_commitment"
-        className="rounded-2xl sm:rounded-3xl p-6 sm:p-12 glass-surface"
-      >
+      <ObservedSection sectionId="privacy_commitment" className="p-6 sm:p-12 glass-surface">
         <div className="text-center max-w-2xl mx-auto mb-6 sm:mb-10 space-y-2.5 sm:space-y-3">
           <Badge variant="framework">Privacy by Default Guarantee</Badge>
-          <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-balance">
-            We never train on your prompts. Period.
+          <h2 className="text-2xl sm:text-4xl font-medium tracking-[-0.025em] text-balance">
+            We never train on your prompts. <span className="text-gradient-brand">Period.</span>
           </h2>
           <p className="text-sm sm:text-lg text-[var(--text-secondary)] leading-relaxed">
             Your prompts contain your company's strategy, code, and creative IP. Every draft and
@@ -516,7 +527,7 @@ export function MarketingScrollContent() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 pt-6 border-t border-[var(--separator-subtle)] md:divide-x md:divide-[var(--separator-subtle)]">
           <div className="space-y-1.5 sm:space-y-2 md:pr-6">
-            <div className="inline-flex items-center gap-2 text-base font-semibold text-[var(--success-text)]">
+            <div className="inline-flex items-center gap-2 text-base font-medium text-[var(--success-text)]">
               <ShieldCheck className="w-5 h-5" />
               <span>Zero Model Training</span>
             </div>
@@ -526,7 +537,7 @@ export function MarketingScrollContent() {
           </div>
 
           <div className="space-y-1.5 sm:space-y-2 md:px-6">
-            <div className="inline-flex items-center gap-2 text-base font-semibold text-[var(--accent-text)]">
+            <div className="inline-flex items-center gap-2 text-base font-medium text-[var(--accent-text)]">
               <EyeOff className="w-5 h-5" />
               <span>Redacted Telemetry</span>
             </div>
@@ -536,7 +547,7 @@ export function MarketingScrollContent() {
           </div>
 
           <div className="space-y-1.5 sm:space-y-2 md:pl-6">
-            <div className="inline-flex items-center gap-2 text-base font-semibold text-[var(--cyan-text)]">
+            <div className="inline-flex items-center gap-2 text-base font-medium text-[var(--cyan-text)]">
               <Lock className="w-5 h-5" />
               <span>Isolated Workspaces</span>
             </div>
@@ -547,145 +558,41 @@ export function MarketingScrollContent() {
         </div>
       </ObservedSection>
 
-      {/* SECTION 5: Pricing with Horizontally Aligned Headers Across All 3 Cards */}
-      <ObservedSection sectionId="pricing_options" className="space-y-6 sm:space-y-10">
+      {/* SECTION 5: Shared Stripe-backed Pricing Section */}
+      <ObservedSection sectionId="pricing_options">
+        <PricingPlansSection headingAs="h2" />
+      </ObservedSection>
+
+      {/* SECTION 6: Answer-First FAQ Section (SEO / AEO) */}
+      <ObservedSection sectionId="faq_section" className="space-y-6 sm:space-y-8">
         <div className="text-center max-w-2xl mx-auto space-y-2.5 sm:space-y-3">
-          <Badge variant="framework">Simple, Fair Pricing</Badge>
-          <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-balance">
-            Start free without an account. Upgrade when you need more volume.
+          <Badge variant="framework">Documentation & Quick Answers</Badge>
+          <h2 className="text-2xl sm:text-4xl font-medium tracking-[-0.025em] text-balance">
+            Frequently asked <span className="text-gradient-brand">questions</span>
           </h2>
           <p className="text-sm sm:text-lg text-[var(--text-secondary)] leading-relaxed">
-            Only AI-powered compilations count toward your daily limit—editing, copying, and
-            browsing templates are always free.
+            Direct answers about prompt compilation, frameworks, Prompt Autopsy, and privacy.{" "}
+            <Link
+              to="/docs"
+              className="text-[var(--accent-text)] font-medium hover:underline focus-ring rounded"
+            >
+              Read full docs →
+            </Link>
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6 items-stretch pt-2">
-          {/* Free Tier */}
-          <div className="rounded-2xl sm:rounded-3xl p-6 sm:p-8 flat-surface flex flex-col justify-between gap-6 sm:gap-8">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between gap-2 pb-3 border-b border-[var(--separator-subtle)]">
-                <Badge variant="neutral">Free Forever</Badge>
-                <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-                  Starter
-                </span>
-              </div>
-              <h3 className="text-2xl font-bold">Instant Guest & Free</h3>
-              <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-extrabold tabular-nums">$0</span>
-                <span className="text-sm text-[var(--text-secondary)]">/ forever</span>
-              </div>
-              <p className="text-sm sm:text-base text-[var(--text-secondary)]">
-                Everything you need to start writing better prompts right away.
-              </p>
-              <ul className="space-y-3 text-sm sm:text-base text-[var(--text-secondary)] pt-2">
-                <li className="flex items-center gap-2.5">
-                  <Check className="w-5 h-5 text-[var(--success-text)] shrink-0" />
-                  <span>5 daily guest runs · 50/day with free account</span>
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <Check className="w-5 h-5 text-[var(--success-text)] shrink-0" />
-                  <span>Text, Image, and Video modes</span>
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <Check className="w-5 h-5 text-[var(--success-text)] shrink-0" />
-                  <span>Personal prompt library & auto-sync</span>
-                </li>
-              </ul>
-            </div>
-            <Button
-              variant="solid"
-              size="lg"
-              onClick={() => openAuthDialog({ reason: "navbar_signin" })}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {HOME_AEO_FAQS.map((faq) => (
+            <article
+              key={faq.question}
+              className="p-5 sm:p-6 rounded-2xl flat-surface space-y-2"
             >
-              Create Free Account
-            </Button>
-          </div>
-
-          {/* Recommended Pro Tier */}
-          <div className="rounded-2xl sm:rounded-3xl p-6 sm:p-8 glow-card flex flex-col justify-between gap-6 sm:gap-8 overflow-hidden">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between gap-2 pb-3 border-b border-[var(--separator-subtle)]">
-                <Badge variant="framework">Recommended · Most Popular</Badge>
-                <span className="text-xs font-semibold uppercase tracking-wider text-[var(--accent-text)]">
-                  Power Users
-                </span>
-              </div>
-              <h3 className="text-2xl font-bold">Pro Studio</h3>
-              <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-extrabold tabular-nums">$19</span>
-                <span className="text-sm text-[var(--text-secondary)]">/ month</span>
-              </div>
-              <p className="text-sm sm:text-base text-[var(--text-secondary)]">
-                For builders, writers, and engineers who rely on AI every day.
-              </p>
-              <ul className="space-y-3 text-sm sm:text-base text-[var(--text-primary)] pt-2">
-                <li className="flex items-center gap-2.5">
-                  <Check className="w-5 h-5 text-[var(--accent-text)] shrink-0" />
-                  <span>500 daily AI-compiled prompts & autopsies</span>
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <Check className="w-5 h-5 text-[var(--accent-text)] shrink-0" />
-                  <span>Unlimited Prompt Autopsy failure diagnostics</span>
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <Check className="w-5 h-5 text-[var(--accent-text)] shrink-0" />
-                  <span>Anti-hallucination guardrail packs</span>
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <Check className="w-5 h-5 text-[var(--accent-text)] shrink-0" />
-                  <span>Passwordless email OTP & OAuth sign-in</span>
-                </li>
-              </ul>
-            </div>
-
-            <Link
-              to="/pricing"
-              className="inline-flex items-center justify-center min-h-[52px] px-7 py-3 text-base font-semibold rounded-xl btn-brand-gradient text-white focus-ring"
-            >
-              Upgrade to Pro
-            </Link>
-          </div>
-
-          {/* Team Tier */}
-          <div className="rounded-2xl sm:rounded-3xl p-6 sm:p-8 flat-surface flex flex-col justify-between gap-6 sm:gap-8">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between gap-2 pb-3 border-b border-[var(--separator-subtle)]">
-                <Badge variant="neutral">Shared Library</Badge>
-                <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-                  Multi-Seat
-                </span>
-              </div>
-              <h3 className="text-2xl font-bold">Team Workspace</h3>
-              <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-extrabold tabular-nums">$49</span>
-                <span className="text-sm text-[var(--text-secondary)]">/ seat / mo</span>
-              </div>
-              <p className="text-sm sm:text-base text-[var(--text-secondary)]">
-                Standardize prompts and guardrails across your entire team.
-              </p>
-              <ul className="space-y-3 text-sm sm:text-base text-[var(--text-secondary)] pt-2">
-                <li className="flex items-center gap-2.5">
-                  <Check className="w-5 h-5 text-[var(--success-text)] shrink-0" />
-                  <span>Shared team prompt library & templates</span>
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <Check className="w-5 h-5 text-[var(--success-text)] shrink-0" />
-                  <span>Strict tenant-isolated database security</span>
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <Check className="w-5 h-5 text-[var(--success-text)] shrink-0" />
-                  <span>Automatic multi-provider failover</span>
-                </li>
-              </ul>
-            </div>
-            <Link
-              to="/pricing"
-              className="inline-flex items-center justify-center min-h-[52px] px-7 py-3 text-base font-semibold rounded-xl btn-solid-contrast focus-ring"
-            >
-              Compare All Plans
-            </Link>
-          </div>
+              <h3 className="text-base sm:text-lg font-medium tracking-[-0.015em] text-[var(--text-primary)]">
+                {faq.question}
+              </h3>
+              <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{faq.answer}</p>
+            </article>
+          ))}
         </div>
       </ObservedSection>
     </div>

@@ -1,9 +1,11 @@
+import { DEFAULT_PRICING_PLANS } from "@open-prompt-os/contracts";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type * as React from "react";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthGate, evaluateAuthGateDecision } from "../components/auth/auth-gate.js";
+import { MarketingScrollContent } from "../components/marketing/marketing-scroll-content.js";
 import { authClient, setAuthSessionForTest } from "../lib/auth-client.js";
 import { orpcClient, resetOrpcTestState } from "../lib/orpc.js";
 import { createAppQueryClient } from "../lib/query-client.js";
@@ -195,6 +197,32 @@ describe("Web Route Pages & AuthGate", () => {
       await waitFor(() => {
         expect(screen.getByRole("button", { name: /Upgrade Plan/i })).toBeInTheDocument();
       });
+    });
+
+    it("renders single-source live Stripe prices across landing section and /pricing", async () => {
+      const plansSpy = vi
+        .spyOn(orpcClient.billing, "plans")
+        .mockResolvedValue(
+          DEFAULT_PRICING_PLANS.map((plan) =>
+            plan.id === "pro" ? { ...plan, monthlyPriceUsd: 24, yearlyPriceUsd: 18 } : plan,
+          ),
+        );
+
+      const landingView = renderRoute(<MarketingScrollContent />, ["/"], "/");
+      await waitFor(() => {
+        expect(screen.getByText("$24")).toBeInTheDocument();
+      });
+      landingView.unmount();
+
+      renderRoute(<PricingPage />, ["/pricing"], "/pricing");
+      await waitFor(() => {
+        expect(screen.getByText("$24")).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByRole("tab", { name: /Yearly/i }));
+      await waitFor(() => {
+        expect(screen.getByText("$18")).toBeInTheDocument();
+      });
+      expect(plansSpy).toHaveBeenCalledTimes(2);
     });
   });
 

@@ -1,28 +1,31 @@
-import type {
-  ApiErrorCode,
-  BillingStatus,
-  CheckoutInput,
-  ComposePromptInput,
-  ComposePromptOutput,
-  ComposerMode,
-  EmulatePlanSwitchInput,
-  GenerationKind,
-  ImportGuestInteractionInput,
-  ImportGuestInteractionOutput,
-  ModelOption,
-  OnboardingPreferences,
-  PromptFramework,
-  PromptGenerationItem,
-  PromptTemplate,
-  ProviderHealth,
-  RefinePromptInput,
-  RefinePromptOutput,
-  ReverseEngineerInput,
-  ReverseEngineerOutput,
-  SavePromptInput,
-  SavedPromptItem,
-  SystemHealth,
-  UpdateOnboardingInput,
+import {
+  type ApiErrorCode,
+  type BillingStatus,
+  type CheckoutInput,
+  type ComposePromptInput,
+  type ComposePromptOutput,
+  type ComposerMode,
+  DEFAULT_CURATED_TEMPLATES,
+  DEFAULT_PRICING_PLANS,
+  type EmulatePlanSwitchInput,
+  type GenerationKind,
+  type ImportGuestInteractionInput,
+  type ImportGuestInteractionOutput,
+  type ModelOption,
+  type OnboardingPreferences,
+  type PricingPlanItem,
+  type PromptFramework,
+  type PromptGenerationItem,
+  type PromptTemplate,
+  type ProviderHealth,
+  type RefinePromptInput,
+  type RefinePromptOutput,
+  type ReverseEngineerInput,
+  type ReverseEngineerOutput,
+  type SavePromptInput,
+  type SavedPromptItem,
+  type SystemHealth,
+  type UpdateOnboardingInput,
 } from "@open-prompt-os/contracts";
 import {
   analyzePromptVariables,
@@ -47,217 +50,195 @@ export class OrpcClientError extends Error {
 
 const DEFAULT_MODELS: ModelOption[] = [
   {
-    id: "claude-3-7-sonnet",
-    name: "Claude 3.7 Sonnet",
-    providerId: "anthropic",
-    providerName: "Anthropic",
-    glyph: "A",
-    modes: ["text"],
-    capabilities: ["Reasoning", "CO-STAR", "Long Context"],
-    status: "available",
-    latencyLabel: "~140ms compile",
-  },
-  {
-    id: "gpt-4.1",
-    name: "GPT-4.1",
+    id: "openai-text",
+    name: "OpenAI (ChatGPT, GPT models)",
     providerId: "openai",
     providerName: "OpenAI",
     glyph: "O",
     modes: ["text"],
-    capabilities: ["Structured Outputs", "JSON Schema", "Code"],
+    capabilities: [],
     status: "available",
-    latencyLabel: "~150ms compile",
+    latencyLabel: "",
   },
   {
-    id: "gemini-2.5-pro",
-    name: "Gemini 2.5 Pro",
+    id: "google-text",
+    name: "Google (Gemini models)",
     providerId: "gemini",
     providerName: "Google",
     glyph: "G",
-    modes: ["text", "image", "video"],
-    capabilities: ["Multimodal", "2M Context", "Grounding"],
+    modes: ["text"],
+    capabilities: [],
     status: "available",
-    latencyLabel: "~130ms compile",
+    latencyLabel: "",
   },
   {
-    id: "imagen-3-pro",
-    name: "Imagen 3 Studio",
-    providerId: "gemini",
-    providerName: "Google",
-    glyph: "I",
-    modes: ["image"],
-    capabilities: ["Photorealistic", "Typography", "Lighting Control"],
+    id: "anthropic-text",
+    name: "Anthropic (Claude models)",
+    providerId: "anthropic",
+    providerName: "Anthropic",
+    glyph: "A",
+    modes: ["text"],
+    capabilities: [],
     status: "available",
-    latencyLabel: "~120ms compile",
+    latencyLabel: "",
   },
   {
-    id: "flux-1.1-pro",
-    name: "FLUX 1.1 Pro Ultra",
+    id: "alibaba-text",
+    name: "Alibaba (Qwen models)",
     providerId: "openrouter",
-    providerName: "Black Forest",
-    glyph: "F",
-    modes: ["image"],
-    capabilities: ["Raw Composition", "Cinematic Grain", "High Ratio"],
+    providerName: "Alibaba",
+    glyph: "A",
+    modes: ["text"],
+    capabilities: [],
     status: "available",
-    latencyLabel: "~135ms compile",
+    latencyLabel: "",
   },
   {
-    id: "veo-2-cinema",
-    name: "Veo 2 Cinema",
-    providerId: "gemini",
-    providerName: "Google",
-    glyph: "V",
-    modes: ["video"],
-    capabilities: ["24fps Motion", "Camera Physics", "Temporal Coherence"],
+    id: "minimax-text",
+    name: "MiniMax (M3 model)",
+    providerId: "openrouter",
+    providerName: "MiniMax",
+    glyph: "M",
+    modes: ["text"],
+    capabilities: [],
     status: "available",
-    latencyLabel: "~160ms compile",
+    latencyLabel: "",
   },
   {
-    id: "sora-turbo",
-    name: "Sora Turbo",
+    id: "xai-text",
+    name: "xAI (Grok models)",
+    providerId: "openrouter",
+    providerName: "xAI",
+    glyph: "X",
+    modes: ["text"],
+    capabilities: [],
+    status: "available",
+    latencyLabel: "",
+  },
+  {
+    id: "deepseek-text",
+    name: "DeepSeek (DeepSeek models)",
+    providerId: "openrouter",
+    providerName: "DeepSeek",
+    glyph: "D",
+    modes: ["text"],
+    capabilities: [],
+    status: "available",
+    latencyLabel: "",
+  },
+  {
+    id: "openai-image",
+    name: "OpenAI (GPT-image, DALL-E)",
     providerId: "openai",
     providerName: "OpenAI",
-    glyph: "S",
-    modes: ["video"],
-    capabilities: ["Multi-Shot Storyboard", "World Simulation"],
+    glyph: "O",
+    modes: ["image"],
+    capabilities: [],
     status: "available",
-    latencyLabel: "~175ms compile",
+    latencyLabel: "",
+  },
+  {
+    id: "google-image",
+    name: "Google (Imagen, Gemini)",
+    providerId: "gemini",
+    providerName: "Google",
+    glyph: "G",
+    modes: ["image"],
+    capabilities: [],
+    status: "available",
+    latencyLabel: "",
+  },
+  {
+    id: "midjourney-image",
+    name: "Midjourney (Midjourney models)",
+    providerId: "openrouter",
+    providerName: "Midjourney",
+    glyph: "M",
+    modes: ["image"],
+    capabilities: [],
+    status: "available",
+    latencyLabel: "",
+  },
+  {
+    id: "adobe-image",
+    name: "Adobe (Firefly)",
+    providerId: "openrouter",
+    providerName: "Adobe",
+    glyph: "A",
+    modes: ["image"],
+    capabilities: [],
+    status: "available",
+    latencyLabel: "",
+  },
+  {
+    id: "bfl-image",
+    name: "Black Forest Labs (FLUX models)",
+    providerId: "openrouter",
+    providerName: "Black Forest Labs",
+    glyph: "B",
+    modes: ["image"],
+    capabilities: [],
+    status: "available",
+    latencyLabel: "",
+  },
+  {
+    id: "google-video",
+    name: "Google (Veo, Gemini Omni Flash)",
+    providerId: "gemini",
+    providerName: "Google",
+    glyph: "G",
+    modes: ["video"],
+    capabilities: [],
+    status: "available",
+    latencyLabel: "",
+  },
+  {
+    id: "alibaba-video",
+    name: "Alibaba (Wan)",
+    providerId: "openrouter",
+    providerName: "Alibaba",
+    glyph: "A",
+    modes: ["video"],
+    capabilities: [],
+    status: "available",
+    latencyLabel: "",
+  },
+  {
+    id: "minimax-video",
+    name: "MiniMax (H3)",
+    providerId: "openrouter",
+    providerName: "MiniMax",
+    glyph: "M",
+    modes: ["video"],
+    capabilities: [],
+    status: "available",
+    latencyLabel: "",
+  },
+  {
+    id: "bytedance-video",
+    name: "ByteDance (Seedance)",
+    providerId: "openrouter",
+    providerName: "ByteDance",
+    glyph: "B",
+    modes: ["video"],
+    capabilities: [],
+    status: "available",
+    latencyLabel: "",
+  },
+  {
+    id: "runway-video",
+    name: "Runway (Gen models)",
+    providerId: "openrouter",
+    providerName: "Runway",
+    glyph: "R",
+    modes: ["video"],
+    capabilities: [],
+    status: "available",
+    latencyLabel: "",
   },
 ];
 
-const CURATED_TEMPLATES: PromptTemplate[] = [
-  {
-    slug: "staff-architecture-rfc-review",
-    title: "Staff Architecture RFC & Trade-off Matrix",
-    useCase:
-      "Stress-test system designs for failure modes, data consistency, and operational cost.",
-    category: "Engineering",
-    mode: "text",
-    framework: "costar",
-    frameworkBadge: "Inspired by COSTAR",
-    compatibleModels: ["claude-3-7-sonnet", "gpt-4.1", "gemini-2.5-pro"],
-    preview:
-      "Evaluates [System_Proposal] across latency budgets, multi-region failover, and blast radius.",
-    compiledTemplate:
-      "# OPERATIONAL PROMPT SPECIFICATION (Inspired by COSTAR)\nRole: You are a Principal Distributed Systems Architect.\n\n## Context & Objective\nEvaluate [System_Proposal] targeting [Scale_Target] under [Compliance_Regime].",
-    defaultDraft: {
-      rawInput:
-        "Review our distributed architecture proposal for [System_Proposal] handling [Scale_Target] requests per second and identify failure modes.",
-      mode: "text",
-      modelId: "claude-3-7-sonnet",
-      goal: "Surface single points of failure, tail-latency bottlenecks, and migration risks",
-      audience: "Principal Engineers & Staff Infrastructure Reviewers",
-      constraints: [
-        "Quantify trade-offs in a Markdown comparison matrix",
-        "Propose concrete mitigation for every high-severity risk",
-      ],
-      format: "Executive Verdict, Failure Mode Matrix, Step-by-Step Hardening Plan",
-      persona: "Principal Distributed Systems Architect",
-      tone: "Rigorous, objective, zero-fluff",
-      guardrails: ["Do not recommend unverified managed services without fallback options"],
-      framework: "costar",
-      advanced: { length: "detailed", creativity: 0.2 },
-    },
-    popularityScore: 98,
-    updatedAt: "2026-11-01T10:00:00.000Z",
-  },
-  {
-    slug: "executive-board-memo-synthesizer",
-    title: "6-Page Narrative Memo & Decision Brief",
-    useCase: "Transform raw product metrics and scattered notes into a crisp leadership narrative.",
-    category: "Product & Strategy",
-    mode: "text",
-    framework: "rise",
-    frameworkBadge: "Inspired by RISE",
-    compatibleModels: ["claude-3-7-sonnet", "gpt-4.1"],
-    preview:
-      "Synthesizes [Strategic_Initiative] with clear counter-arguments, unit economics, and ask.",
-    compiledTemplate:
-      "# OPERATIONAL PROMPT SPECIFICATION (Inspired by RISE)\nRole: Chief Product Strategist.\n\n## Objective\nDraft a high-signal decision brief for [Strategic_Initiative] addressing [Key_Metric_Goal].",
-    defaultDraft: {
-      rawInput:
-        "Draft an executive decision memo for [Strategic_Initiative] aimed at improving [Key_Metric_Goal] in [Target_Quarter].",
-      mode: "text",
-      modelId: "gpt-4.1",
-      goal: "Secure alignment on resource allocation with transparent trade-offs",
-      audience: "Executive Leadership & Product Directors",
-      constraints: ["Lead with the bottom-line recommendation in paragraph one"],
-      format: "Context, Strategic Options Table, Recommended Path, Open Risks",
-      persona: "Chief Product Strategist",
-      tone: "Decisive, evidence-backed, concise",
-      guardrails: ["Flag any metric that requires finance verification as [Verify_Metric]"],
-      framework: "rise",
-      advanced: { length: "balanced", creativity: 0.3 },
-    },
-    popularityScore: 94,
-    updatedAt: "2026-11-03T12:00:00.000Z",
-  },
-  {
-    slug: "editorial-monochrome-product-keyframe",
-    title: "Industrial Monochrome Hardware Keyframe",
-    useCase:
-      "Generate studio-grade architectural and industrial design renders with physical optics.",
-    category: "Design & Visuals",
-    mode: "image",
-    framework: "care",
-    frameworkBadge: "Inspired by CARE",
-    compatibleModels: ["imagen-3-pro", "flux-1.1-pro", "gemini-2.5-pro"],
-    preview: "Brushed anodized aluminum [Product_Form] on matte basalt surface with rim lighting.",
-    compiledTemplate:
-      "# VISUAL GENERATION SPECIFICATION (Inspired by CARE)\nSubject: [Product_Form] crafted from [Material_Finish] under low-key rim lighting.",
-    defaultDraft: {
-      rawInput:
-        "Macro studio photograph of [Product_Form] crafted from [Material_Finish] resting on a dark architectural monolith.",
-      mode: "image",
-      modelId: "imagen-3-pro",
-      goal: "Create a hero keyframe with physical lens accuracy and zero visual clutter",
-      audience: "Brand Design System & Launch Campaign",
-      constraints: ["Strict monochrome tonal range", "85mm f/2.0 shallow depth of field"],
-      format: "16:9 aspect ratio, 8K studio lighting, subtle film grain",
-      persona: "Industrial Product Photographer",
-      tone: "Minimalist, tactile, high contrast",
-      guardrails: ["No neon colors, no floating artifacts, no deformed typography"],
-      framework: "care",
-      advanced: { length: "balanced", creativity: 0.4 },
-    },
-    popularityScore: 91,
-    updatedAt: "2026-11-05T15:00:00.000Z",
-  },
-  {
-    slug: "cinematic-orbital-product-reveal",
-    title: "Continuous 24fps Orbital Tracking Shot",
-    useCase:
-      "Direct temporally coherent AI video prompts with explicit camera physics and lighting cues.",
-    category: "Motion & Video",
-    mode: "video",
-    framework: "cot",
-    frameworkBadge: "Inspired by Chain-of-Thought",
-    compatibleModels: ["veo-2-cinema", "sora-turbo", "gemini-2.5-pro"],
-    preview: "Slow dolly push-in toward [Hero_Object] as volumetric light sweeps across the frame.",
-    compiledTemplate:
-      "# MOTION & TEMPORAL PROMPT SPECIFICATION (Inspired by Chain-of-Thought)\nCamera: Slow 24fps dolly push-in on [Hero_Object] transitioning to [Reveal_State].",
-    defaultDraft: {
-      rawInput:
-        "Continuous orbital camera movement around [Hero_Object] inside a minimalist gallery space as rim light reveals [Reveal_State].",
-      mode: "video",
-      modelId: "veo-2-cinema",
-      goal: "Maintain consistent object geometry and smooth inertia across 6 seconds",
-      audience: "Launch Film & Social Motion Pipeline",
-      constraints: [
-        "Single continuous take without jump cuts",
-        "Realistic motion blur at 180-degree shutter",
-      ],
-      format: "24fps, 16:9 cinema scope, 6-second continuous tracking shot",
-      persona: "Director of Photography",
-      tone: "Atmospheric, deliberate, architectural",
-      guardrails: ["Prevent morphing textures or sudden lighting flicker"],
-      framework: "cot",
-      advanced: { length: "balanced", creativity: 0.35 },
-    },
-    popularityScore: 89,
-    updatedAt: "2026-11-06T09:30:00.000Z",
-  },
-];
+const CURATED_TEMPLATES: readonly PromptTemplate[] = DEFAULT_CURATED_TEMPLATES;
 
 // In-memory idempotency and library state for standalone execution
 const importedInteractionIds = new Map<string, string>();
@@ -480,9 +461,11 @@ authClient.subscribe(() => {
 });
 
 function emulatedLimitFor(plan: BillingStatus["plan"]): number {
-  if (plan === "team") return 2000;
-  if (plan === "pro") return 500;
-  return 50;
+  return (
+    DEFAULT_PRICING_PLANS.find((item) => item.id === plan)?.dailyPromptLimit ??
+    DEFAULT_PRICING_PLANS[0]?.dailyPromptLimit ??
+    20
+  );
 }
 
 export const orpcClient = {
@@ -953,29 +936,6 @@ export const orpcClient = {
 
   models: {
     async listProviders(input?: { mode?: ComposerMode }): Promise<ModelOption[]> {
-      const headers = createCorrelationHeaders();
-      if (remoteApiUrl() !== undefined) {
-        try {
-          const remoteList = await postRpc<ModelOption[]>(
-            "/rpc/models/listProviders",
-            input ?? {},
-            undefined,
-            headers,
-          );
-          if (remoteList && remoteList.length > 0) {
-            return remoteList.map((remoteModel) => {
-              const matched = DEFAULT_MODELS.find((m) => m.id === remoteModel.id);
-              return {
-                ...remoteModel,
-                capabilities: matched?.capabilities ?? remoteModel.capabilities ?? [],
-                latencyLabel: matched?.latencyLabel ?? remoteModel.latencyLabel ?? "live",
-              };
-            });
-          }
-        } catch {
-          // fallback to DEFAULT_MODELS
-        }
-      }
       const requestedMode = input?.mode;
       if (!requestedMode) return DEFAULT_MODELS;
       return DEFAULT_MODELS.filter((m) => m.modes.includes(requestedMode));
@@ -1088,6 +1048,21 @@ export const orpcClient = {
   },
 
   billing: {
+    async plans(): Promise<PricingPlanItem[]> {
+      const headers = createCorrelationHeaders();
+      if (remoteApiUrl() !== undefined) {
+        try {
+          return await postRpc<PricingPlanItem[]>("/rpc/billing/plans", {}, undefined, headers);
+        } catch {
+          // fallback to canonical plan defaults when offline or unstarted
+        }
+      }
+      return DEFAULT_PRICING_PLANS.map((plan) => ({
+        ...plan,
+        features: [...plan.features],
+      }));
+    },
+
     async status(): Promise<BillingStatus> {
       const headers = createCorrelationHeaders();
       if (remoteApiUrl() !== undefined) {

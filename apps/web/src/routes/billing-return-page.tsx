@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2 } from "lucide-react";
 import * as React from "react";
 import { useNavigate, useSearchParams } from "react-router";
+import { SeoHead } from "../components/seo/seo-head.js";
 import { orpcClient } from "../lib/orpc.js";
 import { queryKeys } from "../lib/query-client.js";
 
@@ -36,6 +37,14 @@ export function BillingReturnPage() {
 
   return (
     <section className="max-w-md mx-auto my-12 rounded-2xl p-6 flat-surface text-center space-y-4">
+      <SeoHead
+        meta={{
+          title: "Billing Confirmation | Open Prompt OS",
+          description: "Open Prompt OS subscription confirmation.",
+          canonicalPath: "/billing/return",
+          noindex: true,
+        }}
+      />
       <CheckCircle2 className="w-10 h-10 mx-auto text-[var(--text-primary)]" />
       <div className="flex items-center justify-center gap-2">
         <Badge variant="framework">Subscription Reconciled</Badge>

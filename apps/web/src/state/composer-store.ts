@@ -6,11 +6,7 @@ import { trackEvent } from "../lib/telemetry.js";
 function createDefaultDraft(mode: ComposerMode, modelId: string | null = null): ComposerDraft {
   const defaultModel =
     modelId ??
-    (mode === "image"
-      ? "imagen-3-pro"
-      : mode === "video"
-        ? "veo-2-cinema"
-        : "claude-3-7-sonnet");
+    (mode === "image" ? "openai-image" : mode === "video" ? "google-video" : "openai-text");
   return {
     rawInput: "",
     mode,
@@ -56,8 +52,8 @@ function createInitialStoreState(): ComposerStoreState {
           compiledPrompt: guest.response.compiledPrompt,
           detectedVariables: guest.response.detectedVariables,
           followUpQuestions: [],
-          providerId: guest.response.providerId ?? "anthropic",
-          modelId: guest.response.modelId ?? guest.prompt.modelId ?? "claude-3-7-sonnet",
+          providerId: guest.response.providerId ?? "openai",
+          modelId: guest.response.modelId ?? guest.prompt.modelId ?? "openai-text",
           latencyMs: 0,
           healedFromFailure: false,
           remainingDailyPrompts: null,
@@ -69,9 +65,9 @@ function createInitialStoreState(): ComposerStoreState {
       activeMode: mode,
       draftsByMode: baseDrafts,
       selectedModelByMode: {
-        text: mode === "text" && guest.prompt.modelId ? guest.prompt.modelId : "claude-3-7-sonnet",
-        image: mode === "image" && guest.prompt.modelId ? guest.prompt.modelId : "imagen-3-pro",
-        video: mode === "video" && guest.prompt.modelId ? guest.prompt.modelId : "veo-2-cinema",
+        text: mode === "text" && guest.prompt.modelId ? guest.prompt.modelId : "openai-text",
+        image: mode === "image" && guest.prompt.modelId ? guest.prompt.modelId : "openai-image",
+        video: mode === "video" && guest.prompt.modelId ? guest.prompt.modelId : "google-video",
       },
       completedOutput: hydratedOutput,
       streamingBuffer: null,
@@ -83,9 +79,9 @@ function createInitialStoreState(): ComposerStoreState {
     activeMode: "text",
     draftsByMode: baseDrafts,
     selectedModelByMode: {
-      text: "claude-3-7-sonnet",
-      image: "imagen-3-pro",
-      video: "veo-2-cinema",
+      text: "openai-text",
+      image: "openai-image",
+      video: "google-video",
     },
     completedOutput: null,
     streamingBuffer: null,

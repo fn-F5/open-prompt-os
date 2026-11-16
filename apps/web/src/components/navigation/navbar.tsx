@@ -1,6 +1,7 @@
+import { DEFAULT_PRICING_PLANS } from "@open-prompt-os/contracts";
 import { Badge, Button } from "@open-prompt-os/ui-web";
 import { useQuery } from "@tanstack/react-query";
-import { HelpCircle, LogOut, Menu, Moon, Sun, Terminal, User, X } from "lucide-react";
+import { LogOut, Menu, Moon, Sun, User, X } from "lucide-react";
 import * as React from "react";
 import { Link, useLocation } from "react-router";
 import { useAuthSession } from "../../hooks/use-auth-session.js";
@@ -8,6 +9,7 @@ import { orpcClient } from "../../lib/orpc.js";
 import { queryKeys } from "../../lib/query-client.js";
 import { safeGetItem, safeSetItem } from "../../lib/storage.js";
 import { openAuthDialog } from "../../state/auth-dialog-store.js";
+import { BrandLogo } from "../brand/brand-logo.js";
 
 const THEME_STORAGE_KEY = "open-prompt-os:theme";
 
@@ -48,7 +50,7 @@ function useThemeMode() {
       document.documentElement.setAttribute("data-theme", theme);
       const themeColorMeta = document.querySelector('meta[name="theme-color"]');
       if (themeColorMeta) {
-        themeColorMeta.setAttribute("content", theme === "light" ? "#F1F5F9" : "#07090E");
+        themeColorMeta.setAttribute("content", theme === "light" ? "#F2F5FA" : "#0F0F11");
       }
     }
   }, [theme]);
@@ -65,7 +67,7 @@ function useThemeMode() {
   return { theme, toggleTheme, selectTheme };
 }
 
-function LabeledThemeSwitch({
+function ThemeToggle({
   theme,
   onToggle,
 }: {
@@ -77,43 +79,25 @@ function LabeledThemeSwitch({
       type="button"
       onClick={onToggle}
       aria-label={`Theme is ${theme}. Switch to ${theme === "dark" ? "light" : "dark"} theme`}
-      className="inline-flex items-center gap-0.5 p-1 rounded-xl bg-[var(--surface-2)] border border-[var(--separator-subtle)] hover:border-[var(--separator-strong)] text-xs sm:text-sm transition-colors focus-ring cursor-pointer"
+      title={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
+      className="inline-flex items-center justify-center w-9 h-9 min-w-[38px] min-h-[38px] shrink-0 rounded-xl bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--separator-subtle)] hover:border-[var(--separator-strong)] transition-colors focus-ring cursor-pointer"
     >
-      <span
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg transition-all ${
-          theme === "dark"
-            ? "bg-[var(--surface-1)] text-[var(--text-primary)] font-semibold border border-[var(--accent-primary)] shadow-sm"
-            : "text-[var(--text-secondary)] font-medium border border-transparent"
-        }`}
-      >
-        <Moon className="w-3.5 h-3.5 text-[var(--accent-text)]" />
-        <span>Dark</span>
-      </span>
-      <span
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg transition-all ${
-          theme === "light"
-            ? "bg-[var(--surface-1)] text-[var(--text-primary)] font-semibold border border-[var(--accent-primary)] shadow-sm"
-            : "text-[var(--text-secondary)] font-medium border border-transparent"
-        }`}
-      >
-        <Sun className="w-3.5 h-3.5 text-[var(--accent-text)]" />
-        <span>Light</span>
-      </span>
+      {theme === "dark" ? (
+        <Moon className="w-4 h-4 text-[var(--accent-text)]" aria-hidden="true" />
+      ) : (
+        <Sun className="w-4 h-4 text-[var(--accent-text)]" aria-hidden="true" />
+      )}
     </button>
   );
 }
 
-export interface NavbarProps {
-  readonly onReplayTour?: () => void;
-}
-
-export function MarketingNavbar({ onReplayTour }: NavbarProps) {
+export function MarketingNavbar() {
   const location = useLocation();
   const { theme, toggleTheme } = useThemeMode();
   const [mobileOpen, setMobileOpen] = React.useState(false);
 
   const navLinks = [
-    { to: "/", label: "Composer" },
+    { to: "/", label: "Compiler" },
     { to: "/improve", label: "Improve & Autopsy" },
     { to: "/reverse-engineer", label: "Reverse Engineer" },
     { to: "/templates", label: "Templates" },
@@ -121,31 +105,32 @@ export function MarketingNavbar({ onReplayTour }: NavbarProps) {
   ];
 
   return (
-    <header className="sticky top-0 z-40 w-full glass-surface border-t-0 border-x-0">
-      <div className="mx-auto max-w-[1360px] px-4 sm:px-8 h-14 sm:h-20 flex items-center justify-between gap-3 sm:gap-4">
-        <div className="flex items-center gap-8">
+    <header className="sticky top-0 z-40 w-full glass-surface rounded-none border-t-0 border-x-0">
+      <div className="mx-auto max-w-[1360px] px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-3">
+        <div className="flex items-center gap-2 xl:gap-5 min-w-0">
           <Link
             to="/"
-            className="inline-flex items-center gap-3 font-bold tracking-tight text-base sm:text-lg focus-ring rounded-xl py-1"
+            className="inline-flex items-center gap-2.5 sm:gap-3 font-bold tracking-tight text-base sm:text-lg whitespace-nowrap shrink-0 focus-ring rounded-xl py-1"
           >
-            <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-[var(--accent-subtle-bg)] text-[var(--accent-text)] border border-[var(--separator-strong)]">
-              <Terminal className="w-4 h-4" />
-            </span>
+            <BrandLogo className="w-9 h-9 shrink-0 shadow-sm" />
             <span>Open Prompt OS</span>
           </Link>
 
           <nav
             aria-label="Primary marketing navigation"
-            className="hidden md:flex items-center gap-1.5"
+            className="hidden lg:flex items-center gap-0.5 xl:gap-1.5 min-w-0"
           >
             {navLinks.map((item) => {
-              const isActive = location.pathname === item.to;
+              const isActive =
+                item.to === "/"
+                  ? location.pathname === "/"
+                  : location.pathname === item.to || location.pathname.startsWith(`${item.to}/`);
               return (
                 <Link
                   key={item.to}
                   to={item.to}
                   aria-current={isActive ? "page" : undefined}
-                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-all focus-ring ${
+                  className={`inline-flex items-center gap-1.5 px-2 xl:px-2.5 py-1.5 rounded-xl text-xs xl:text-sm whitespace-nowrap shrink-0 transition-all focus-ring ${
                     isActive
                       ? "bg-[var(--accent-subtle-bg)] text-[var(--text-primary)] font-semibold border border-[var(--separator-strong)] shadow-sm"
                       : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)] font-medium border border-transparent"
@@ -164,39 +149,29 @@ export function MarketingNavbar({ onReplayTour }: NavbarProps) {
           </nav>
         </div>
 
-        <div className="hidden md:flex items-center gap-3">
-          {onReplayTour ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onReplayTour}
-              aria-label="Replay interactive tour"
-            >
-              <HelpCircle className="w-4 h-4" />
-              <span>Tour</span>
-            </Button>
-          ) : null}
-
-          <LabeledThemeSwitch theme={theme} onToggle={toggleTheme} />
+        <div className="hidden lg:flex items-center gap-2 xl:gap-3 shrink-0">
+          <ThemeToggle theme={theme} onToggle={toggleTheme} />
 
           <Button
             variant="ghost"
             size="sm"
+            className="whitespace-nowrap shrink-0"
             onClick={() => openAuthDialog({ reason: "navbar_signin" })}
           >
-            Sign in
+            Sign In
           </Button>
           <Button
             variant="solid"
             size="sm"
+            className="whitespace-nowrap shrink-0"
             onClick={() => openAuthDialog({ reason: "navbar_signin" })}
           >
-            Get Started Free
+            Get Started
           </Button>
         </div>
 
-        <div className="flex md:hidden items-center gap-2">
-          <LabeledThemeSwitch theme={theme} onToggle={toggleTheme} />
+        <div className="flex lg:hidden items-center gap-2 shrink-0">
+          <ThemeToggle theme={theme} onToggle={toggleTheme} />
           <Button
             variant="icon"
             aria-label={mobileOpen ? "Close navigation menu" : "Open navigation menu"}
@@ -211,7 +186,7 @@ export function MarketingNavbar({ onReplayTour }: NavbarProps) {
       {mobileOpen ? (
         <nav
           aria-label="Mobile navigation"
-          className="md:hidden border-t border-[var(--separator-subtle)] bg-[var(--surface-1)] px-4 py-5 space-y-2"
+          className="lg:hidden border-t border-[var(--separator-subtle)] bg-[var(--surface-1)] px-4 py-5 space-y-2"
         >
           {navLinks.map((item) => {
             const isActive = location.pathname === item.to;
@@ -245,7 +220,7 @@ export function MarketingNavbar({ onReplayTour }: NavbarProps) {
                 openAuthDialog({ reason: "navbar_signin" });
               }}
             >
-              Sign in
+              Sign In
             </Button>
             <Button
               variant="solid"
@@ -254,7 +229,7 @@ export function MarketingNavbar({ onReplayTour }: NavbarProps) {
                 openAuthDialog({ reason: "navbar_signin" });
               }}
             >
-              Get Started Free
+              Get Started
             </Button>
           </div>
         </nav>
@@ -275,8 +250,8 @@ export function AppNavbar() {
   });
 
   const navLinks = [
-    { to: "/", label: "Composer" },
-    { to: "/improve", label: "Improve" },
+    { to: "/", label: "Compiler" },
+    { to: "/improve", label: "Improve & Autopsy" },
     { to: "/reverse-engineer", label: "Reverse Engineer" },
     { to: "/history", label: "History" },
     { to: "/library", label: "Library" },
@@ -284,30 +259,36 @@ export function AppNavbar() {
     { to: "/settings/profile", label: "Settings" },
   ];
 
-  const remaining = billingQuery.data?.remainingDailyPrompts ?? 48;
-  const limit = billingQuery.data?.dailyLimit ?? 50;
+  const defaultFreeLimit =
+    DEFAULT_PRICING_PLANS.find((plan) => plan.id === "free")?.dailyPromptLimit ?? 20;
+  const limit = billingQuery.data?.dailyLimit ?? defaultFreeLimit;
+  const remaining = billingQuery.data?.remainingDailyPrompts ?? limit;
 
   return (
-    <header className="sticky top-0 z-40 w-full glass-surface border-t-0 border-x-0">
-      <div className="mx-auto max-w-[1360px] px-4 sm:px-8 h-14 sm:h-20 flex items-center justify-between gap-3 sm:gap-4">
-        <div className="flex items-center gap-6">
+    <header className="sticky top-0 z-40 w-full glass-surface rounded-none border-t-0 border-x-0">
+      <div className="mx-auto max-w-[1360px] px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-3">
+        <div className="flex items-center gap-2 xl:gap-4 min-w-0">
           <Link
             to="/"
-            className="inline-flex items-center gap-3 font-bold tracking-tight text-base sm:text-lg focus-ring rounded-xl py-1"
+            className="inline-flex items-center gap-2.5 font-bold tracking-tight text-base sm:text-lg whitespace-nowrap shrink-0 focus-ring rounded-xl py-1"
           >
-            <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-[var(--accent-subtle-bg)] text-[var(--accent-text)] border border-[var(--separator-strong)]">
-              <Terminal className="w-4 h-4" />
-            </span>
-            <span>Open Prompt OS</span>
+            <BrandLogo className="w-9 h-9 shrink-0 shadow-sm" />
+            <span className="inline lg:hidden xl:inline">Open Prompt OS</span>
           </Link>
 
           {user?.spaceName ? (
-            <Badge variant="framework" className="hidden sm:inline-flex">
+            <Badge
+              variant="framework"
+              className="hidden 2xl:inline-flex max-w-[180px] truncate whitespace-nowrap shrink-0"
+            >
               {user.spaceName}
             </Badge>
           ) : null}
 
-          <nav aria-label="Workspace navigation" className="hidden md:flex items-center gap-1.5">
+          <nav
+            aria-label="Workspace navigation"
+            className="hidden lg:flex items-center gap-0.5 xl:gap-1 min-w-0"
+          >
             {navLinks.map((item) => {
               const isActive =
                 location.pathname === item.to ||
@@ -317,7 +298,7 @@ export function AppNavbar() {
                   key={item.to}
                   to={item.to}
                   aria-current={isActive ? "page" : undefined}
-                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-all focus-ring ${
+                  className={`inline-flex items-center gap-1 px-1.5 xl:px-2 2xl:px-2.5 py-1.5 rounded-xl text-xs 2xl:text-sm whitespace-nowrap shrink-0 transition-all focus-ring ${
                     isActive
                       ? "bg-[var(--accent-subtle-bg)] text-[var(--text-primary)] font-semibold border border-[var(--separator-strong)] shadow-sm"
                       : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)] font-medium border border-transparent"
@@ -336,37 +317,41 @@ export function AppNavbar() {
           </nav>
         </div>
 
-        <div className="hidden md:flex items-center gap-3">
+        <div className="hidden lg:flex items-center gap-1.5 xl:gap-2 shrink-0">
           <span
             aria-label="Daily prompt quota"
-            className="text-sm text-[var(--text-secondary)] tabular-nums px-3.5 py-1.5 rounded-xl bg-[var(--surface-2)] border border-[var(--separator-subtle)]"
+            className="hidden 2xl:inline-flex text-xs text-[var(--text-secondary)] tabular-nums whitespace-nowrap shrink-0 px-2.5 py-1.5 rounded-xl bg-[var(--surface-2)] border border-[var(--separator-subtle)]"
           >
             {remaining}/{limit} runs left
           </span>
 
-          <LabeledThemeSwitch theme={theme} onToggle={toggleTheme} />
+          <ThemeToggle theme={theme} onToggle={toggleTheme} />
 
           <Link
             to="/settings/profile"
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium bg-[var(--surface-2)] text-[var(--text-primary)] border border-[var(--separator-subtle)] hover:border-[var(--separator-strong)] focus-ring"
+            aria-label={user?.name ?? "Operator"}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs 2xl:text-sm font-medium whitespace-nowrap shrink-0 bg-[var(--surface-2)] text-[var(--text-primary)] border border-[var(--separator-subtle)] hover:border-[var(--separator-strong)] focus-ring"
           >
-            <User className="w-4 h-4 text-[var(--accent-text)]" />
-            <span>{user?.name ?? "Operator"}</span>
+            <User className="w-4 h-4 text-[var(--accent-text)] shrink-0" />
+            <span className="hidden xl:inline max-w-[110px] 2xl:max-w-[150px] truncate">
+              {user?.name ?? "Operator"}
+            </span>
           </Link>
 
           <Button
             variant="ghost"
             size="sm"
+            className="whitespace-nowrap shrink-0 px-2.5 xl:px-3.5"
             onClick={() => signOut()}
             aria-label="Sign out of workspace"
           >
             <LogOut className="w-4 h-4" />
-            <span>Sign out</span>
+            <span className="hidden xl:inline">Sign out</span>
           </Button>
         </div>
 
-        <div className="flex md:hidden items-center gap-2">
-          <LabeledThemeSwitch theme={theme} onToggle={toggleTheme} />
+        <div className="flex lg:hidden items-center gap-2 shrink-0">
+          <ThemeToggle theme={theme} onToggle={toggleTheme} />
           <Button
             variant="icon"
             aria-label={mobileOpen ? "Close workspace menu" : "Open workspace menu"}
@@ -381,7 +366,7 @@ export function AppNavbar() {
       {mobileOpen ? (
         <nav
           aria-label="Mobile workspace navigation"
-          className="md:hidden border-t border-[var(--separator-subtle)] bg-[var(--surface-1)] px-4 py-5 space-y-2"
+          className="lg:hidden border-t border-[var(--separator-subtle)] bg-[var(--surface-1)] px-4 py-5 space-y-2"
         >
           {navLinks.map((item) => {
             const isActive = location.pathname === item.to;

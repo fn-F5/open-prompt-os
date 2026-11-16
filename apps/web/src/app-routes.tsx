@@ -18,6 +18,12 @@ const TemplateGalleryPage = React.lazy(() =>
 const TemplateDetailPage = React.lazy(() =>
   import("./routes/template-detail-page.js").then((m) => ({ default: m.TemplateDetailPage })),
 );
+const DocsHubPage = React.lazy(() =>
+  import("./routes/docs-hub-page.js").then((m) => ({ default: m.DocsHubPage })),
+);
+const DocsArticlePage = React.lazy(() =>
+  import("./routes/docs-article-page.js").then((m) => ({ default: m.DocsArticlePage })),
+);
 const LibraryPage = React.lazy(() =>
   import("./routes/library-page.js").then((m) => ({ default: m.LibraryPage })),
 );
@@ -96,6 +102,8 @@ export function AppRoutes() {
             <Route path="reverse-engineer" element={<ReverseEngineerPage />} />
             <Route path="templates" element={<TemplateGalleryPage />} />
             <Route path="templates/:templateSlug" element={<TemplateDetailPage />} />
+            <Route path="docs" element={<DocsHubPage />} />
+            <Route path="docs/:docSlug" element={<DocsArticlePage />} />
             <Route path="history" element={<HistoryPage />} />
             <Route path="library" element={<LibraryPage />} />
             <Route path="share/:shareId" element={<PublicPromptPage />} />

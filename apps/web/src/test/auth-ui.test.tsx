@@ -55,12 +55,13 @@ describe("Auth UI, Passkey removal, Settings & Placeholder tokens", () => {
       await waitFor(() => {
         expect(screen.getByPlaceholderText("John Doe")).toBeInTheDocument();
       });
+      expect(screen.getByText("Sign In to Open Prompt OS")).toBeInTheDocument();
       expect(screen.queryByPlaceholderText("Alex Rivera")).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: /Continue with Passkey/i })).toBeNull();
       expect(screen.queryByText(/hardware passkey/i)).toBeNull();
-      expect(screen.queryByText(/or continue with email/i)).toBeNull();
-      expect(screen.queryByRole("button", { name: /Continue with Google/i })).toBeNull();
-      expect(screen.queryByRole("button", { name: /Continue with GitHub/i })).toBeNull();
+      expect(screen.getByText(/or continue with email/i)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Continue with Google/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Continue with GitHub/i })).toBeInTheDocument();
 
       const emailInput = screen.getByPlaceholderText("you@company.com");
       fireEvent.change(emailInput, { target: { value: "user@example.com" } });
@@ -85,7 +86,10 @@ describe("Auth UI, Passkey removal, Settings & Placeholder tokens", () => {
       const firstRender = renderWithRouter(<AuthDialog />);
 
       const googleBtn = await screen.findByRole("button", { name: /Continue with Google/i });
-      expect(screen.getByRole("button", { name: /Continue with GitHub/i })).toBeInTheDocument();
+      const githubPreviewBtn = screen.getByRole("button", { name: /Continue with GitHub/i });
+      expect(githubPreviewBtn).toBeInTheDocument();
+      expect(googleBtn.querySelector("svg")).not.toBeNull();
+      expect(githubPreviewBtn.querySelector("svg")).not.toBeNull();
       expect(screen.getByText(/or continue with email/i)).toBeInTheDocument();
 
       fireEvent.click(googleBtn);

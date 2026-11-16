@@ -3,12 +3,19 @@ import type {
   BillingProvider,
   BillingSubscriptionSnapshot,
 } from "@open-prompt-os/adapter-kit";
+import { DEFAULT_PRICING_PLANS } from "@open-prompt-os/contracts";
 
 export function createLocalBillingEmulator(): BillingProvider {
   const subscriptions = new Map<string, BillingSubscriptionSnapshot>();
 
   return {
     kind: "emulator",
+    async listPlans() {
+      return DEFAULT_PRICING_PLANS.map((plan) => ({
+        ...plan,
+        features: [...plan.features],
+      }));
+    },
     async createCustomer({ spaceId }) {
       return { customerId: `cus_local_${spaceId}` };
     },

@@ -4,7 +4,7 @@
   "private": true,
   "packageManager": "pnpm@12.18.0",
   "scripts": {
-    "dev": "pnpm --filter @open-prompt-os/web dev",
+    "dev": "pnpm --filter=@open-prompt-os/api --filter @open-prompt-os/web dev",
     "build": "turbo run build",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",

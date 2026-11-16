@@ -8,6 +8,7 @@ import { GuidedParameters } from "../components/composer/guided-parameters.js";
 import { ModelPicker } from "../components/composer/model-picker.js";
 import { PromptComposer } from "../components/composer/prompt-composer.js";
 import { MarketingNavbar } from "../components/navigation/navbar.js";
+import { useCardParallax } from "../hooks/use-card-parallax.js";
 import { useTypingPlaceholder } from "../hooks/use-typing-placeholder.js";
 import { resetOrpcTestState } from "../lib/orpc.js";
 import { createAppQueryClient } from "../lib/query-client.js";
@@ -125,9 +126,24 @@ describe("Modern Web Guidance fixes", () => {
       const listbox = await screen.findByRole("listbox", { name: "Compatible AI models" });
       expect(trigger).toHaveAttribute("aria-expanded", "true");
       expect(listbox.closest("[popover]")).not.toBeNull();
+      expect(screen.getByText("Text Model Providers")).toBeInTheDocument();
 
       const options = screen.getAllByRole("option");
-      expect(options.length).toBeGreaterThan(1);
+      expect(options.length).toBe(7);
+      expect(trigger.querySelector("svg")).not.toBeNull();
+      for (const opt of options) {
+        expect(opt.querySelector("svg")).not.toBeNull();
+      }
+      expect(options.map((opt) => opt.textContent)).toEqual([
+        "OpenAI (ChatGPT, GPT models)",
+        "Google (Gemini models)",
+        "Anthropic (Claude models)",
+        "Alibaba (Qwen models)",
+        "MiniMax (M3 model)",
+        "xAI (Grok models)",
+        "DeepSeek (DeepSeek models)",
+      ]);
+      expect(listbox.textContent).not.toMatch(/compile/i);
       expect(document.activeElement).toBe(options[0]);
 
       // Move focus with ArrowDown, End, Home
@@ -204,7 +220,7 @@ describe("Modern Web Guidance fixes", () => {
     it("syncs meta[name='theme-color'] when switching between dark and light theme", () => {
       const meta = document.createElement("meta");
       meta.setAttribute("name", "theme-color");
-      meta.setAttribute("content", "#07090E");
+      meta.setAttribute("content", "#0F0F11");
       document.head.appendChild(meta);
 
       try {
@@ -222,14 +238,14 @@ describe("Modern Web Guidance fixes", () => {
         expect(darkSwitch).toBeDefined();
         if (darkSwitch) fireEvent.click(darkSwitch);
         expect(document.documentElement.getAttribute("data-theme")).toBe("light");
-        expect(meta.getAttribute("content")).toBe("#F1F5F9");
+        expect(meta.getAttribute("content")).toBe("#F2F5FA");
 
         const lightSwitches = screen.getAllByRole("button", { name: /Theme is light/i });
         const lightSwitch = lightSwitches[0];
         expect(lightSwitch).toBeDefined();
         if (lightSwitch) fireEvent.click(lightSwitch);
         expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
-        expect(meta.getAttribute("content")).toBe("#07090E");
+        expect(meta.getAttribute("content")).toBe("#0F0F11");
       } finally {
         meta.remove();
       }
@@ -317,6 +333,60 @@ describe("Modern Web Guidance fixes", () => {
       // Focusing pauses animation without trailing cursor
       fireEvent.focus(textarea);
       expect(textarea.placeholder.endsWith("|")).toBe(false);
+    });
+  });
+
+  describe("8. 3D card parallax tilt and cursor-following spotlight", () => {
+    it("updates --rx, --ry, --mx, and --my on mouse pointermove and resets tilt on pointerout", () => {
+      function CardHarness() {
+        useCardParallax(true);
+        return (
+          <article data-testid="parallax-card" className="flat-surface">
+            <span>Card content</span>
+          </article>
+        );
+      }
+
+      render(<CardHarness />);
+      const card = screen.getByTestId("parallax-card");
+
+      vi.spyOn(card, "getBoundingClientRect").mockReturnValue({
+        left: 0,
+        top: 0,
+        right: 200,
+        bottom: 100,
+        width: 200,
+        height: 100,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      });
+
+      const moveEvent = new MouseEvent("pointermove", {
+        bubbles: true,
+        clientX: 150,
+        clientY: 25,
+      });
+      Object.defineProperty(moveEvent, "pointerType", { value: "mouse" });
+      act(() => {
+        card.dispatchEvent(moveEvent);
+      });
+
+      expect(card.style.getPropertyValue("--rx")).toBe("1.50deg");
+      expect(card.style.getPropertyValue("--ry")).toBe("2.00deg");
+      expect(card.style.getPropertyValue("--mx")).toBe("75.0%");
+      expect(card.style.getPropertyValue("--my")).toBe("25.0%");
+
+      const outEvent = new MouseEvent("pointerout", {
+        bubbles: true,
+        relatedTarget: document.body,
+      });
+      act(() => {
+        card.dispatchEvent(outEvent);
+      });
+
+      expect(card.style.getPropertyValue("--rx")).toBe("0deg");
+      expect(card.style.getPropertyValue("--ry")).toBe("0deg");
     });
   });
 });

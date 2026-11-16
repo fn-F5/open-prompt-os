@@ -5,6 +5,7 @@ import {
   BillingStatusSchema,
   CheckoutInputSchema,
   EmulatePlanSwitchInputSchema,
+  PricingPlanItemSchema,
 } from "./billing.js";
 import { ModelOptionSchema, ProviderHealthSchema } from "./models.js";
 import {
@@ -105,6 +106,7 @@ export const appContract = {
     updateOnboarding: oc.input(UpdateOnboardingInputSchema).output(OnboardingPreferencesSchema),
   },
   billing: {
+    plans: oc.output(z.array(PricingPlanItemSchema)),
     status: oc.output(BillingStatusSchema),
     refresh: oc.output(BillingStatusSchema),
     checkout: oc.input(CheckoutInputSchema).output(z.object({ url: z.string() })),

@@ -324,4 +324,15 @@ describe("runtime, config, rate-limiter, and clientKey helpers", () => {
     const fallbackRes = await app.request("/untrusted");
     expect(await fallbackRes.text()).toBe("unknown");
   });
+
+  it("serves dynamic XML sitemap at GET /api/seo/sitemap.xml", async () => {
+    const app = buildApp(10);
+    const res = await app.request("http://localhost/api/seo/sitemap.xml");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("application/xml");
+    const xml = await res.text();
+    expect(xml).toContain('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">');
+    expect(xml).toContain("/docs/prompt-frameworks-costar-rise-care-cot</loc>");
+    expect(xml).toContain("/templates/staff-architecture-rfc-review</loc>");
+  });
 });

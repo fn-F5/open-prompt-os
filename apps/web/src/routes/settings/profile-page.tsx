@@ -1,43 +1,19 @@
-import type { BillingInterval, PlanTier } from "@open-prompt-os/contracts";
+import {
+  type BillingInterval,
+  DEFAULT_PRICING_PLANS,
+  type PlanTier,
+} from "@open-prompt-os/contracts";
 import { Badge, Button, Dialog, Tabs, toast } from "@open-prompt-os/ui-web";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, CreditCard, ExternalLink } from "lucide-react";
 import * as React from "react";
 import { useNavigate, useSearchParams } from "react-router";
+import { formatUsdPrice } from "../../components/pricing/pricing-plans-section.js";
+import { SeoHead } from "../../components/seo/seo-head.js";
 import { useAuthSession } from "../../hooks/use-auth-session.js";
 import { authClient } from "../../lib/auth-client.js";
 import { orpcClient } from "../../lib/orpc.js";
 import { queryKeys } from "../../lib/query-client.js";
-
-const EMULATED_PLANS: Array<{
-  id: PlanTier;
-  name: string;
-  limitLabel: string;
-  monthlyPriceLabel: string;
-  yearlyPriceLabel: string;
-}> = [
-  {
-    id: "free",
-    name: "Free Starter",
-    limitLabel: "20 daily prompts",
-    monthlyPriceLabel: "$0 / mo",
-    yearlyPriceLabel: "$0 / mo",
-  },
-  {
-    id: "pro",
-    name: "Pro Studio",
-    limitLabel: "500 daily prompts",
-    monthlyPriceLabel: "$19 / mo",
-    yearlyPriceLabel: "$15 / mo",
-  },
-  {
-    id: "team",
-    name: "Team Space",
-    limitLabel: "2,000 daily prompts",
-    monthlyPriceLabel: "$49 / seat",
-    yearlyPriceLabel: "$39 / seat",
-  },
-];
 
 export function ProfileSettingsPage() {
   const { user } = useAuthSession();
@@ -49,6 +25,12 @@ export function ProfileSettingsPage() {
   const [switchingPlan, setSwitchingPlan] = React.useState<PlanTier | null>(null);
 
   const isEmulatedPortalOpen = searchParams.get("portal") === "emulated";
+
+  const plansQuery = useQuery({
+    queryKey: queryKeys.billing.plans(),
+    queryFn: () => orpcClient.billing.plans(),
+    placeholderData: () => DEFAULT_PRICING_PLANS.map((p) => ({ ...p, features: [...p.features] })),
+  });
 
   const billingQuery = useQuery({
     queryKey: queryKeys.billing.status(),
@@ -117,6 +99,14 @@ export function ProfileSettingsPage() {
 
   return (
     <div className="space-y-6">
+      <SeoHead
+        meta={{
+          title: "Profile & Workspace Settings | Open Prompt OS",
+          description: "Manage Open Prompt OS workspace identity, passkeys, and billing.",
+          canonicalPath: "/settings/profile",
+          noindex: true,
+        }}
+      />
       <section className="rounded-xl p-6 flat-surface space-y-4">
         <div>
           <Badge variant="framework">Workspace Identity</Badge>
@@ -215,12 +205,13 @@ export function ProfileSettingsPage() {
           </div>
 
           <div className="space-y-2.5">
-            {EMULATED_PLANS.map((planOption) => {
+            {(plansQuery.data ?? DEFAULT_PRICING_PLANS).map((planOption) => {
               const isCurrent = activePlan === planOption.id;
-              const priceLabel =
+              const price =
                 emulatedInterval === "yearly"
-                  ? planOption.yearlyPriceLabel
-                  : planOption.monthlyPriceLabel;
+                  ? planOption.yearlyPriceUsd
+                  : planOption.monthlyPriceUsd;
+              const priceLabel = `${formatUsdPrice(price)} ${planOption.priceSuffix}`;
               return (
                 <div
                   key={planOption.id}
@@ -232,7 +223,7 @@ export function ProfileSettingsPage() {
                       {isCurrent ? <Badge variant="framework">Current</Badge> : null}
                     </div>
                     <p className="text-xs text-[var(--text-secondary)]">
-                      {priceLabel} · {planOption.limitLabel}
+                      {priceLabel} · {planOption.dailyPromptLimit.toLocaleString()} daily prompts
                     </p>
                   </div>
                   <Button

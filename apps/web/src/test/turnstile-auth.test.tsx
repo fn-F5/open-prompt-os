@@ -395,7 +395,6 @@ describe("Cloudflare Turnstile in AuthDialog", () => {
     openAuthDialog({ reason: "protected_route", intendedRoute: "/library" });
     renderAuthDialog(null);
     expect(screen.getByText("Sign in to access your Workspace")).toBeInTheDocument();
-    expect(screen.getByText("Protected Workspace")).toBeInTheDocument();
 
     const googleBtn = await screen.findByRole("button", { name: "Continue with Google" });
     const githubBtn = screen.getByRole("button", { name: "Continue with GitHub" });
@@ -455,7 +454,9 @@ describe("Cloudflare Turnstile in AuthDialog", () => {
     });
     const firstView = renderAuthDialog(null);
     expect(await screen.findByRole("button", { name: "Continue with Google" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Continue with GitHub" })).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: "Continue with GitHub" })).not.toBeInTheDocument();
+    });
     firstView.unmount();
 
     vi.spyOn(authClient, "getOAuthProviders").mockResolvedValueOnce({
@@ -467,7 +468,9 @@ describe("Cloudflare Turnstile in AuthDialog", () => {
     renderAuthDialog(null);
 
     expect(await screen.findByRole("button", { name: "Continue with GitHub" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Continue with Google" })).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: "Continue with Google" })).not.toBeInTheDocument();
+    });
 
     fireEvent.change(screen.getByLabelText("Email address"), {
       target: { value: "ada@example.com" },

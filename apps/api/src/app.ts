@@ -11,6 +11,7 @@ import { resolveActor } from "./auth/session-resolver.js";
 import { clientKey } from "./client-key.js";
 import { createRouter } from "./router.js";
 import { registerComposeStream } from "./routes/compose-stream.js";
+import { registerSeoRoutes } from "./routes/seo-routes.js";
 import { registerStripeWebhook } from "./routes/stripe-webhook.js";
 
 export interface AppOptions {
@@ -124,6 +125,7 @@ export function createApp(options: AppOptions) {
   });
 
   registerStripeWebhook(app, billingProvider);
+  registerSeoRoutes(app, options.webOrigins);
 
   registerComposeStream(app, {
     orchestrator: options.orchestrator,

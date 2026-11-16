@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0F0F11" />
+      <stop offset="55%" stop-color="#141622" />
+      <stop offset="100%" stop-color="#0F141A" />
+    </linearGradient>
+    <radialGradient id="glowCyan" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(960 120) rotate(135) scale(420 320)">
+      <stop offset="0%" stop-color="#22D3EE" stop-opacity="0.28" />
+      <stop offset="100%" stop-color="#22D3EE" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="glowIndigo" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(220 520) rotate(30) scale(460 320)">
+      <stop offset="0%" stop-color="#6366F1" stop-opacity="0.28" />
+      <stop offset="100%" stop-color="#6366F1" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)" />
+  <rect width="1200" height="630" fill="url(#glowCyan)" />
+  <rect width="1200" height="630" fill="url(#glowIndigo)" />
+  <rect x="64" y="64" width="1072" height="502" rx="28" fill="#17181E" fill-opacity="0.86" stroke="#2D3142" stroke-width="1.5" />
+  <rect x="112" y="116" width="236" height="36" rx="18" fill="#23263A" stroke="#4F46E5" stroke-opacity="0.6" />
+  <text x="134" y="140" fill="#A5B4FC" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" font-weight="600">THE OPERATING SYSTEM FOR PROMPTS</text>
+  <text x="112" y="232" fill="#F8FAFC" font-family="system-ui, -apple-system, sans-serif" font-size="60" font-weight="700" letter-spacing="-1.5">Open Prompt OS</text>
+  <text x="112" y="294" fill="#CBD5E1" font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="400">Compile, diagnose, reverse-engineer, and operationalize</text>
+  <text x="112" y="334" fill="#CBD5E1" font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="400">structured AI prompts across ChatGPT, Claude, Gemini &amp; Veo.</text>
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" font-weight="500">
+    <rect x="112" y="404" width="168" height="44" rx="12" fill="#1F2433" stroke="#334155" />
+    <text x="134" y="432" fill="#E2E8F0">CO-STAR · RISE</text>
+    <rect x="296" y="404" width="196" height="44" rx="12" fill="#162933" stroke="#0891B2" />
+    <text x="318" y="432" fill="#67E8F9">Prompt Autopsy</text>
+    <rect x="508" y="404" width="224" height="44" rx="12" fill="#1F2433" stroke="#334155" />
+    <text x="530" y="432" fill="#E2E8F0">Reverse Engineer</text>
+    <rect x="748" y="404" width="248" height="44" rx="12" fill="#142921" stroke="#059669" />
+    <text x="770" y="432" fill="#6EE7B7">Zero Model Training</text>
+  </g>
+  <text x="112" y="516" fill="#94A3B8" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18">openpromptos.com  ·  /docs  ·  /templates  ·  /llms.txt</text>
+</svg>
