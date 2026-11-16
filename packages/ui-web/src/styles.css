@@ -343,33 +343,6 @@ pre,
       }
     }
   }
-
-  /* FullPage.js-style viewport slide container and active entrance reveal */
-  .fp-slide {
-    scrollbar-width: thin;
-  }
-
-  .fp-slide::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  .fp-slide::-webkit-scrollbar-thumb {
-    background: var(--separator-strong);
-    border-radius: 9999px;
-  }
-
-  .fp-slide-inner {
-    opacity: 0.35;
-    transform: translate3d(0, 20px, 0);
-    transition:
-      opacity 520ms cubic-bezier(0.22, 1, 0.36, 1) 140ms,
-      transform 620ms cubic-bezier(0.22, 1, 0.36, 1) 140ms;
-  }
-
-  [data-fp-active="true"] > .fp-slide-inner {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-  }
 }
 
 /* Reduced transparency & reduced motion overrides */
@@ -393,9 +366,7 @@ pre,
   }
 
   .flat-surface,
-  .glow-card,
-  .fp-slide-inner {
+  .glow-card {
     transform: none !important;
-    opacity: 1 !important;
   }
 }

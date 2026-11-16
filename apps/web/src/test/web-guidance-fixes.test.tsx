@@ -4,19 +4,15 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import * as React from "react";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AppRoutes } from "../app-routes.js";
 import { GuidedParameters } from "../components/composer/guided-parameters.js";
 import { ModelPicker } from "../components/composer/model-picker.js";
 import { PromptComposer } from "../components/composer/prompt-composer.js";
 import { MarketingNavbar } from "../components/navigation/navbar.js";
 import { useCardParallax } from "../hooks/use-card-parallax.js";
 import { useTypingPlaceholder } from "../hooks/use-typing-placeholder.js";
-import { authClient } from "../lib/auth-client.js";
-import { clearGuestInteraction } from "../lib/guest-session-manager.js";
 import { resetOrpcTestState } from "../lib/orpc.js";
 import { createAppQueryClient } from "../lib/query-client.js";
 import { clearStorageForTest } from "../lib/storage.js";
-import { resetAuthDialogStoreForTest } from "../state/auth-dialog-store.js";
 import { composerActions } from "../state/composer-store.js";
 
 describe("Modern Web Guidance fixes", () => {
@@ -391,176 +387,6 @@ describe("Modern Web Guidance fixes", () => {
 
       expect(card.style.getPropertyValue("--rx")).toBe("0deg");
       expect(card.style.getPropertyValue("--ry")).toBe("0deg");
-    });
-  });
-
-  describe("9. One-scroll-per-section navigation on landing page", () => {
-    it("slides full-viewport track one section per gesture, updates dots/hint, and yields to modals/scrollable textareas", async () => {
-      clearGuestInteraction();
-      resetAuthDialogStoreForTest();
-      await authClient.signOut();
-
-      let now = 10_000;
-      vi.spyOn(Date, "now").mockImplementation(() => now);
-
-      const qc = createAppQueryClient();
-      render(
-        <QueryClientProvider client={qc}>
-          <MemoryRouter initialEntries={["/"]}>
-            <AppRoutes />
-          </MemoryRouter>
-        </QueryClientProvider>,
-      );
-
-      await screen.findByTestId("anonymous-marketing-content");
-      const track = screen.getByTestId("fullpage-track");
-      const nav = screen.getByTestId("fullpage-nav");
-      const scrollHint = screen.getByTestId("fullpage-scroll-hint");
-
-      // Wait for ModelPicker query to mount .model-picker-popover and simulate native popover="auto" support
-      const modelTrigger = await screen.findByRole("button", { name: /Target AI model/i });
-      const modelPopover = document.querySelector<HTMLElement>(".model-picker-popover");
-      expect(modelPopover).not.toBeNull();
-      modelPopover?.removeAttribute("hidden");
-
-      expect(document.documentElement.getAttribute("data-active-section")).toBe(
-        "landing_workspace",
-      );
-      expect(track.style.transform).toMatch(/translate3d\(0,\s*-?0%,\s*0(?:px)?\)/);
-      expect(scrollHint).toHaveTextContent("See the Difference");
-
-      // Right-hand active nav label stays hidden until hover; dot uses high-contrast --accent-primary
-      const firstNavButton = nav.querySelector('button[aria-label="Go to Prompt Compiler"]');
-      const firstNavLabel = firstNavButton?.querySelectorAll("span")[0];
-      const firstNavDot = firstNavButton?.querySelectorAll("span")[1];
-      expect(firstNavLabel?.className).toContain("opacity-0");
-      expect(firstNavDot?.className).toContain("bg-[var(--accent-primary)]");
-
-      const dispatchWheel = (deltaY: number, target: EventTarget = window) => {
-        const event = new WheelEvent("wheel", {
-          deltaY,
-          bubbles: true,
-          cancelable: true,
-        });
-        act(() => {
-          target.dispatchEvent(event);
-        });
-        return event;
-      };
-
-      // Yield when the model picker listbox trigger is genuinely expanded
-      modelTrigger.setAttribute("aria-expanded", "true");
-      const expandedModelWheel = dispatchWheel(120);
-      expect(expandedModelWheel.defaultPrevented).toBe(false);
-      expect(document.documentElement.getAttribute("data-active-section")).toBe(
-        "landing_workspace",
-      );
-      modelTrigger.setAttribute("aria-expanded", "false");
-
-      // 1st scroll down -> See the Difference + continuous inertia stream (dt <= 100ms) does not skip
-      const firstDown = dispatchWheel(120);
-      expect(firstDown.defaultPrevented).toBe(true);
-      expect(document.documentElement.getAttribute("data-active-section")).toBe(
-        "before_after_showcase",
-      );
-      expect(track.style.transform).toBe("translate3d(0, -100%, 0)");
-      expect(scrollHint).toHaveTextContent("Built for Everyday Speed");
-
-      // Continuous trackpad inertia stream (dt = 90ms <= 120ms) past cooldown with slight delta fluctuation
-      const inertiaDeltas = [64, 32, 16, 12, 8, 9, 10, 8, 6];
-      for (const deltaY of inertiaDeltas) {
-        now += 90;
-        dispatchWheel(deltaY);
-      }
-      expect(document.documentElement.getAttribute("data-active-section")).toBe(
-        "before_after_showcase",
-      );
-      expect(track.style.transform).toBe("translate3d(0, -100%, 0)");
-
-      // Brief 140ms pause (stream ended) + total >= 350ms after step -> moves immediately on 1st wheel
-      now += 140;
-      dispatchWheel(80);
-      expect(document.documentElement.getAttribute("data-active-section")).toBe("features_grid");
-      expect(track.style.transform).toBe("translate3d(0, -200%, 0)");
-
-      // 3rd scroll down -> Curated Template Gallery (after 350ms idle pause, moves on 1st wheel)
-      now += 360;
-      dispatchWheel(120);
-      expect(document.documentElement.getAttribute("data-active-section")).toBe("use_cases");
-      expect(track.style.transform).toBe("translate3d(0, -300%, 0)");
-
-      // 4th scroll down -> Privacy by Default Guarantee
-      now += 360;
-      dispatchWheel(120);
-      expect(document.documentElement.getAttribute("data-active-section")).toBe(
-        "privacy_commitment",
-      );
-      expect(track.style.transform).toBe("translate3d(0, -400%, 0)");
-
-      // 5th scroll down -> Simple, Fair Pricing
-      now += 360;
-      dispatchWheel(120);
-      expect(document.documentElement.getAttribute("data-active-section")).toBe(
-        "pricing_options",
-      );
-      expect(track.style.transform).toBe("translate3d(0, -500%, 0)");
-      expect(scrollHint).toHaveTextContent("Prompt Compiler");
-
-      // Yield when an open dialog is present
-      const openDialog = document.createElement("dialog");
-      openDialog.setAttribute("open", "");
-      document.body.appendChild(openDialog);
-      now += 800;
-      const dialogWheel = dispatchWheel(-120);
-      expect(dialogWheel.defaultPrevented).toBe(false);
-      expect(document.documentElement.getAttribute("data-active-section")).toBe(
-        "pricing_options",
-      );
-      openDialog.remove();
-
-      // Yield when scrolling inside an overflowing textarea
-      const textarea = screen.getByLabelText<HTMLTextAreaElement>(
-        /Prompt intent and instructions/i,
-      );
-      vi.spyOn(textarea, "scrollHeight", "get").mockReturnValue(240);
-      vi.spyOn(textarea, "clientHeight", "get").mockReturnValue(120);
-      now += 800;
-      const textareaWheel = dispatchWheel(-120, textarea);
-      expect(textareaWheel.defaultPrevented).toBe(false);
-      expect(document.documentElement.getAttribute("data-active-section")).toBe(
-        "pricing_options",
-      );
-
-      // Scroll up step-by-step in exact reverse order
-      const expectedReverse = [
-        { id: "privacy_commitment", transform: "translate3d(0, -400%, 0)" },
-        { id: "use_cases", transform: "translate3d(0, -300%, 0)" },
-        { id: "features_grid", transform: "translate3d(0, -200%, 0)" },
-        { id: "before_after_showcase", transform: "translate3d(0, -100%, 0)" },
-        { id: "landing_workspace", transform: "translate3d(0, -0%, 0)" },
-      ];
-      for (const step of expectedReverse) {
-        now += 800;
-        dispatchWheel(-120);
-        expect(document.documentElement.getAttribute("data-active-section")).toBe(step.id);
-        expect(track.style.transform).toBe(step.transform);
-      }
-
-      // Clicking scroll hint steps to the next section
-      now += 800;
-      fireEvent.click(scrollHint);
-      expect(document.documentElement.getAttribute("data-active-section")).toBe(
-        "before_after_showcase",
-      );
-      expect(track.style.transform).toBe("translate3d(0, -100%, 0)");
-
-      // Clicking a right-hand nav dot jumps directly to the target section
-      const galleryDot = nav.querySelector('button[aria-label="Go to Curated Template Gallery"]');
-      expect(galleryDot).not.toBeNull();
-      now += 800;
-      if (galleryDot) fireEvent.click(galleryDot);
-      expect(document.documentElement.getAttribute("data-active-section")).toBe("use_cases");
-      expect(track.style.transform).toBe("translate3d(0, -300%, 0)");
     });
   });
 });

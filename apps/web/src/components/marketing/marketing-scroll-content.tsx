@@ -18,32 +18,21 @@ import {
 } from "lucide-react";
 import * as React from "react";
 import { Link } from "react-router";
-import { scrollToLandingSection } from "../../hooks/use-section-scroll.js";
 import { trackEvent } from "../../lib/telemetry.js";
 import { openAuthDialog } from "../../state/auth-dialog-store.js";
 import { composerActions } from "../../state/composer-store.js";
 
 function ObservedSection({
   sectionId,
-  activeSectionId,
   children,
   className = "",
 }: {
   readonly sectionId: string;
-  readonly activeSectionId?: string;
   readonly children: React.ReactNode;
   readonly className?: string;
 }) {
   const ref = React.useRef<HTMLElement | null>(null);
   const viewedRef = React.useRef(false);
-  const isActive = activeSectionId === sectionId;
-
-  React.useEffect(() => {
-    if (isActive && !viewedRef.current) {
-      viewedRef.current = true;
-      trackEvent("marketing_section_viewed", { sectionId });
-    }
-  }, [isActive, sectionId]);
 
   React.useEffect(() => {
     const el = ref.current;
@@ -68,15 +57,8 @@ function ObservedSection({
   }, [sectionId]);
 
   return (
-    <section
-      ref={ref}
-      data-section-id={sectionId}
-      data-fp-active={isActive ? "true" : "false"}
-      className="fp-slide h-full w-full shrink-0 overflow-y-auto overscroll-contain flex flex-col justify-center px-4 sm:px-8 py-4 sm:py-6"
-    >
-      <div className={`fp-slide-inner mx-auto w-full max-w-[1360px] ${className}`.trim()}>
-        {children}
-      </div>
+    <section ref={ref} data-section-id={sectionId} className={className}>
+      {children}
     </section>
   );
 }
@@ -177,24 +159,20 @@ const USE_CASE_SHOWCASE: ReadonlyArray<{
   },
 ];
 
-export function MarketingScrollContent({
-  activeSectionId,
-  footer,
-}: {
-  readonly activeSectionId?: string;
-  readonly footer?: React.ReactNode;
-} = {}) {
+export function MarketingScrollContent() {
   const [selectedUseCase, setSelectedUseCase] = React.useState<ComposerMode>("text");
   const activeShowcase =
     USE_CASE_SHOWCASE.find((u) => u.mode === selectedUseCase) ?? USE_CASE_SHOWCASE[0]!;
 
   return (
-    <div data-testid="anonymous-marketing-content" className="contents">
+    <div
+      data-testid="anonymous-marketing-content"
+      className="mx-auto max-w-[1360px] px-4 sm:px-8 pt-6 sm:pt-12 pb-12 sm:pb-24 space-y-14 sm:space-y-24"
+    >
       {/* SECTION 1: Simplified Before & After Product Showcase */}
       <ObservedSection
         sectionId="before_after_showcase"
-        activeSectionId={activeSectionId}
-        className="relative space-y-4 sm:space-y-6"
+        className="relative space-y-6 sm:space-y-10"
       >
         <div className="text-center max-w-2xl mx-auto space-y-2.5 sm:space-y-3">
           <Badge variant="framework">See the Difference</Badge>
@@ -291,11 +269,7 @@ export function MarketingScrollContent({
       </ObservedSection>
 
       {/* SECTION 2: Asymmetric Bento Feature Grid with Consistent Centered Header */}
-      <ObservedSection
-        sectionId="features_grid"
-        activeSectionId={activeSectionId}
-        className="space-y-4 sm:space-y-6"
-      >
+      <ObservedSection sectionId="features_grid" className="space-y-6 sm:space-y-10">
         <div className="text-center max-w-2xl mx-auto space-y-2.5 sm:space-y-3">
           <Badge variant="framework">Built for Everyday Speed</Badge>
           <h2 className="text-2xl sm:text-4xl font-medium tracking-[-0.025em] text-balance">
@@ -415,11 +389,7 @@ export function MarketingScrollContent({
       </ObservedSection>
 
       {/* SECTION 3: Templates Showcase with Non-Duplicated Mode Selector Strip + Detail Inspector */}
-      <ObservedSection
-        sectionId="use_cases"
-        activeSectionId={activeSectionId}
-        className="relative space-y-4 sm:space-y-6"
-      >
+      <ObservedSection sectionId="use_cases" className="relative space-y-6 sm:space-y-10">
         <div className="text-center max-w-2xl mx-auto space-y-2.5 sm:space-y-3">
           <Badge variant="framework">Curated Template Gallery</Badge>
           <h2 className="text-2xl sm:text-4xl font-medium tracking-[-0.025em] text-balance">
@@ -490,7 +460,7 @@ export function MarketingScrollContent({
                 onClick={() => {
                   composerActions.setMode(activeShowcase.mode);
                   composerActions.updateActiveDraft({ rawInput: activeShowcase.rawInput });
-                  scrollToLandingSection(0);
+                  window.scrollTo({ top: 0, behavior: "smooth" });
                 }}
               >
                 <Cpu className="w-4 h-4" />
@@ -534,60 +504,57 @@ export function MarketingScrollContent({
       </ObservedSection>
 
       {/* SECTION 4: Privacy & Trust Showcase (Uniform width, clean 3-column divided layout) */}
-      <ObservedSection sectionId="privacy_commitment" activeSectionId={activeSectionId}>
-        <div className="p-6 sm:p-12 glass-surface">
-          <div className="text-center max-w-2xl mx-auto mb-6 sm:mb-10 space-y-2.5 sm:space-y-3">
-            <Badge variant="framework">Privacy by Default Guarantee</Badge>
-            <h2 className="text-2xl sm:text-4xl font-medium tracking-[-0.025em] text-balance">
-              We never train on your prompts.{" "}
-              <span className="text-gradient-brand">Period.</span>
-            </h2>
-            <p className="text-sm sm:text-lg text-[var(--text-secondary)] leading-relaxed">
-              Your prompts contain your company's strategy, code, and creative IP. Every draft and
-              compiled output remains strictly yours.
+      <ObservedSection
+        sectionId="privacy_commitment"
+        className="p-6 sm:p-12 glass-surface"
+      >
+        <div className="text-center max-w-2xl mx-auto mb-6 sm:mb-10 space-y-2.5 sm:space-y-3">
+          <Badge variant="framework">Privacy by Default Guarantee</Badge>
+          <h2 className="text-2xl sm:text-4xl font-medium tracking-[-0.025em] text-balance">
+            We never train on your prompts.{" "}
+            <span className="text-gradient-brand">Period.</span>
+          </h2>
+          <p className="text-sm sm:text-lg text-[var(--text-secondary)] leading-relaxed">
+            Your prompts contain your company's strategy, code, and creative IP. Every draft and
+            compiled output remains strictly yours.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 pt-6 border-t border-[var(--separator-subtle)] md:divide-x md:divide-[var(--separator-subtle)]">
+          <div className="space-y-1.5 sm:space-y-2 md:pr-6">
+            <div className="inline-flex items-center gap-2 text-base font-medium text-[var(--success-text)]">
+              <ShieldCheck className="w-5 h-5" />
+              <span>Zero Model Training</span>
+            </div>
+            <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed">
+              Your inputs and outputs are never used to train or fine-tune any AI model.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 pt-6 border-t border-[var(--separator-subtle)] md:divide-x md:divide-[var(--separator-subtle)]">
-            <div className="space-y-1.5 sm:space-y-2 md:pr-6">
-              <div className="inline-flex items-center gap-2 text-base font-medium text-[var(--success-text)]">
-                <ShieldCheck className="w-5 h-5" />
-                <span>Zero Model Training</span>
-              </div>
-              <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed">
-                Your inputs and outputs are never used to train or fine-tune any AI model.
-              </p>
+          <div className="space-y-1.5 sm:space-y-2 md:px-6">
+            <div className="inline-flex items-center gap-2 text-base font-medium text-[var(--accent-text)]">
+              <EyeOff className="w-5 h-5" />
+              <span>Redacted Telemetry</span>
             </div>
+            <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed">
+              Analytics track feature performance only—never your prompt text, emails, or API keys.
+            </p>
+          </div>
 
-            <div className="space-y-1.5 sm:space-y-2 md:px-6">
-              <div className="inline-flex items-center gap-2 text-base font-medium text-[var(--accent-text)]">
-                <EyeOff className="w-5 h-5" />
-                <span>Redacted Telemetry</span>
-              </div>
-              <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed">
-                Analytics track feature performance only—never your prompt text, emails, or API keys.
-              </p>
+          <div className="space-y-1.5 sm:space-y-2 md:pl-6">
+            <div className="inline-flex items-center gap-2 text-base font-medium text-[var(--cyan-text)]">
+              <Lock className="w-5 h-5" />
+              <span>Isolated Workspaces</span>
             </div>
-
-            <div className="space-y-1.5 sm:space-y-2 md:pl-6">
-              <div className="inline-flex items-center gap-2 text-base font-medium text-[var(--cyan-text)]">
-                <Lock className="w-5 h-5" />
-                <span>Isolated Workspaces</span>
-              </div>
-              <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed">
-                Saved prompts are protected by tenant-isolated PostgreSQL Row-Level Security.
-              </p>
-            </div>
+            <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed">
+              Saved prompts are protected by tenant-isolated PostgreSQL Row-Level Security.
+            </p>
           </div>
         </div>
       </ObservedSection>
 
       {/* SECTION 5: Pricing with Horizontally Aligned Headers Across All 3 Cards */}
-      <ObservedSection
-        sectionId="pricing_options"
-        activeSectionId={activeSectionId}
-        className="space-y-4 sm:space-y-6"
-      >
+      <ObservedSection sectionId="pricing_options" className="space-y-6 sm:space-y-10">
         <div className="text-center max-w-2xl mx-auto space-y-2.5 sm:space-y-3">
           <Badge variant="framework">Simple, Fair Pricing</Badge>
           <h2 className="text-2xl sm:text-4xl font-medium tracking-[-0.025em] text-balance">
@@ -737,7 +704,6 @@ export function MarketingScrollContent({
             </Link>
           </div>
         </div>
-        {footer ? <div className="pt-4 sm:pt-6">{footer}</div> : null}
       </ObservedSection>
     </div>
   );
