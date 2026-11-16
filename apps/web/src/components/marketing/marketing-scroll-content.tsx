@@ -130,7 +130,10 @@ const USE_CASE_SHOWCASE: ReadonlyArray<{
     rawInput:
       "Macro studio photograph of [Product_Subject] on matte basalt, 85mm f/2.0, rim lighting.",
     highlights: [
-      { label: "Subject", text: "[Product_Subject] crafted from [Material_Finish] on matte basalt" },
+      {
+        label: "Subject",
+        text: "[Product_Subject] crafted from [Material_Finish] on matte basalt",
+      },
       { label: "Optics", text: "16:9 widescreen, 85mm prime lens, f/2.0 shallow depth of field" },
       { label: "Lighting", text: "Soft volumetric key light with crisp silver rim highlights" },
       { label: "Negative Guardrail", text: "No neon cast, no distorted text, no plastic sheen" },
@@ -153,7 +156,10 @@ const USE_CASE_SHOWCASE: ReadonlyArray<{
         text: "[Opening_Frame] transitions smoothly around [Hero_Subject] to [Closing_Beat]",
       },
       { label: "Camera", text: "24fps, 16:9 cinema scope, 6-second continuous tracking shot" },
-      { label: "Motion Physics", text: "Consistent object geometry with natural 180° shutter blur" },
+      {
+        label: "Motion Physics",
+        text: "Consistent object geometry with natural 180° shutter blur",
+      },
       { label: "Guardrail", text: "Prevent morphing textures or sudden lighting flicker" },
     ],
   },
@@ -190,7 +196,7 @@ export function MarketingScrollContent() {
           {/* Before Card */}
           <div className="lg:col-span-5 p-5 sm:p-8 flat-surface flex flex-col justify-between space-y-4 sm:space-y-6">
             <div className="space-y-4">
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-base font-medium text-[var(--danger-text)]">
                   Before: Typical 1-Line Prompt
                 </span>
@@ -413,19 +419,15 @@ export function MarketingScrollContent() {
                 type="button"
                 onClick={() => setSelectedUseCase(item.mode)}
                 className={`text-left p-4 sm:p-5 transition-all focus-ring cursor-pointer flex flex-col justify-between gap-2 ${
-                  isSelected
-                    ? "glow-card"
-                    : "flat-surface opacity-85 hover:opacity-100"
+                  isSelected ? "glow-card" : "flat-surface opacity-85 hover:opacity-100"
                 }`}
               >
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="inline-flex items-center gap-2 text-base font-medium tracking-[-0.02em] text-[var(--text-primary)]">
                     <Icon className="w-4 h-4 text-[var(--accent-text)]" />
                     <span>{item.tabLabel}</span>
                   </span>
-                  <Badge variant={isSelected ? "framework" : "neutral"}>
-                    {item.badge}
-                  </Badge>
+                  <Badge variant={isSelected ? "framework" : "neutral"}>{item.badge}</Badge>
                 </div>
                 <p className="text-sm text-[var(--text-secondary)]">{item.modeSummary}</p>
               </button>
@@ -435,7 +437,7 @@ export function MarketingScrollContent() {
 
         {/* Active Template Detail Inspector */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 p-5 sm:p-10 glass-surface items-center">
-          <div className="lg:col-span-5 space-y-4 sm:space-y-5">
+          <div className="lg:col-span-5 min-w-0 space-y-4 sm:space-y-5">
             <Badge variant="framework">Sample {activeShowcase.tabLabel} Blueprint</Badge>
             <h3 className="text-xl sm:text-2xl font-medium tracking-[-0.02em] leading-snug">
               {activeShowcase.title}
@@ -457,13 +459,14 @@ export function MarketingScrollContent() {
               <Button
                 variant="solid"
                 size="md"
+                className="max-w-full text-xs sm:text-sm px-3.5 sm:px-5"
                 onClick={() => {
                   composerActions.setMode(activeShowcase.mode);
                   composerActions.updateActiveDraft({ rawInput: activeShowcase.rawInput });
                   window.scrollTo({ top: 0, behavior: "smooth" });
                 }}
               >
-                <Cpu className="w-4 h-4" />
+                <Cpu className="w-4 h-4 shrink-0" />
                 <span>Load in {activeShowcase.tabLabel} Composer</span>
               </Button>
 
@@ -477,7 +480,7 @@ export function MarketingScrollContent() {
             </div>
           </div>
 
-          <div className="lg:col-span-7 lg:pl-8 lg:border-l lg:border-[var(--separator-subtle)] space-y-3.5 sm:space-y-4">
+          <div className="lg:col-span-7 min-w-0 lg:pl-8 lg:border-l lg:border-[var(--separator-subtle)] space-y-3.5 sm:space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-[var(--separator-subtle)]">
               <span className="text-sm font-semibold text-[var(--accent-text)]">
                 Compiled Specification Structure
@@ -504,15 +507,11 @@ export function MarketingScrollContent() {
       </ObservedSection>
 
       {/* SECTION 4: Privacy & Trust Showcase (Uniform width, clean 3-column divided layout) */}
-      <ObservedSection
-        sectionId="privacy_commitment"
-        className="p-6 sm:p-12 glass-surface"
-      >
+      <ObservedSection sectionId="privacy_commitment" className="p-6 sm:p-12 glass-surface">
         <div className="text-center max-w-2xl mx-auto mb-6 sm:mb-10 space-y-2.5 sm:space-y-3">
           <Badge variant="framework">Privacy by Default Guarantee</Badge>
           <h2 className="text-2xl sm:text-4xl font-medium tracking-[-0.025em] text-balance">
-            We never train on your prompts.{" "}
-            <span className="text-gradient-brand">Period.</span>
+            We never train on your prompts. <span className="text-gradient-brand">Period.</span>
           </h2>
           <p className="text-sm sm:text-lg text-[var(--text-secondary)] leading-relaxed">
             Your prompts contain your company's strategy, code, and creative IP. Every draft and
@@ -584,7 +583,9 @@ export function MarketingScrollContent() {
                 <span className="text-[42px] font-semibold tracking-[-0.03em] leading-none tabular-nums">
                   $0
                 </span>
-                <span className="font-mono text-[13px] text-[var(--text-secondary)]">/ forever</span>
+                <span className="font-mono text-[13px] text-[var(--text-secondary)]">
+                  / forever
+                </span>
               </div>
               <p className="text-sm sm:text-base text-[var(--text-secondary)]">
                 Everything you need to start writing better prompts right away.

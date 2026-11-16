@@ -156,7 +156,7 @@ export function ReverseEngineerPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="inline-flex items-center gap-2 mb-1">
+          <div className="flex flex-wrap items-center gap-2 mb-1">
             <Badge variant="framework">Vision Extractor</Badge>
             <span className="text-xs text-[var(--text-secondary)]">
               Image-to-Prompt Reconstruction
@@ -266,7 +266,7 @@ export function ReverseEngineerPage() {
             />
           </div>
 
-          <div className="flex items-center justify-between gap-3 pt-2 border-t border-[var(--separator-subtle)]">
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-[var(--separator-subtle)]">
             <span className="text-xs text-[var(--text-secondary)]">
               {result?.remainingDailyRuns !== null && result?.remainingDailyRuns !== undefined
                 ? `${result.remainingDailyRuns} reverse-engineer run(s) left today`

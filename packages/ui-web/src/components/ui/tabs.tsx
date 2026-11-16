@@ -39,7 +39,7 @@ export function Tabs<T extends string = string>({
     <div
       role="tablist"
       aria-label={ariaLabel}
-      className={`inline-flex flex-nowrap overflow-x-auto max-w-full items-center gap-1 p-1 sm:p-1.5 rounded-xl bg-[var(--surface-2)] border border-[var(--separator-subtle)] ${className}`}
+      className={`inline-flex flex-wrap max-w-full items-center gap-1 p-1 sm:p-1.5 rounded-xl bg-[var(--surface-2)] border border-[var(--separator-subtle)] ${className}`}
     >
       {options.map((opt, idx) => {
         const isActive = opt.value === value;
@@ -55,7 +55,7 @@ export function Tabs<T extends string = string>({
             tabIndex={isActive ? 0 : -1}
             onClick={() => onValueChange(opt.value)}
             onKeyDown={(e) => handleKeyDown(e, idx)}
-            className={`min-h-[36px] sm:min-h-[40px] px-2.5 sm:px-4 py-1 sm:py-1.5 font-mono text-xs uppercase tracking-[0.08em] rounded-lg transition-all duration-150 focus-ring cursor-pointer inline-flex shrink-0 whitespace-nowrap items-center gap-1.5 sm:gap-2 ${
+            className={`min-h-[36px] sm:min-h-[38px] px-1.5 min-[360px]:px-2 sm:px-3.5 py-1 font-mono text-[10px] sm:text-xs uppercase tracking-[0.02em] sm:tracking-[0.08em] rounded-lg transition-all duration-150 focus-ring cursor-pointer inline-flex shrink-0 whitespace-nowrap items-center gap-1 sm:gap-1.5 ${
               isActive
                 ? "bg-[var(--surface-1)] text-[var(--text-primary)] font-medium border border-[var(--accent-primary)] shadow-sm"
                 : "text-[var(--text-secondary)] font-normal hover:text-[var(--text-primary)] hover:bg-[var(--surface-3)] border border-transparent"

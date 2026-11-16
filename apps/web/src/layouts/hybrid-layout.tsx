@@ -68,8 +68,7 @@ export function HybridLayout() {
           <div
             className="absolute inset-x-0 top-0 h-[560px]"
             style={{
-              background:
-                "linear-gradient(180deg, var(--ambient-indigo) 0%, transparent 100%)",
+              background: "linear-gradient(180deg, var(--ambient-indigo) 0%, transparent 100%)",
             }}
           />
           <div
@@ -99,7 +98,7 @@ export function HybridLayout() {
       {/* 3. Main Product Workspace */}
       <main
         id="main-workspace"
-        className="flex-1 mx-auto w-full max-w-[1360px] px-4 sm:px-8 pt-3 sm:pt-8 pb-8 sm:pb-12"
+        className="flex-1 mx-auto w-full max-w-[1360px] px-4 sm:px-8 pt-2 sm:pt-4 pb-8 sm:pb-12"
       >
         <Outlet />
       </main>
@@ -129,8 +128,8 @@ export function HybridLayout() {
           aria-label="Site footer"
           className="border-t border-[var(--separator-subtle)] bg-[var(--surface-1)]/80 py-12 sm:py-16 px-4 sm:px-8 text-sm text-[var(--text-secondary)]"
         >
-          <div className="mx-auto max-w-[1360px] grid grid-cols-1 md:grid-cols-12 gap-8 sm:gap-10 pb-10 sm:pb-12 border-b border-[var(--separator-subtle)]">
-            <div className="md:col-span-5 space-y-4">
+          <div className="mx-auto max-w-[1360px] grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-8 sm:gap-10 pb-10 sm:pb-12 border-b border-[var(--separator-subtle)]">
+            <div className="sm:col-span-2 lg:col-span-5 space-y-4">
               <div className="inline-flex items-center gap-3 font-bold text-lg text-[var(--text-primary)]">
                 <span className="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-[var(--accent-subtle-bg)] text-[var(--accent-text)] border border-[var(--separator-strong)]">
                   <Terminal className="w-4 h-4" />
@@ -147,7 +146,7 @@ export function HybridLayout() {
               </div>
             </div>
 
-            <div className="md:col-span-2 space-y-3">
+            <div className="lg:col-span-2 space-y-3">
               <div className="font-semibold text-[var(--text-primary)]">Product</div>
               <ul className="space-y-2.5">
                 <li>
@@ -182,7 +181,7 @@ export function HybridLayout() {
               </ul>
             </div>
 
-            <div className="md:col-span-2 space-y-3">
+            <div className="lg:col-span-2 space-y-3">
               <div className="font-semibold text-[var(--text-primary)]">Modes</div>
               <ul className="space-y-2.5">
                 <li>
@@ -203,7 +202,7 @@ export function HybridLayout() {
               </ul>
             </div>
 
-            <div className="md:col-span-3 space-y-3">
+            <div className="sm:col-span-2 lg:col-span-3 space-y-3">
               <div className="font-semibold text-[var(--text-primary)]">Workspace</div>
               <p className="text-sm text-[var(--text-secondary)]">
                 Save your prompts and sync across devices with a free account.

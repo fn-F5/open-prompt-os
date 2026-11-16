@@ -203,12 +203,12 @@ export function AuthDialog({ turnstileSiteKey }: { turnstileSiteKey?: string | n
       variant="glass"
     >
       {step === "email" && hasSocial ? (
-        <div className="mb-4 space-y-2.5">
-          <div className="flex flex-col gap-2.5">
+        <div className="mb-3 space-y-2">
+          <div className="flex flex-col gap-2">
             {providers.google ? (
               <button
                 type="button"
-                className="w-full min-h-[44px] px-4 py-2.5 rounded-xl inline-flex items-center justify-center gap-3 text-sm font-medium bg-white hover:bg-[#F8FAFC] text-[#1F1F1F] border border-[#D7DDE5] shadow-xs transition-all duration-150 focus-ring disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+                className="w-full min-h-[40px] sm:min-h-[44px] px-4 py-2 rounded-xl inline-flex items-center justify-center gap-3 text-sm font-medium bg-white hover:bg-[#F8FAFC] text-[#1F1F1F] border border-[#D7DDE5] shadow-xs transition-all duration-150 focus-ring disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
                 disabled={isSubmitting}
                 onClick={() => void handleSocialSignIn("google")}
               >
@@ -219,7 +219,7 @@ export function AuthDialog({ turnstileSiteKey }: { turnstileSiteKey?: string | n
             {providers.github ? (
               <button
                 type="button"
-                className="w-full min-h-[44px] px-4 py-2.5 rounded-xl inline-flex items-center justify-center gap-3 text-sm font-medium bg-[#24292F] hover:bg-[#1B1F24] text-white border border-white/12 shadow-xs transition-all duration-150 focus-ring disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+                className="w-full min-h-[40px] sm:min-h-[44px] px-4 py-2 rounded-xl inline-flex items-center justify-center gap-3 text-sm font-medium bg-[#24292F] hover:bg-[#1B1F24] text-white border border-white/12 shadow-xs transition-all duration-150 focus-ring disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
                 disabled={isSubmitting}
                 onClick={() => void handleSocialSignIn("github")}
               >
@@ -229,7 +229,7 @@ export function AuthDialog({ turnstileSiteKey }: { turnstileSiteKey?: string | n
             ) : null}
           </div>
 
-          <div className="my-4 flex items-center gap-3 font-mono text-xs uppercase tracking-[0.08em] text-[var(--text-muted)]">
+          <div className="my-2.5 sm:my-3 flex items-center gap-3 font-mono text-xs uppercase tracking-[0.08em] text-[var(--text-muted)]">
             <span className="h-px flex-1 bg-[var(--separator-subtle)]" />
             <span>or continue with email</span>
             <span className="h-px flex-1 bg-[var(--separator-subtle)]" />
@@ -237,9 +237,9 @@ export function AuthDialog({ turnstileSiteKey }: { turnstileSiteKey?: string | n
         </div>
       ) : null}
 
-      <form onSubmit={handleEmailSubmit} className="space-y-4">
+      <form onSubmit={handleEmailSubmit} className="space-y-3">
         <div>
-          <label htmlFor="auth-email-input" className="block text-sm font-medium mb-1.5">
+          <label htmlFor="auth-email-input" className="block text-sm font-medium mb-1">
             Email address
           </label>
           <Input
@@ -256,7 +256,7 @@ export function AuthDialog({ turnstileSiteKey }: { turnstileSiteKey?: string | n
 
         {step === "code" ? (
           <div>
-            <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center justify-between mb-1">
               <label htmlFor="auth-code-input" className="block text-sm font-medium">
                 Sign-in code
               </label>
@@ -291,7 +291,7 @@ export function AuthDialog({ turnstileSiteKey }: { turnstileSiteKey?: string | n
         ) : null}
 
         <div>
-          <label htmlFor="auth-name-input" className="block text-sm font-medium mb-1.5">
+          <label htmlFor="auth-name-input" className="block text-sm font-medium mb-1">
             Workspace display name <span className="text-[var(--text-secondary)]">(optional)</span>
           </label>
           <Input
@@ -330,10 +330,11 @@ export function AuthDialog({ turnstileSiteKey }: { turnstileSiteKey?: string | n
           </div>
         ) : null}
 
-        <div className="pt-2 flex items-center justify-end gap-2.5">
+        <div className="pt-1.5 flex flex-wrap items-center justify-end gap-2">
           <Button
             type="button"
             variant="ghost"
+            size="sm"
             onClick={() => closeAuthDialog()}
             disabled={isSubmitting}
           >
@@ -342,6 +343,7 @@ export function AuthDialog({ turnstileSiteKey }: { turnstileSiteKey?: string | n
           <Button
             type="submit"
             variant="primary-inverse"
+            size="sm"
             disabled={isSubmitting || (step === "email" && Boolean(siteKey) && !captchaToken)}
           >
             {isSubmitting ? "Working..." : step === "code" ? "Verify code" : "Email me a code"}

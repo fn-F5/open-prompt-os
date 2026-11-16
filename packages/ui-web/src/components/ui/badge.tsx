@@ -18,9 +18,10 @@ const BADGE_CLASSES: Record<BadgeVariant, string> = {
 };
 
 export function Badge({ className = "", variant = "neutral", ...props }: BadgeProps) {
+  const displayClass = /\bhidden\b/.test(className) ? "" : "inline-flex";
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-3 py-1 font-mono text-xs uppercase tracking-[0.08em] rounded-full leading-5 ${BADGE_CLASSES[variant]} ${className}`}
+      className={`${displayClass} items-center gap-1.5 px-3 py-1 font-mono text-xs uppercase tracking-[0.08em] rounded-full leading-5 ${BADGE_CLASSES[variant]} ${className}`}
       {...props}
     />
   );

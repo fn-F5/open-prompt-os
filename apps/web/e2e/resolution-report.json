@@ -1,0 +1,11 @@
+{
+  "generatedAt": "2026-11-16T06:21:25.925Z",
+  "auditedCount": 131,
+  "totalFindings": 0,
+  "bySeverity": {
+    "critical": 0,
+    "major": 0,
+    "minor": 0
+  },
+  "findings": []
+}

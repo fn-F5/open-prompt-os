@@ -77,7 +77,7 @@ export function ImproveAutopsyPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="inline-flex items-center gap-2 mb-1">
+          <div className="flex flex-wrap items-center gap-2 mb-1">
             <Badge variant="framework">Diagnostic Engine</Badge>
             <span className="text-xs text-[var(--text-secondary)]">
               Structural Optimization & Root-Cause Autopsy
@@ -131,7 +131,10 @@ export function ImproveAutopsyPage() {
         >
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <label htmlFor="autopsy-original-prompt" className="text-xs font-semibold uppercase tracking-wider">
+              <label
+                htmlFor="autopsy-original-prompt"
+                className="text-xs font-semibold uppercase tracking-wider"
+              >
                 Original Prompt
               </label>
               <span className="text-xs text-[var(--text-secondary)] tabular-nums">
@@ -152,7 +155,8 @@ export function ImproveAutopsyPage() {
           {/* Live Variable Inventory & Unresolved/Duplicate Flags (Section 12.3) */}
           <div className="p-3 rounded-lg bg-[var(--surface-2)] border border-[var(--separator-subtle)] space-y-2">
             <div className="text-xs font-medium text-[var(--text-secondary)]">
-              Variable Inventory (parsed via <code className="font-mono">@open-prompt-os/core</code>)
+              Variable Inventory (parsed via <code className="font-mono">@open-prompt-os/core</code>
+              )
             </div>
             {liveVarAnalysis.detectedVariables.length > 0 ? (
               <div className="flex flex-wrap gap-1.5">
@@ -207,7 +211,7 @@ export function ImproveAutopsyPage() {
           ) : null}
 
           <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-[var(--separator-subtle)]">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 max-w-full">
               <span className="text-xs text-[var(--text-secondary)]">Target density:</span>
               <Tabs
                 ariaLabel="Target prompt length"
@@ -272,9 +276,7 @@ export function ImproveAutopsyPage() {
             <>
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-2">
-                  <Badge variant="framework">
-                    {result.findings.length} Diagnostic Finding(s)
-                  </Badge>
+                  <Badge variant="framework">{result.findings.length} Diagnostic Finding(s)</Badge>
                   <span className="font-mono text-xs text-[var(--text-secondary)] tabular-nums">
                     {result.providerId}/{result.modelId} · {result.latencyMs}ms
                   </span>
@@ -289,9 +291,7 @@ export function ImproveAutopsyPage() {
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-xs font-semibold">{finding.title}</span>
-                        <Badge
-                          variant={finding.severity === "critical" ? "danger" : "diagnostic"}
-                        >
+                        <Badge variant={finding.severity === "critical" ? "danger" : "diagnostic"}>
                           {finding.severity.toUpperCase()} · {finding.category.replace(/_/g, " ")}
                         </Badge>
                       </div>

@@ -128,7 +128,7 @@ export function PromptComposer({
   });
 
   const textareaRef = useAutoResizeTextarea(activeDraft.rawInput, {
-    minHeightPx: 128,
+    minHeightPx: 68,
     maxHeightPx: 320,
   });
 
@@ -181,31 +181,31 @@ export function PromptComposer({
 
   return (
     <div className="relative">
-      {/* Dedicated Hero Section for Anonymous Visitors (Compact on mobile so textarea is visible on screen 1) */}
+      {/* Dedicated Hero Section for Anonymous Visitors (Compact so composer CTA stays above the fold) */}
       {!isAuthenticated ? (
-        <div className="text-center max-w-4xl mx-auto pt-1 pb-4 sm:pt-8 sm:pb-12 space-y-2.5 sm:space-y-5">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 sm:px-4 sm:py-1.5 rounded-full bg-[var(--accent-subtle-bg)] border border-[var(--separator-strong)] font-mono text-xs uppercase tracking-[0.08em] font-normal text-[var(--text-primary)]">
-            <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--accent-text)]" />
+        <div className="text-center max-w-4xl mx-auto pt-0 pb-1.5 sm:pt-1 sm:pb-3 space-y-1 sm:space-y-2">
+          <div className="hidden sm:inline-flex flex-wrap items-center justify-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[var(--accent-subtle-bg)] border border-[var(--separator-strong)] font-mono text-[10px] sm:text-xs uppercase tracking-[0.05em] font-normal text-[var(--text-primary)] max-w-full">
+            <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--accent-text)] shrink-0" />
             <span>The Operating System for Prompts · Instant free use</span>
           </div>
 
-          <h1 className="text-[28px] sm:text-6xl lg:text-[64px] font-medium tracking-[-0.03em] leading-[1.06] text-balance text-[var(--text-primary)]">
+          <h1 className="text-xl sm:text-3xl lg:text-4xl font-medium tracking-[-0.03em] leading-[1.06] text-balance text-[var(--text-primary)]">
             Write prompts that work{" "}
             <span className="text-gradient-brand whitespace-nowrap">on the first try.</span>
           </h1>
 
-          <p className="text-sm sm:text-xl text-[var(--text-secondary)] max-w-2xl mx-auto leading-relaxed">
+          <p className="text-xs sm:text-sm lg:text-base text-[var(--text-secondary)] max-w-2xl mx-auto leading-snug">
             Turn rough ideas into clear, structured prompts for ChatGPT, Claude, and Gemini. Pick
             your goal, audience, and format—then send in one click.
           </p>
 
-          <div className="hidden sm:inline-flex items-center gap-2 text-sm text-[var(--success-text)] font-medium">
+          <div className="hidden lg:inline-flex items-center gap-1.5 text-xs text-[var(--success-text)] font-medium">
             <ShieldCheck className="w-4 h-4" />
             <span>Privacy by default: We never train on your prompts.</span>
           </div>
         </div>
       ) : (
-        <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3">
+        <div className="mb-3 sm:mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3">
           <div>
             <h1 className="text-xl sm:text-3xl font-medium tracking-[-0.03em]">Prompt Composer</h1>
             <p className="text-sm sm:text-base text-[var(--text-secondary)] max-w-2xl">
@@ -218,10 +218,10 @@ export function PromptComposer({
       {/* Main Frosted Glass Composer Card */}
       <section
         aria-label="Prompt operating system composer"
-        className="relative p-4 sm:p-8 glass-surface space-y-3.5 sm:space-y-5"
+        className="relative p-3 sm:p-5 lg:p-6 glass-surface space-y-2.5 sm:space-y-3.5"
       >
-        {/* Top Row: Mode Switcher + Single-Line Scrollable Quick Example Strip */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 sm:pb-4 border-b border-[var(--separator-subtle)]">
+        {/* Top Row: Mode Switcher + Wrapping Quick Example Strip */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2 pb-2 sm:pb-3 border-b border-[var(--separator-subtle)]">
           <Tabs
             ariaLabel="Prompt generation mode"
             value={activeMode}
@@ -233,12 +233,12 @@ export function PromptComposer({
             className="w-full sm:w-auto justify-between sm:justify-start"
           />
 
-          <div className="flex items-center gap-1.5 overflow-x-auto max-w-full py-0.5">
+          <div className="hidden min-[360px]:flex flex-wrap items-center gap-1.5 max-w-full py-0.5">
             <span className="text-xs sm:text-sm text-[var(--text-secondary)] inline-flex shrink-0 items-center gap-1 mr-1">
               <Wand2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--accent-text)]" />
               <span>Examples:</span>
             </span>
-            {examples.map((ex) => (
+            {examples.map((ex, idx) => (
               <button
                 key={ex.label}
                 type="button"
@@ -246,7 +246,7 @@ export function PromptComposer({
                   setValidationError(null);
                   composerActions.updateActiveDraft({ rawInput: ex.prompt });
                 }}
-                className="shrink-0 whitespace-nowrap px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--separator-subtle)] hover:border-[var(--separator-strong)] transition-colors focus-ring cursor-pointer"
+                className={`${idx === 0 ? "inline-flex" : idx === 1 ? "hidden md:inline-flex" : "hidden xl:inline-flex"} min-h-[36px] items-center shrink-0 whitespace-nowrap px-2.5 py-1 rounded-lg text-xs font-medium bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--separator-subtle)] hover:border-[var(--separator-strong)] transition-colors focus-ring cursor-pointer`}
               >
                 {ex.label}
               </button>
@@ -310,12 +310,12 @@ export function PromptComposer({
               type="button"
               aria-expanded={showFollowUps}
               onClick={() => setShowFollowUps((s) => !s)}
-              className="inline-flex items-center gap-2 text-sm font-medium text-[var(--accent-text)] hover:underline focus-ring rounded px-1 py-0.5 cursor-pointer"
+              className="min-h-[36px] inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-[var(--accent-text)] hover:underline focus-ring rounded px-1 py-1 cursor-pointer whitespace-nowrap"
             >
-              <Sparkles className="w-4 h-4" />
+              <Sparkles className="w-4 h-4 shrink-0" />
               <span>
                 {showFollowUps ? "Hide" : "Answer"} {followUpQuestions.length} quick question
-                {followUpQuestions.length > 1 ? "s" : ""} for sharper results
+                {followUpQuestions.length > 1 ? "s" : ""}
               </span>
             </button>
 
@@ -342,9 +342,9 @@ export function PromptComposer({
           </div>
         ) : null}
 
-        {/* Bottom Action Bar (2 compact rows on mobile, 1 balanced row on desktop) */}
-        <div className="pt-3 sm:pt-4 border-t border-[var(--separator-subtle)] flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="flex items-center justify-between sm:justify-start gap-2">
+        {/* Bottom Action Bar (wrapping cleanly on narrow screens, 1 balanced row on desktop) */}
+        <div className="pt-2.5 sm:pt-3.5 border-t border-[var(--separator-subtle)] flex flex-col md:flex-row md:items-center justify-between gap-2.5 sm:gap-3">
+          <div className="flex flex-wrap items-center justify-between sm:justify-start gap-2 min-w-0">
             <ModelPicker
               mode={activeMode}
               selectedModelId={activeDraft.modelId}
@@ -378,7 +378,7 @@ export function PromptComposer({
             )}
           </div>
 
-          <div className="flex items-center justify-between sm:justify-end gap-2.5 sm:gap-3">
+          <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 sm:gap-3">
             <span
               id={hintId}
               className="hidden xl:inline-flex items-center gap-1.5 text-sm text-[var(--text-muted)] shrink-0"
@@ -399,10 +399,10 @@ export function PromptComposer({
             {isPending ? (
               <Button
                 variant="secondary"
-                size="lg"
+                size="md"
                 onClick={onStopGeneration}
                 aria-label="Stop prompt compilation"
-                className="flex-1 sm:flex-initial px-6 sm:px-7"
+                className="flex-1 sm:flex-initial px-3.5 sm:px-6 text-xs sm:text-sm"
               >
                 <Square className="w-4 h-4 fill-current" />
                 <span>Stop</span>
@@ -410,13 +410,13 @@ export function PromptComposer({
             ) : (
               <Button
                 variant="primary-inverse"
-                size="lg"
+                size="md"
                 onClick={validateAndSubmit}
                 aria-label="Compile structured prompt"
-                className="flex-1 sm:flex-initial px-6 sm:px-7"
+                className="flex-1 sm:flex-initial px-3.5 sm:px-6 text-xs sm:text-sm"
               >
                 <span>Compile Prompt</span>
-                <ArrowRight className="w-5 h-5" />
+                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
               </Button>
             )}
           </div>

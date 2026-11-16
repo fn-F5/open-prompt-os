@@ -137,12 +137,6 @@ export function ModelPicker({
 
   const supportsPopover =
     typeof HTMLElement !== "undefined" && "showPopover" in HTMLElement.prototype;
-  const supportsAnchorPositioning =
-    typeof CSS !== "undefined" &&
-    typeof CSS.supports === "function" &&
-    CSS.supports("position-anchor: --a") &&
-    CSS.supports("position-area: block-end span-inline-end") &&
-    CSS.supports("position-try-fallbacks: flip-block");
 
   const modelsQuery = useQuery({
     queryKey: queryKeys.models.available(mode),
@@ -167,7 +161,7 @@ export function ModelPicker({
   }, [models, selectedModelId, onSelectModel]);
 
   const updateFallbackPosition = React.useCallback(() => {
-    if (supportsAnchorPositioning || typeof window === "undefined") {
+    if (typeof window === "undefined") {
       setFallbackPosition(null);
       return;
     }
@@ -178,12 +172,17 @@ export function ModelPicker({
     const rect = triggerRef.current?.getBoundingClientRect();
     if (!rect) return;
 
-    const panelWidth = 384;
     const gap = 8;
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const spaceAbove = rect.top;
-    const flipAbove = spaceBelow < 320 && spaceAbove > spaceBelow;
-    const clampedLeft = Math.max(16, Math.min(rect.left, window.innerWidth - panelWidth - 16));
+    const margin = 12;
+    const panelWidth = Math.min(360, window.innerWidth - margin * 2);
+    const spaceBelow = window.innerHeight - rect.bottom - gap - margin;
+    const spaceAbove = rect.top - gap - margin;
+    const flipAbove = spaceBelow < 340 && spaceAbove > spaceBelow;
+    const availHeight = Math.max(180, Math.min(360, flipAbove ? spaceAbove : spaceBelow));
+    const clampedLeft = Math.max(
+      margin,
+      Math.min(rect.left, window.innerWidth - panelWidth - margin),
+    );
 
     setFallbackPosition(
       flipAbove
@@ -191,14 +190,18 @@ export function ModelPicker({
             left: `${clampedLeft}px`,
             bottom: `${window.innerHeight - rect.top + gap}px`,
             top: "auto",
+            width: `${panelWidth}px`,
+            maxHeight: `${availHeight}px`,
           }
         : {
             left: `${clampedLeft}px`,
             top: `${rect.bottom + gap}px`,
             bottom: "auto",
+            width: `${panelWidth}px`,
+            maxHeight: `${availHeight}px`,
           },
     );
-  }, [supportsAnchorPositioning]);
+  }, []);
 
   const openPicker = React.useCallback(
     (target: "selected" | "first" | "last" = "selected") => {
@@ -261,7 +264,7 @@ export function ModelPicker({
   }, [open]);
 
   React.useEffect(() => {
-    if (!open || supportsAnchorPositioning) return;
+    if (!open) return;
     updateFallbackPosition();
     window.addEventListener("resize", updateFallbackPosition);
     window.addEventListener("scroll", updateFallbackPosition, true);
@@ -269,7 +272,7 @@ export function ModelPicker({
       window.removeEventListener("resize", updateFallbackPosition);
       window.removeEventListener("scroll", updateFallbackPosition, true);
     };
-  }, [open, supportsAnchorPositioning, updateFallbackPosition]);
+  }, [open, updateFallbackPosition]);
 
   // Light-dismiss and Escape fallback for environments without native Popover API (e.g. jsdom)
   React.useEffect(() => {
@@ -355,7 +358,7 @@ export function ModelPicker({
   }
 
   return (
-    <div className="relative inline-block">
+    <div className="relative inline-flex min-w-0 max-w-full">
       <button
         ref={triggerRef}
         type="button"
@@ -381,7 +384,7 @@ export function ModelPicker({
             openPicker(selectedIndex >= 0 ? "selected" : "last");
           }
         }}
-        className="min-h-[44px] inline-flex items-center gap-2.5 px-4 py-2 rounded-xl bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text-primary)] border border-[var(--separator-subtle)] hover:border-[var(--separator-strong)] text-sm font-medium focus-ring cursor-pointer disabled:opacity-40"
+        className="min-h-[42px] max-w-full inline-flex items-center gap-2 px-3 sm:px-3.5 py-2 rounded-xl bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text-primary)] border border-[var(--separator-subtle)] hover:border-[var(--separator-strong)] text-xs sm:text-sm font-medium whitespace-nowrap focus-ring cursor-pointer disabled:opacity-40"
       >
         <span
           aria-hidden="true"
@@ -393,8 +396,8 @@ export function ModelPicker({
             <Cpu className="w-4 h-4 shrink-0" aria-hidden="true" />
           )}
         </span>
-        <span>{activeModel?.name ?? "Select model"}</span>
-        <ChevronDown className="w-4 h-4 text-[var(--text-secondary)]" />
+        <span className="truncate">{activeModel?.name ?? "Select model"}</span>
+        <ChevronDown className="w-4 h-4 shrink-0 text-[var(--text-secondary)]" />
       </button>
 
       <div
@@ -414,9 +417,9 @@ export function ModelPicker({
             ...(fallbackPosition ?? {}),
           } as React.CSSProperties
         }
-        className="model-picker-popover rounded-t-2xl sm:rounded-2xl p-4 glass-surface shadow-2xl overflow-y-auto"
+        className="model-picker-popover rounded-t-2xl sm:rounded-2xl p-3 sm:p-3.5 glass-surface shadow-2xl overflow-y-auto"
       >
-        <div className="flex items-center justify-between pb-3 mb-3 border-b border-[var(--separator-subtle)]">
+        <div className="flex items-center justify-between pb-2 mb-2 border-b border-[var(--separator-subtle)]">
           <span className="text-sm font-semibold text-[var(--text-primary)]">
             {mode === "text"
               ? "Text Model Providers"
@@ -455,7 +458,7 @@ export function ModelPicker({
                   onSelectModel(model.id);
                   closePicker(true);
                 }}
-                className={`w-full text-left px-3 py-2.5 rounded-xl transition-colors focus-ring cursor-pointer flex items-center gap-2.5 ${
+                className={`w-full text-left px-3 py-1.5 sm:py-2 rounded-xl transition-colors focus-ring cursor-pointer flex items-center gap-2.5 ${
                   isSelected
                     ? "bg-[var(--accent-subtle-bg)] border border-[var(--accent-primary)] text-[var(--text-primary)]"
                     : "hover:bg-[var(--surface-2)] text-[var(--text-primary)] border border-transparent"

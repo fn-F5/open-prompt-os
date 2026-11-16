@@ -65,18 +65,18 @@ export function Dialog({
           onOpenChange(false);
         }
       }}
-      className="m-auto w-[calc(100%-2rem)] max-w-[440px] bg-transparent border-0 p-0 text-[var(--text-primary)] backdrop:bg-black/75"
+      className="m-auto w-[calc(100%-1.5rem)] sm:w-[calc(100%-2rem)] max-w-[440px] max-h-[calc(100dvh-1.5rem)] bg-transparent border-0 p-0 text-[var(--text-primary)] backdrop:bg-black/75"
       {...closedByProps}
     >
       {open ? (
         <div
-          className={`dialog-panel relative overflow-hidden w-full rounded-[22px] p-6 sm:p-7 text-[var(--text-primary)] ${surfaceClass} ${className}`}
+          className={`dialog-panel relative overflow-x-hidden overflow-y-auto max-h-[calc(100dvh-1.5rem)] w-full rounded-[22px] p-4 sm:p-6 text-[var(--text-primary)] ${surfaceClass} ${className}`}
         >
           <div
             aria-hidden="true"
             className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[var(--accent-primary)]/70 to-transparent"
           />
-          <div className="flex items-start justify-between gap-4 mb-4">
+          <div className="flex items-start justify-between gap-4 mb-3 sm:mb-4">
             <div>
               <h2
                 id={titleId}
@@ -94,7 +94,7 @@ export function Dialog({
               type="button"
               aria-label="Close dialog"
               onClick={() => onOpenChange(false)}
-              className="inline-flex items-center justify-center shrink-0 w-9 h-9 rounded-xl bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--separator-subtle)] hover:border-[var(--separator-strong)] transition-colors focus-ring cursor-pointer"
+              className="inline-flex items-center justify-center shrink-0 w-9 h-9 min-w-[38px] min-h-[38px] rounded-xl bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--separator-subtle)] hover:border-[var(--separator-strong)] transition-colors focus-ring cursor-pointer"
             >
               <X className="w-4 h-4" aria-hidden="true" />
             </button>
