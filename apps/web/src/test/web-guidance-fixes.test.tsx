@@ -7,10 +7,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GuidedParameters } from "../components/composer/guided-parameters.js";
 import { ModelPicker } from "../components/composer/model-picker.js";
 import { PromptComposer } from "../components/composer/prompt-composer.js";
-import { MarketingNavbar } from "../components/navigation/navbar.js";
+import { AppNavbar, MarketingNavbar } from "../components/navigation/navbar.js";
+import { OutputCard } from "../components/output/output-card.js";
 import { useCardParallax } from "../hooks/use-card-parallax.js";
 import { useTypingPlaceholder } from "../hooks/use-typing-placeholder.js";
-import { resetOrpcTestState } from "../lib/orpc.js";
+import { authClient, setAuthSessionForTest } from "../lib/auth-client.js";
+import { orpcClient, resetOrpcTestState } from "../lib/orpc.js";
 import { createAppQueryClient } from "../lib/query-client.js";
 import { clearStorageForTest } from "../lib/storage.js";
 import { composerActions } from "../state/composer-store.js";
@@ -387,6 +389,151 @@ describe("Modern Web Guidance fixes", () => {
 
       expect(card.style.getPropertyValue("--rx")).toBe("0deg");
       expect(card.style.getPropertyValue("--ry")).toBe("0deg");
+    });
+  });
+
+  describe("9. AppNavbar workspace badge removal & OutputCard Save to Library fixes", () => {
+    it("does not render user.spaceName in AppNavbar menu", async () => {
+      await act(async () => {
+        setAuthSessionForTest({
+          id: "usr_subin",
+          email: "subin@example.com",
+          name: "Subin C",
+          spaceId: "spc_subin",
+          spaceName: "subin C's Workspace",
+          plan: "free",
+          hasPasskey: false,
+        });
+      });
+
+      const qc = createAppQueryClient();
+      render(
+        <QueryClientProvider client={qc}>
+          <MemoryRouter>
+            <AppNavbar />
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+
+      expect(screen.queryByText("subin C's Workspace")).toBeNull();
+      expect(screen.getByText("Subin C")).toBeInTheDocument();
+      await authClient.signOut();
+    });
+
+    it("fills the Save to Library ribbon after saving and avoids empty rawInput validation errors", async () => {
+      await act(async () => {
+        setAuthSessionForTest({
+          id: "usr_subin",
+          email: "subin@example.com",
+          name: "Subin C",
+          spaceId: "spc_subin",
+          spaceName: "subin C's Workspace",
+          plan: "free",
+          hasPasskey: false,
+        });
+      });
+
+      const saveSpy = vi.spyOn(orpcClient.prompts, "save");
+      const qc = createAppQueryClient();
+
+      // Simulate switching mode to image (empty active draft) while viewing a compiled video output
+      const activeEmptyImageDraft = {
+        ...composerActions.getActiveDraft(),
+        mode: "image" as const,
+        rawInput: "",
+      };
+      const compiledSourceDraft = {
+        ...composerActions.getActiveDraft(),
+        mode: "video" as const,
+        rawInput: "Continuous 6-second orbital camera shot around a luxury watch",
+      };
+      const firstOutput = {
+        interactionId: "int_save_1",
+        compiledPrompt: "High-end cinematic luxury watch orbital video prompt.",
+        detectedVariables: [],
+        followUpQuestions: [],
+        providerId: "gemini",
+        modelId: "gemini-3.6-flash",
+        latencyMs: 120,
+        healedFromFailure: false,
+        remainingDailyPrompts: 19,
+        requestId: "req_save_1",
+      };
+
+      const { rerender } = render(
+        <QueryClientProvider client={qc}>
+          <MemoryRouter>
+            <OutputCard
+              draft={activeEmptyImageDraft}
+              sourceDraft={compiledSourceDraft}
+              output={firstOutput}
+              streamingBuffer={null}
+              isPending={false}
+              error={null}
+              onRetry={vi.fn()}
+            />
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+
+      const saveBtn = screen.getByRole("button", { name: /Save to Library/i });
+      expect(saveBtn).toHaveAttribute("aria-pressed", "false");
+      expect(saveBtn.querySelector("svg")).toHaveAttribute("fill", "none");
+
+      fireEvent.click(saveBtn);
+
+      await waitFor(() => {
+        expect(saveSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            rawInput: "Continuous 6-second orbital camera shot around a luxury watch",
+            mode: "video",
+            compiledPrompt: "High-end cinematic luxury watch orbital video prompt.",
+          }),
+        );
+      });
+
+      await waitFor(() => {
+        const savedBtn = screen.getByRole("button", { name: /Saved to Library/i });
+        expect(savedBtn).toHaveAttribute("aria-pressed", "true");
+        expect(savedBtn.querySelector("svg")).toHaveAttribute("fill", "currentColor");
+      });
+
+      // Compiling a new prompt resets the saved ribbon state
+      rerender(
+        <QueryClientProvider client={qc}>
+          <MemoryRouter>
+            <OutputCard
+              draft={activeEmptyImageDraft}
+              sourceDraft={null}
+              output={{
+                ...firstOutput,
+                interactionId: "int_save_2",
+                compiledPrompt: "Freshly compiled prompt with empty active draft.",
+              }}
+              streamingBuffer={null}
+              isPending={false}
+              error={null}
+              onRetry={vi.fn()}
+            />
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+
+      const resetBtn = screen.getByRole("button", { name: /Save to Library/i });
+      expect(resetBtn).toHaveAttribute("aria-pressed", "false");
+      expect(resetBtn.querySelector("svg")).toHaveAttribute("fill", "none");
+
+      // Even with empty draft and no sourceDraft, saving falls back to compiledPrompt so rawInput is non-empty
+      fireEvent.click(resetBtn);
+      await waitFor(() => {
+        expect(saveSpy).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            rawInput: "Freshly compiled prompt with empty active draft.",
+          }),
+        );
+      });
+
+      await authClient.signOut();
     });
   });
 });

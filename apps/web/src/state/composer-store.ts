@@ -31,6 +31,7 @@ export interface ComposerStoreState {
   readonly draftsByMode: Record<ComposerMode, ComposerDraft>;
   readonly selectedModelByMode: Record<ComposerMode, string>;
   readonly completedOutput: ComposePromptOutput | null;
+  readonly completedSourceDraft: ComposerDraft | null;
   readonly streamingBuffer: string | null;
   readonly isAdvancedOpen: boolean;
 }
@@ -70,6 +71,7 @@ function createInitialStoreState(): ComposerStoreState {
         video: mode === "video" && guest.prompt.modelId ? guest.prompt.modelId : "google-video",
       },
       completedOutput: hydratedOutput,
+      completedSourceDraft: hydratedOutput ? guest.prompt : null,
       streamingBuffer: null,
       isAdvancedOpen: false,
     };
@@ -84,6 +86,7 @@ function createInitialStoreState(): ComposerStoreState {
       video: "google-video",
     },
     completedOutput: null,
+    completedSourceDraft: null,
     streamingBuffer: null,
     isAdvancedOpen: false,
   };
@@ -124,9 +127,7 @@ export const composerActions = {
       ...current,
       ...patch,
       mode,
-      advanced: patch.advanced
-        ? { ...current.advanced, ...patch.advanced }
-        : current.advanced,
+      advanced: patch.advanced ? { ...current.advanced, ...patch.advanced } : current.advanced,
     };
     const nextModelByMode =
       patch.modelId && typeof patch.modelId === "string"
@@ -156,15 +157,16 @@ export const composerActions = {
     output: ComposePromptOutput | null,
     options?: { isGuest?: boolean; requestTimestamp?: string },
   ): void {
+    const sourceDraft = state.draftsByMode[state.activeMode];
     state = {
       ...state,
       completedOutput: output,
+      completedSourceDraft: output ? sourceDraft : null,
       streamingBuffer: null,
     };
     if (options?.isGuest && output) {
-      const draft = state.draftsByMode[state.activeMode];
       saveGuestInteraction(
-        draft,
+        sourceDraft,
         {
           compiledPrompt: output.compiledPrompt,
           detectedVariables: output.detectedVariables,
@@ -217,6 +219,7 @@ export const composerActions = {
         [mode]: createDefaultDraft(mode, modelId),
       },
       completedOutput: null,
+      completedSourceDraft: null,
       streamingBuffer: null,
     };
     notify();

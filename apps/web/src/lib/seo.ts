@@ -88,7 +88,7 @@ export function buildSoftwareApplicationSchema(
       description: "Instant free access with no sign-up required",
     },
     featureList: [
-      "Guided Multi-Modal Prompt Composer (Text, Image, Video)",
+      "Guided Multi-Modal Prompt Compiler (Text, Image, Video)",
       "CO-STAR, RISE, CARE, and Chain-of-Thought Frameworks",
       "Prompt Autopsy 8-Category Root-Cause Diagnostics",
       "6-Axis Image-to-Prompt Reverse Engineering",
@@ -302,7 +302,7 @@ export function buildPricingSeo(origin = getSiteOrigin()): SeoMetadata {
         "@type": "Product",
         name: SITE_NAME,
         description:
-          "Full-lifecycle AI prompt engineering studio with Prompt Composer, Prompt Autopsy, Reverse Engineer, and Template Library.",
+          "Full-lifecycle AI prompt engineering studio with Prompt Compiler, Prompt Autopsy, Reverse Engineer, and Template Library.",
         offers: DEFAULT_PRICING_PLANS.map((plan) => ({
           "@type": "Offer",
           name: `${plan.name} Plan`,

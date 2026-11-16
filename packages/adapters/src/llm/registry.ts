@@ -16,8 +16,11 @@ export function createRegistry(adapters: readonly LlmProviderAdapter[]): Provide
   const synthesizer: LlmProviderAdapter = found;
 
   function failoverChain(modelId: string | null): readonly LlmProviderAdapter[] {
-    const preferred = lookupModel(modelId).providerId;
-    const order = [preferred, ...FAILOVER_ORDER.filter((id) => id !== preferred)];
+    let order = FAILOVER_ORDER;
+    if (modelId && modelId.trim().length > 0) {
+      const preferred = lookupModel(modelId).providerId;
+      order = [preferred, ...FAILOVER_ORDER.filter((id) => id !== preferred)];
+    }
     const chain: LlmProviderAdapter[] = [];
     for (const id of order) {
       const adapter = registered.find((item) => item.id === id && item.isConfigured());

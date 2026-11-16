@@ -16,7 +16,7 @@
 
 | Surface | Route | Primary Use Case |
 | :--- | :--- | :--- |
-| **Prompt Composer** | `/` | Build structured prompts from scratch with guided parameters and frameworks |
+| **Prompt Compiler** | `/` | Build structured prompts from scratch with guided parameters and frameworks |
 | **Improve & Prompt Autopsy** | `/improve` | Optimize existing prompts or diagnose failed/hallucinated outputs across 8 root causes |
 | **Reverse Engineer** | `/reverse-engineer` | Upload a PNG, JPEG, or WebP reference image to reconstruct a 6-axis visual prompt |
 | **Template Gallery** | `/templates` | Browse curated, permissively licensed prompt blueprints with one-click Composer loading |

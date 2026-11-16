@@ -240,6 +240,16 @@ function fallbackRefine(
   };
 }
 
+function resolveAdapterModelId(
+  requestedModelId: string | null,
+  adapter: LlmProviderAdapter,
+): string {
+  if (!requestedModelId) return adapter.defaultModel;
+  const entry = lookupModel(requestedModelId);
+  if (entry.providerId !== adapter.id) return adapter.defaultModel;
+  return entry.apiModelId ?? adapter.defaultModel;
+}
+
 export function createOrchestrator(options: OrchestratorOptions): PromptOrchestrator {
   const clock = options.clock ?? Date.now;
   const circuits = new Map<ProviderId, CircuitMemory>();
@@ -279,7 +289,7 @@ export function createOrchestrator(options: OrchestratorOptions): PromptOrchestr
       requestId: ctx.requestId,
       systemPrompt: prepared.systemPrompt,
       userPrompt: adapter.id === "rule-synthesizer" ? JSON.stringify(task) : prepared.userPrompt,
-      modelId: prepared.draft.modelId ?? adapter.defaultModel,
+      modelId: resolveAdapterModelId(prepared.draft.modelId, adapter),
       timeoutMs: options.timeoutMs,
       signal: ctx.signal,
     };
@@ -293,11 +303,9 @@ export function createOrchestrator(options: OrchestratorOptions): PromptOrchestr
   ): Promise<{ result: LlmCompletionResult; healed: boolean }> {
     const chain = options.registry.failoverChain(modelId);
     const preferred = chain[0];
-    const requestedProvider = modelId ? lookupModel(modelId).providerId : null;
     for (const adapter of chain) {
       if (!acquire(adapter.id, clock())) continue;
-      const resolvedModelId =
-        modelId && requestedProvider === adapter.id ? modelId : adapter.defaultModel;
+      const resolvedModelId = resolveAdapterModelId(modelId, adapter);
       const request: LlmCompletionRequest = {
         requestId: ctx.requestId,
         systemPrompt: live.systemPrompt,

@@ -23,6 +23,7 @@ import { AuthGate } from "../auth/auth-gate.js";
 
 export interface OutputCardProps {
   readonly draft: ComposerDraft;
+  readonly sourceDraft?: ComposerDraft | null;
   readonly output: ComposePromptOutput | null;
   readonly streamingBuffer: string | null;
   readonly isPending: boolean;
@@ -84,6 +85,7 @@ export function SanitizedPromptRenderer({ content }: { readonly content: string 
 
 export function OutputCard({
   draft,
+  sourceDraft,
   output,
   streamingBuffer,
   isPending,
@@ -93,32 +95,49 @@ export function OutputCard({
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [copied, setCopied] = React.useState(false);
+  const [savedOutputKey, setSavedOutputKey] = React.useState<string | null>(null);
+
+  const currentOutputKey = output ? `${output.interactionId}:${output.compiledPrompt}` : null;
+  const isSaved = Boolean(currentOutputKey && savedOutputKey === currentOutputKey);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!output) throw new Error("No compiled prompt to save.");
-      return orpcClient.prompts.save({
-        title: draft.rawInput.trim().slice(0, 80) || "Compiled Prompt Specification",
-        rawInput: draft.rawInput,
-        compiledPrompt: output.compiledPrompt,
-        mode: draft.mode,
-        framework: draft.framework ?? "costar",
-        modelId: output.modelId,
+      const targetKey = `${output.interactionId}:${output.compiledPrompt}`;
+      const effectiveDraft = sourceDraft ?? draft;
+      const compiledPrompt = output.compiledPrompt.trim().slice(0, 16000);
+      const rawInput =
+        effectiveDraft.rawInput.trim().slice(0, 8000) ||
+        draft.rawInput.trim().slice(0, 8000) ||
+        compiledPrompt.slice(0, 8000);
+      const mode = effectiveDraft.mode;
+      const framework = effectiveDraft.framework ?? "costar";
+      const saved = await orpcClient.prompts.save({
+        title: rawInput.slice(0, 80) || "Compiled Prompt Specification",
+        rawInput,
+        compiledPrompt,
+        mode,
+        framework,
+        modelId: output.modelId || effectiveDraft.modelId || "gpt-4.1",
         category:
-          draft.mode === "image"
-            ? "Visuals"
-            : draft.mode === "video"
-              ? "Motion"
-              : "Engineering & Strategy",
-        tags: [draft.mode, draft.framework ?? "costar"],
+          mode === "image" ? "Visuals" : mode === "video" ? "Motion" : "Engineering & Strategy",
+        tags: [mode, framework],
       });
+      return { saved, targetKey, mode };
     },
-    onSuccess: () => {
-      trackEvent("prompt_saved", { mode: draft.mode });
+    onSuccess: ({ targetKey, mode }) => {
+      setSavedOutputKey(targetKey);
+      trackEvent("prompt_saved", { mode });
       qc.invalidateQueries({ queryKey: queryKeys.prompts.all });
       toast({
         title: "Saved to My Library",
         description: "Your compiled specification is now saved in your workspace.",
+      });
+    },
+    onError: (err) => {
+      toast({
+        title: "Could not save prompt",
+        description: err instanceof Error ? err.message : "Please try again.",
       });
     },
   });
@@ -276,9 +295,23 @@ export function OutputCard({
             onSafeReplay={() => saveMutation.mutate()}
             onAuthenticatedAction={() => saveMutation.mutate()}
           >
-            <Button variant="secondary" size="md" disabled={saveMutation.isPending}>
-              <Bookmark className="w-4 h-4 text-[var(--accent-text)]" />
-              <span>{saveMutation.isPending ? "Saving..." : "Save to Library"}</span>
+            <Button
+              variant="secondary"
+              size="md"
+              disabled={saveMutation.isPending || isSaved}
+              aria-pressed={isSaved}
+            >
+              <Bookmark
+                className={`w-4 h-4 text-[var(--accent-text)] transition-colors ${isSaved ? "fill-current" : ""}`}
+                fill={isSaved ? "currentColor" : "none"}
+              />
+              <span>
+                {saveMutation.isPending
+                  ? "Saving..."
+                  : isSaved
+                    ? "Saved to Library"
+                    : "Save to Library"}
+              </span>
             </Button>
           </AuthGate>
 

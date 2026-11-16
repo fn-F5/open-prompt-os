@@ -49,7 +49,7 @@ export const HOME_AEO_FAQS: readonly DocFaqItem[] = [
   {
     question: "What is Open Prompt OS and how is it different from a basic prompt generator?",
     answer:
-      "Open Prompt OS is a full-lifecycle prompt engineering workbench rather than a one-shot generator. It combines a guided multi-modal Prompt Composer (Text, Image, Video), a root-cause Prompt Autopsy debugger across 8 failure categories, an image-to-prompt Reverse Engineer tool, a reusable [Variable] library, and one-click dispatch to ChatGPT, Claude, and Gemini.",
+      "Open Prompt OS is a full-lifecycle prompt engineering workbench rather than a one-shot generator. It combines a guided multi-modal Prompt Compiler (Text, Image, Video), a root-cause Prompt Autopsy debugger across 8 failure categories, an image-to-prompt Reverse Engineer tool, a reusable [Variable] library, and one-click dispatch to ChatGPT, Claude, and Gemini.",
   },
   {
     question: "Which prompt framework should I choose: CO-STAR, RISE, CARE, or Chain-of-Thought?",
@@ -116,7 +116,7 @@ export const DOCS_CATALOG: readonly DocArticle[] = [
         table: {
           headers: ["Surface", "Route", "Primary Purpose"],
           rows: [
-            ["Prompt Composer", "/", "Build structured prompts from scratch with live streaming"],
+            ["Prompt Compiler", "/", "Build structured prompts from scratch with live streaming"],
             [
               "Improve & Prompt Autopsy",
               "/improve",

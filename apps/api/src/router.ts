@@ -38,8 +38,12 @@ export interface RouterDeps {
 }
 
 function modesFor(modelId: string): ComposerMode[] {
-  if (modelId.includes("imagen") || modelId.includes("flux")) return ["image"];
-  if (modelId.includes("veo") || modelId.includes("sora")) return ["video"];
+  if (modelId.endsWith("-image") || modelId.includes("imagen") || modelId.includes("flux")) {
+    return ["image"];
+  }
+  if (modelId.endsWith("-video") || modelId.includes("veo") || modelId.includes("sora")) {
+    return ["video"];
+  }
   return ["text"];
 }
 
