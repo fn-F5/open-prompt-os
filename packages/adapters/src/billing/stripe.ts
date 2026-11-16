@@ -5,7 +5,12 @@ import type {
   BillingSubscriptionSnapshot,
   WebhookParseResult,
 } from "@open-prompt-os/adapter-kit";
-import type { BillingInterval, PlanTier } from "@open-prompt-os/contracts";
+import {
+  type BillingInterval,
+  DEFAULT_PRICING_PLANS,
+  type PlanTier,
+  type PricingPlanItem,
+} from "@open-prompt-os/contracts";
 
 export interface StripePriceMap {
   readonly proMonthly: string;
@@ -50,6 +55,15 @@ interface StripeSubscriptionObject {
 interface StripeListResponse<T> {
   data?: T[];
 }
+
+interface StripePriceResponse {
+  id: string;
+  unit_amount: number | null;
+  currency?: string;
+  recurring?: { interval?: string } | null;
+}
+
+const PLAN_CACHE_TTL_SECONDS = 300;
 
 const RELEVANT_EVENTS = new Set([
   "checkout.session.completed",
@@ -114,6 +128,7 @@ export function createStripeBillingProvider(options: StripeBillingOptions): Bill
   const baseUrl = (options.baseUrl ?? "https://api.stripe.com").replace(/\/$/, "");
   const fetchImpl = options.fetchImpl ?? ((input, init) => fetch(input, init));
   const nowSeconds = options.nowSeconds ?? (() => Math.floor(Date.now() / 1000));
+  let cachedPlans: { data: PricingPlanItem[]; expiresAtSeconds: number } | null = null;
 
   async function requestStripe<T>(
     method: "GET" | "POST",
@@ -141,8 +156,68 @@ export function createStripeBillingProvider(options: StripeBillingOptions): Bill
     return (await response.json()) as T;
   }
 
+  async function fetchMonthlyUsdForPrice(priceId: string, fallbackUsd: number): Promise<number> {
+    try {
+      const price = await requestStripe<StripePriceResponse>(
+        "GET",
+        `/v1/prices/${encodeURIComponent(priceId)}`,
+      );
+      if (typeof price.unit_amount !== "number" || !Number.isFinite(price.unit_amount)) {
+        return fallbackUsd;
+      }
+      const divisor = price.recurring?.interval === "year" ? 1200 : 100;
+      return Number((price.unit_amount / divisor).toFixed(2));
+    } catch {
+      return fallbackUsd;
+    }
+  }
+
   return {
     kind: "stripe",
+    async listPlans() {
+      const now = nowSeconds();
+      if (cachedPlans && cachedPlans.expiresAtSeconds > now) {
+        return cachedPlans.data.map((plan) => ({ ...plan, features: [...plan.features] }));
+      }
+
+      const defaultPro =
+        DEFAULT_PRICING_PLANS.find((p) => p.id === "pro") ?? DEFAULT_PRICING_PLANS[1];
+      const defaultTeam =
+        DEFAULT_PRICING_PLANS.find((p) => p.id === "team") ?? DEFAULT_PRICING_PLANS[2];
+
+      const [proMonthlyUsd, proYearlyUsd, teamMonthlyUsd, teamYearlyUsd] = await Promise.all([
+        fetchMonthlyUsdForPrice(options.prices.proMonthly, defaultPro?.monthlyPriceUsd ?? 19),
+        fetchMonthlyUsdForPrice(options.prices.proYearly, defaultPro?.yearlyPriceUsd ?? 15),
+        fetchMonthlyUsdForPrice(options.prices.teamMonthly, defaultTeam?.monthlyPriceUsd ?? 49),
+        fetchMonthlyUsdForPrice(options.prices.teamYearly, defaultTeam?.yearlyPriceUsd ?? 39),
+      ]);
+
+      const plans = DEFAULT_PRICING_PLANS.map((plan) => {
+        if (plan.id === "pro") {
+          return {
+            ...plan,
+            features: [...plan.features],
+            monthlyPriceUsd: proMonthlyUsd,
+            yearlyPriceUsd: proYearlyUsd,
+          };
+        }
+        if (plan.id === "team") {
+          return {
+            ...plan,
+            features: [...plan.features],
+            monthlyPriceUsd: teamMonthlyUsd,
+            yearlyPriceUsd: teamYearlyUsd,
+          };
+        }
+        return { ...plan, features: [...plan.features] };
+      });
+
+      cachedPlans = {
+        data: plans,
+        expiresAtSeconds: now + PLAN_CACHE_TTL_SECONDS,
+      };
+      return plans.map((plan) => ({ ...plan, features: [...plan.features] }));
+    },
     async createCustomer({ email, spaceId }) {
       const customer = await requestStripe<StripeCustomerResponse>("POST", "/v1/customers", {
         email,

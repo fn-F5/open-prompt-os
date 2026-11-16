@@ -288,6 +288,10 @@ export async function createAuditContext(
     await context.route("**/rpc/**", async (route) => {
       const url = route.request().url();
       let jsonPayload: unknown = {};
+      if (url.includes("/rpc/billing/plans") || url.includes("/rpc/templates/list")) {
+        await route.continue();
+        return;
+      }
       if (url.includes("/rpc/billing/status")) {
         jsonPayload = SAMPLE_BILLING_STATUS;
       } else if (url.includes("/rpc/prompts/history")) {
@@ -305,9 +309,6 @@ export async function createAuditContext(
             lastErrorAt: null,
           },
         ];
-      } else if (url.includes("/rpc/templates/list")) {
-        await route.continue();
-        return;
       }
 
       await route.fulfill({

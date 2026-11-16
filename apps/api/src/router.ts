@@ -172,6 +172,9 @@ export function createRouter(deps: RouterDeps) {
       }),
     },
     billing: {
+      plans: os.billing.plans.handler(async () => {
+        return deps.billingProvider.listPlans();
+      }),
       status: os.billing.status.handler(async ({ context }) => {
         return getBillingStatus(context.actor);
       }),

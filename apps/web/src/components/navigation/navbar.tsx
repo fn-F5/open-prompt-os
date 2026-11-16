@@ -1,3 +1,4 @@
+import { DEFAULT_PRICING_PLANS } from "@open-prompt-os/contracts";
 import { Badge, Button } from "@open-prompt-os/ui-web";
 import { useQuery } from "@tanstack/react-query";
 import { HelpCircle, LogOut, Menu, Moon, Sun, Terminal, User, X } from "lucide-react";
@@ -273,8 +274,10 @@ export function AppNavbar() {
     { to: "/settings/profile", label: "Settings" },
   ];
 
-  const remaining = billingQuery.data?.remainingDailyPrompts ?? 48;
-  const limit = billingQuery.data?.dailyLimit ?? 50;
+  const defaultFreeLimit =
+    DEFAULT_PRICING_PLANS.find((plan) => plan.id === "free")?.dailyPromptLimit ?? 20;
+  const limit = billingQuery.data?.dailyLimit ?? defaultFreeLimit;
+  const remaining = billingQuery.data?.remainingDailyPrompts ?? limit;
 
   return (
     <header className="sticky top-0 z-40 w-full glass-surface rounded-none border-t-0 border-x-0">

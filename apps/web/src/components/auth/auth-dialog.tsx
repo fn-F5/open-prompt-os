@@ -1,3 +1,4 @@
+import { DEFAULT_PRICING_PLANS } from "@open-prompt-os/contracts";
 import { Button, Dialog, Input } from "@open-prompt-os/ui-web";
 import * as React from "react";
 import { useNavigate } from "react-router";
@@ -52,6 +53,9 @@ function GitHubLogo() {
   );
 }
 
+const FREE_DAILY_LIMIT =
+  DEFAULT_PRICING_PLANS.find((plan) => plan.id === "free")?.dailyPromptLimit ?? 20;
+
 const REASON_COPY: Record<
   AuthTriggerReason,
   { title: string; description: string; badge: string }
@@ -70,8 +74,7 @@ const REASON_COPY: Record<
   },
   quota_limit: {
     title: "Continue with a Free Workspace",
-    description:
-      "You have used today's anonymous runs. Sign in for free to unlock 50 daily prompts and keep your current draft.",
+    description: `You have used today's anonymous runs. Sign in for free to unlock ${FREE_DAILY_LIMIT} daily prompts and keep your current draft.`,
     badge: "Daily Limit Reached",
   },
   protected_route: {

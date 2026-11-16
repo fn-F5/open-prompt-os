@@ -27,6 +27,7 @@ export const queryKeys = {
     health: () => ["models", "health"] as const,
   },
   billing: {
+    plans: () => ["billing", "plans"] as const,
     status: () => ["billing", "status"] as const,
   },
   preferences: {

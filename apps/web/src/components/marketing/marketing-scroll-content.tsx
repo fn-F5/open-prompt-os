@@ -2,7 +2,6 @@ import type { ComposerMode } from "@open-prompt-os/contracts";
 import { Badge, Button } from "@open-prompt-os/ui-web";
 import {
   ArrowRight,
-  Check,
   Compass,
   Cpu,
   EyeOff,
@@ -19,8 +18,8 @@ import {
 import * as React from "react";
 import { Link } from "react-router";
 import { trackEvent } from "../../lib/telemetry.js";
-import { openAuthDialog } from "../../state/auth-dialog-store.js";
 import { composerActions } from "../../state/composer-store.js";
+import { PricingPlansSection } from "../pricing/pricing-plans-section.js";
 
 function ObservedSection({
   sectionId,
@@ -552,159 +551,9 @@ export function MarketingScrollContent() {
         </div>
       </ObservedSection>
 
-      {/* SECTION 5: Pricing with Horizontally Aligned Headers Across All 3 Cards */}
-      <ObservedSection sectionId="pricing_options" className="space-y-6 sm:space-y-10">
-        <div className="text-center max-w-2xl mx-auto space-y-2.5 sm:space-y-3">
-          <Badge variant="framework">Simple, Fair Pricing</Badge>
-          <h2 className="text-2xl sm:text-4xl font-medium tracking-[-0.025em] text-balance">
-            Start free without an account. Upgrade when you need{" "}
-            <span className="text-gradient-brand">more volume.</span>
-          </h2>
-          <p className="text-sm sm:text-lg text-[var(--text-secondary)] leading-relaxed">
-            Only AI-powered compilations count toward your daily limit—editing, copying, and
-            browsing templates are always free.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6 items-stretch pt-2">
-          {/* Free Tier */}
-          <div className="p-6 sm:p-8 flat-surface flex flex-col justify-between gap-6 sm:gap-8">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between gap-2 pb-3 border-b border-[var(--separator-subtle)]">
-                <Badge variant="neutral">Free Forever</Badge>
-                <span className="font-mono text-xs font-normal uppercase tracking-wider text-[var(--text-muted)]">
-                  Starter
-                </span>
-              </div>
-              <h3 className="text-xl sm:text-2xl font-medium tracking-[-0.02em]">
-                Instant Guest & Free
-              </h3>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-[42px] font-semibold tracking-[-0.03em] leading-none tabular-nums">
-                  $0
-                </span>
-                <span className="font-mono text-[13px] text-[var(--text-secondary)]">
-                  / forever
-                </span>
-              </div>
-              <p className="text-sm sm:text-base text-[var(--text-secondary)]">
-                Everything you need to start writing better prompts right away.
-              </p>
-              <ul className="space-y-3 text-sm sm:text-base text-[var(--text-secondary)] pt-2">
-                <li className="flex items-center gap-2.5">
-                  <Check className="w-5 h-5 text-[var(--success-text)] shrink-0" />
-                  <span>5 daily guest runs · 50/day with free account</span>
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <Check className="w-5 h-5 text-[var(--success-text)] shrink-0" />
-                  <span>Text, Image, and Video modes</span>
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <Check className="w-5 h-5 text-[var(--success-text)] shrink-0" />
-                  <span>Personal prompt library & auto-sync</span>
-                </li>
-              </ul>
-            </div>
-            <Button
-              variant="solid"
-              size="lg"
-              onClick={() => openAuthDialog({ reason: "navbar_signin" })}
-            >
-              Create Free Account
-            </Button>
-          </div>
-
-          {/* Recommended Pro Tier */}
-          <div className="p-6 sm:p-8 glow-card flex flex-col justify-between gap-6 sm:gap-8 overflow-hidden">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between gap-2 pb-3 border-b border-[var(--separator-subtle)]">
-                <Badge variant="framework">Recommended · Most Popular</Badge>
-                <span className="font-mono text-xs font-normal uppercase tracking-wider text-[var(--accent-text)]">
-                  Power Users
-                </span>
-              </div>
-              <h3 className="text-xl sm:text-2xl font-medium tracking-[-0.02em]">Pro Studio</h3>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-[42px] font-semibold tracking-[-0.03em] leading-none tabular-nums">
-                  $19
-                </span>
-                <span className="font-mono text-[13px] text-[var(--text-secondary)]">/ month</span>
-              </div>
-              <p className="text-sm sm:text-base text-[var(--text-secondary)]">
-                For builders, writers, and engineers who rely on AI every day.
-              </p>
-              <ul className="space-y-3 text-sm sm:text-base text-[var(--text-primary)] pt-2">
-                <li className="flex items-center gap-2.5">
-                  <Check className="w-5 h-5 text-[var(--accent-text)] shrink-0" />
-                  <span>500 daily AI-compiled prompts & autopsies</span>
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <Check className="w-5 h-5 text-[var(--accent-text)] shrink-0" />
-                  <span>Unlimited Prompt Autopsy failure diagnostics</span>
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <Check className="w-5 h-5 text-[var(--accent-text)] shrink-0" />
-                  <span>Anti-hallucination guardrail packs</span>
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <Check className="w-5 h-5 text-[var(--accent-text)] shrink-0" />
-                  <span>Passwordless email OTP & OAuth sign-in</span>
-                </li>
-              </ul>
-            </div>
-
-            <Link
-              to="/pricing"
-              className="inline-flex items-center justify-center min-h-[52px] px-7 py-3 text-base font-semibold rounded-xl btn-brand-gradient text-white focus-ring"
-            >
-              Upgrade to Pro
-            </Link>
-          </div>
-
-          {/* Team Tier */}
-          <div className="p-6 sm:p-8 flat-surface flex flex-col justify-between gap-6 sm:gap-8">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between gap-2 pb-3 border-b border-[var(--separator-subtle)]">
-                <Badge variant="neutral">Shared Library</Badge>
-                <span className="font-mono text-xs font-normal uppercase tracking-wider text-[var(--text-muted)]">
-                  Multi-Seat
-                </span>
-              </div>
-              <h3 className="text-xl sm:text-2xl font-medium tracking-[-0.02em]">Team Workspace</h3>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-[42px] font-semibold tracking-[-0.03em] leading-none tabular-nums">
-                  $49
-                </span>
-                <span className="font-mono text-[13px] text-[var(--text-secondary)]">
-                  / seat / mo
-                </span>
-              </div>
-              <p className="text-sm sm:text-base text-[var(--text-secondary)]">
-                Standardize prompts and guardrails across your entire team.
-              </p>
-              <ul className="space-y-3 text-sm sm:text-base text-[var(--text-secondary)] pt-2">
-                <li className="flex items-center gap-2.5">
-                  <Check className="w-5 h-5 text-[var(--success-text)] shrink-0" />
-                  <span>Shared team prompt library & templates</span>
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <Check className="w-5 h-5 text-[var(--success-text)] shrink-0" />
-                  <span>Strict tenant-isolated database security</span>
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <Check className="w-5 h-5 text-[var(--success-text)] shrink-0" />
-                  <span>Automatic multi-provider failover</span>
-                </li>
-              </ul>
-            </div>
-            <Link
-              to="/pricing"
-              className="inline-flex items-center justify-center min-h-[52px] px-7 py-3 text-base font-semibold rounded-xl btn-solid-contrast focus-ring"
-            >
-              Compare All Plans
-            </Link>
-          </div>
-        </div>
+      {/* SECTION 5: Shared Stripe-backed Pricing Section */}
+      <ObservedSection sectionId="pricing_options">
+        <PricingPlansSection headingAs="h2" />
       </ObservedSection>
     </div>
   );

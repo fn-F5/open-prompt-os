@@ -1,28 +1,30 @@
-import type {
-  ApiErrorCode,
-  BillingStatus,
-  CheckoutInput,
-  ComposePromptInput,
-  ComposePromptOutput,
-  ComposerMode,
-  EmulatePlanSwitchInput,
-  GenerationKind,
-  ImportGuestInteractionInput,
-  ImportGuestInteractionOutput,
-  ModelOption,
-  OnboardingPreferences,
-  PromptFramework,
-  PromptGenerationItem,
-  PromptTemplate,
-  ProviderHealth,
-  RefinePromptInput,
-  RefinePromptOutput,
-  ReverseEngineerInput,
-  ReverseEngineerOutput,
-  SavePromptInput,
-  SavedPromptItem,
-  SystemHealth,
-  UpdateOnboardingInput,
+import {
+  type ApiErrorCode,
+  type BillingStatus,
+  type CheckoutInput,
+  type ComposePromptInput,
+  type ComposePromptOutput,
+  type ComposerMode,
+  DEFAULT_PRICING_PLANS,
+  type EmulatePlanSwitchInput,
+  type GenerationKind,
+  type ImportGuestInteractionInput,
+  type ImportGuestInteractionOutput,
+  type ModelOption,
+  type OnboardingPreferences,
+  type PricingPlanItem,
+  type PromptFramework,
+  type PromptGenerationItem,
+  type PromptTemplate,
+  type ProviderHealth,
+  type RefinePromptInput,
+  type RefinePromptOutput,
+  type ReverseEngineerInput,
+  type ReverseEngineerOutput,
+  type SavePromptInput,
+  type SavedPromptItem,
+  type SystemHealth,
+  type UpdateOnboardingInput,
 } from "@open-prompt-os/contracts";
 import {
   analyzePromptVariables,
@@ -590,9 +592,11 @@ authClient.subscribe(() => {
 });
 
 function emulatedLimitFor(plan: BillingStatus["plan"]): number {
-  if (plan === "team") return 2000;
-  if (plan === "pro") return 500;
-  return 50;
+  return (
+    DEFAULT_PRICING_PLANS.find((item) => item.id === plan)?.dailyPromptLimit ??
+    DEFAULT_PRICING_PLANS[0]?.dailyPromptLimit ??
+    20
+  );
 }
 
 export const orpcClient = {
@@ -1175,6 +1179,21 @@ export const orpcClient = {
   },
 
   billing: {
+    async plans(): Promise<PricingPlanItem[]> {
+      const headers = createCorrelationHeaders();
+      if (remoteApiUrl() !== undefined) {
+        try {
+          return await postRpc<PricingPlanItem[]>("/rpc/billing/plans", {}, undefined, headers);
+        } catch {
+          // fallback to canonical plan defaults when offline or unstarted
+        }
+      }
+      return DEFAULT_PRICING_PLANS.map((plan) => ({
+        ...plan,
+        features: [...plan.features],
+      }));
+    },
+
     async status(): Promise<BillingStatus> {
       const headers = createCorrelationHeaders();
       if (remoteApiUrl() !== undefined) {
