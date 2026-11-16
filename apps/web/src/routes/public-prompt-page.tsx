@@ -1,11 +1,14 @@
 import { Badge, Button } from "@open-prompt-os/ui-web";
 import { useQuery } from "@tanstack/react-query";
 import { Copy, ExternalLink, Sparkles } from "lucide-react";
+import * as React from "react";
 import { useNavigate, useParams } from "react-router";
 import { SanitizedPromptRenderer } from "../components/output/output-card.js";
+import { SeoHead } from "../components/seo/seo-head.js";
 import { dispatchPrompt } from "../lib/dispatch.js";
 import { orpcClient } from "../lib/orpc.js";
 import { queryKeys } from "../lib/query-client.js";
+import { buildSharedPromptSeo } from "../lib/seo.js";
 import { composerActions } from "../state/composer-store.js";
 
 export function PublicPromptPage() {
@@ -18,10 +21,19 @@ export function PublicPromptPage() {
   });
 
   const item = sharedQuery.data;
+  const seoMeta = React.useMemo(() => (item ? buildSharedPromptSeo(item) : null), [item]);
 
   if (!item) {
     return (
       <div className="rounded-xl p-8 flat-surface text-center space-y-3">
+        <SeoHead
+          meta={{
+            title: "Shared Prompt Not Found | Open Prompt OS",
+            description: "The requested shared prompt specification does not exist.",
+            canonicalPath: `/share/${shareId}`,
+            noindex: true,
+          }}
+        />
         <h1 className="text-xl font-semibold">Shared prompt not found</h1>
         <Button variant="primary-inverse" onClick={() => navigate("/")}>
           Go to Composer
@@ -32,6 +44,7 @@ export function PublicPromptPage() {
 
   return (
     <article className="max-w-3xl mx-auto rounded-2xl p-6 sm:p-8 flat-surface space-y-5">
+      {seoMeta ? <SeoHead meta={seoMeta} /> : null}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Badge variant="framework">Shared Prompt Specification</Badge>
         <span className="font-mono text-xs text-[var(--text-secondary)]">{item.modelId}</span>

@@ -14,9 +14,11 @@ import {
 import * as React from "react";
 import { useLocation, useNavigate } from "react-router";
 import { SanitizedPromptRenderer } from "../components/output/output-card.js";
+import { SeoHead } from "../components/seo/seo-head.js";
 import { useAutoResizeTextarea } from "../hooks/use-auto-resize-textarea.js";
 import { copyTextToClipboard, dispatchPrompt } from "../lib/dispatch.js";
 import { orpcClient } from "../lib/orpc.js";
+import { STATIC_ROUTE_SEO } from "../lib/seo.js";
 import { composerActions } from "../state/composer-store.js";
 
 export function ImproveAutopsyPage() {
@@ -73,8 +75,11 @@ export function ImproveAutopsyPage() {
     refineMutation.mutate();
   };
 
+  const seoMeta = React.useMemo(() => STATIC_ROUTE_SEO.improve(), []);
+
   return (
     <div className="space-y-6">
+      <SeoHead meta={seoMeta} />
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex flex-wrap items-center gap-2 mb-1">

@@ -5,8 +5,10 @@ import { ArrowRight, Check, Copy, ImagePlus, Sparkles, Trash2 } from "lucide-rea
 import * as React from "react";
 import { useNavigate } from "react-router";
 import { SanitizedPromptRenderer } from "../components/output/output-card.js";
+import { SeoHead } from "../components/seo/seo-head.js";
 import { copyTextToClipboard } from "../lib/dispatch.js";
 import { orpcClient } from "../lib/orpc.js";
+import { STATIC_ROUTE_SEO } from "../lib/seo.js";
 import { composerActions } from "../state/composer-store.js";
 
 const MAX_FILE_BYTES = 4 * 1024 * 1024;
@@ -152,8 +154,11 @@ export function ReverseEngineerPage() {
       ]
     : [];
 
+  const seoMeta = React.useMemo(() => STATIC_ROUTE_SEO.reverseEngineer(), []);
+
   return (
     <div className="space-y-6">
+      <SeoHead meta={seoMeta} />
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex flex-wrap items-center gap-2 mb-1">

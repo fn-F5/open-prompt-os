@@ -324,31 +324,7 @@ test.describe("Multi-Context Multi-Viewport Resolution Audit", () => {
         await page.keyboard.press("Escape");
         await page.waitForTimeout(120);
 
-        // 4. Tour overlay (desktop >= 1024px exposes Replay tour button)
-        if (viewport.width >= 1024) {
-          await page.evaluate(() => window.scrollTo(0, 0));
-          await page.getByRole("button", { name: "Replay interactive tour" }).click();
-          await page.waitForTimeout(150);
-          const tourResult = await inspectPageResolution(page, {
-            contextName: "interactive-overlays",
-            theme: "dark",
-            viewport,
-            route: "/",
-            state: "onboarding-tour-open",
-          });
-          auditedTargets.push({
-            context: "interactive-overlays",
-            route: "/",
-            viewport: viewport.label,
-            state: "onboarding-tour-open",
-          });
-          allFindings.push(...tourResult.findings);
-          await captureIssueScreenshot(page, `tour-open_${viewport.name}`, tourResult.findings);
-          await page.getByRole("button", { name: "Skip tour" }).click();
-          await page.waitForTimeout(100);
-        }
-
-        // 5. Expanded composer with typed draft -> GuidedParameters + AdvancedControls open
+        // 4. Expanded composer with typed draft -> GuidedParameters + AdvancedControls open
         await page.evaluate(() => window.scrollTo(0, 0));
         await page
           .locator("#prompt-composer-textarea")

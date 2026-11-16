@@ -9,6 +9,7 @@ import { Check, CreditCard, ExternalLink } from "lucide-react";
 import * as React from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { formatUsdPrice } from "../../components/pricing/pricing-plans-section.js";
+import { SeoHead } from "../../components/seo/seo-head.js";
 import { useAuthSession } from "../../hooks/use-auth-session.js";
 import { authClient } from "../../lib/auth-client.js";
 import { orpcClient } from "../../lib/orpc.js";
@@ -98,6 +99,14 @@ export function ProfileSettingsPage() {
 
   return (
     <div className="space-y-6">
+      <SeoHead
+        meta={{
+          title: "Profile & Workspace Settings | Open Prompt OS",
+          description: "Manage Open Prompt OS workspace identity, passkeys, and billing.",
+          canonicalPath: "/settings/profile",
+          noindex: true,
+        }}
+      />
       <section className="rounded-xl p-6 flat-surface space-y-4">
         <div>
           <Badge variant="framework">Workspace Identity</Badge>

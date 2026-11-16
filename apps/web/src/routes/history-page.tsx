@@ -5,6 +5,7 @@ import { BookmarkPlus, Clock, Copy, ExternalLink, Search, Sparkles } from "lucid
 import * as React from "react";
 import { useLocation, useNavigate } from "react-router";
 import { SanitizedPromptRenderer } from "../components/output/output-card.js";
+import { SeoHead } from "../components/seo/seo-head.js";
 import { useAuthSession } from "../hooks/use-auth-session.js";
 import { dispatchPrompt } from "../lib/dispatch.js";
 import { orpcClient } from "../lib/orpc.js";
@@ -86,9 +87,20 @@ export function HistoryPage() {
     },
   });
 
+  const noindexMeta = React.useMemo(
+    () => ({
+      title: "Interaction History | Open Prompt OS",
+      description: "Private interaction history for Open Prompt OS workspace.",
+      canonicalPath: "/history",
+      noindex: true,
+    }),
+    [],
+  );
+
   if (!isAuthenticated) {
     return (
       <section className="rounded-2xl p-8 flat-surface text-center max-w-lg mx-auto my-8 space-y-4">
+        <SeoHead meta={noindexMeta} />
         <Badge variant="framework">Activity Ledger</Badge>
         <h1 className="text-2xl font-semibold">Sign in to access Interaction History</h1>
         <p className="text-xs sm:text-sm text-[var(--text-secondary)]">

@@ -14,6 +14,7 @@ import {
 import * as React from "react";
 import { useLocation, useNavigate } from "react-router";
 import { SanitizedPromptRenderer } from "../components/output/output-card.js";
+import { SeoHead } from "../components/seo/seo-head.js";
 import { useAuthSession } from "../hooks/use-auth-session.js";
 import { copyTextToClipboard, dispatchPrompt } from "../lib/dispatch.js";
 import { orpcClient } from "../lib/orpc.js";
@@ -66,9 +67,20 @@ export function LibraryPage() {
     },
   });
 
+  const noindexMeta = React.useMemo(
+    () => ({
+      title: "My Library | Open Prompt OS",
+      description: "Private prompt library for Open Prompt OS workspace.",
+      canonicalPath: "/library",
+      noindex: true,
+    }),
+    [],
+  );
+
   if (!isAuthenticated) {
     return (
       <section className="rounded-2xl p-8 flat-surface text-center max-w-lg mx-auto my-8 space-y-4">
+        <SeoHead meta={noindexMeta} />
         <Badge variant="framework">Private Prompt Repository</Badge>
         <h1 className="text-2xl font-semibold">Sign in to access My Library</h1>
         <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
@@ -150,9 +162,7 @@ export function LibraryPage() {
       ) : (
         <div
           className={
-            viewMode === "grid"
-              ? "grid grid-cols-1 md:grid-cols-2 gap-4"
-              : "flex flex-col gap-3"
+            viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 gap-4" : "flex flex-col gap-3"
           }
         >
           {items.map((item) => (

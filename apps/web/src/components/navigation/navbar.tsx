@@ -1,7 +1,7 @@
 import { DEFAULT_PRICING_PLANS } from "@open-prompt-os/contracts";
 import { Badge, Button } from "@open-prompt-os/ui-web";
 import { useQuery } from "@tanstack/react-query";
-import { HelpCircle, LogOut, Menu, Moon, Sun, Terminal, User, X } from "lucide-react";
+import { LogOut, Menu, Moon, Sun, User, X } from "lucide-react";
 import * as React from "react";
 import { Link, useLocation } from "react-router";
 import { useAuthSession } from "../../hooks/use-auth-session.js";
@@ -9,6 +9,7 @@ import { orpcClient } from "../../lib/orpc.js";
 import { queryKeys } from "../../lib/query-client.js";
 import { safeGetItem, safeSetItem } from "../../lib/storage.js";
 import { openAuthDialog } from "../../state/auth-dialog-store.js";
+import { BrandLogo } from "../brand/brand-logo.js";
 
 const THEME_STORAGE_KEY = "open-prompt-os:theme";
 
@@ -90,11 +91,7 @@ function ThemeToggle({
   );
 }
 
-export interface NavbarProps {
-  readonly onReplayTour?: () => void;
-}
-
-export function MarketingNavbar({ onReplayTour }: NavbarProps) {
+export function MarketingNavbar() {
   const location = useLocation();
   const { theme, toggleTheme } = useThemeMode();
   const [mobileOpen, setMobileOpen] = React.useState(false);
@@ -115,9 +112,7 @@ export function MarketingNavbar({ onReplayTour }: NavbarProps) {
             to="/"
             className="inline-flex items-center gap-2.5 sm:gap-3 font-bold tracking-tight text-base sm:text-lg whitespace-nowrap shrink-0 focus-ring rounded-xl py-1"
           >
-            <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-[var(--accent-subtle-bg)] text-[var(--accent-text)] border border-[var(--separator-strong)]">
-              <Terminal className="w-4 h-4" />
-            </span>
+            <BrandLogo className="w-9 h-9 shrink-0 shadow-sm" />
             <span>Open Prompt OS</span>
           </Link>
 
@@ -126,13 +121,16 @@ export function MarketingNavbar({ onReplayTour }: NavbarProps) {
             className="hidden lg:flex items-center gap-0.5 xl:gap-1.5 min-w-0"
           >
             {navLinks.map((item) => {
-              const isActive = location.pathname === item.to;
+              const isActive =
+                item.to === "/"
+                  ? location.pathname === "/"
+                  : location.pathname === item.to || location.pathname.startsWith(`${item.to}/`);
               return (
                 <Link
                   key={item.to}
                   to={item.to}
                   aria-current={isActive ? "page" : undefined}
-                  className={`inline-flex items-center gap-1.5 px-2 xl:px-3 py-1.5 rounded-xl text-xs xl:text-sm whitespace-nowrap shrink-0 transition-all focus-ring ${
+                  className={`inline-flex items-center gap-1.5 px-2 xl:px-2.5 py-1.5 rounded-xl text-xs xl:text-sm whitespace-nowrap shrink-0 transition-all focus-ring ${
                     isActive
                       ? "bg-[var(--accent-subtle-bg)] text-[var(--text-primary)] font-semibold border border-[var(--separator-strong)] shadow-sm"
                       : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)] font-medium border border-transparent"
@@ -152,19 +150,6 @@ export function MarketingNavbar({ onReplayTour }: NavbarProps) {
         </div>
 
         <div className="hidden lg:flex items-center gap-2 xl:gap-3 shrink-0">
-          {onReplayTour ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="whitespace-nowrap shrink-0 px-2.5 xl:px-3.5"
-              onClick={onReplayTour}
-              aria-label="Replay interactive tour"
-            >
-              <HelpCircle className="w-4 h-4" />
-              <span className="hidden xl:inline">Tour</span>
-            </Button>
-          ) : null}
-
           <ThemeToggle theme={theme} onToggle={toggleTheme} />
 
           <Button
@@ -287,9 +272,7 @@ export function AppNavbar() {
             to="/"
             className="inline-flex items-center gap-2.5 font-bold tracking-tight text-base sm:text-lg whitespace-nowrap shrink-0 focus-ring rounded-xl py-1"
           >
-            <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-[var(--accent-subtle-bg)] text-[var(--accent-text)] border border-[var(--separator-strong)]">
-              <Terminal className="w-4 h-4" />
-            </span>
+            <BrandLogo className="w-9 h-9 shrink-0 shadow-sm" />
             <span className="inline lg:hidden xl:inline">Open Prompt OS</span>
           </Link>
 

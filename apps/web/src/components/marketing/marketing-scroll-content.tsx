@@ -18,6 +18,7 @@ import {
 import * as React from "react";
 import { Link } from "react-router";
 import { trackEvent } from "../../lib/telemetry.js";
+import { HOME_AEO_FAQS } from "../../content/docs-catalog.js";
 import { composerActions } from "../../state/composer-store.js";
 import { PricingPlansSection } from "../pricing/pricing-plans-section.js";
 
@@ -365,7 +366,13 @@ export function MarketingScrollContent() {
             <h3 className="text-lg font-medium tracking-[-0.02em]">Proven Frameworks</h3>
             <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed">
               Apply techniques inspired by CO-STAR, RISE, CARE, and Chain-of-Thought with one
-              toggle.
+              toggle.{" "}
+              <Link
+                to="/docs/prompt-frameworks-costar-rise-care-cot"
+                className="text-[var(--accent-text)] font-medium hover:underline focus-ring rounded"
+              >
+                Compare frameworks →
+              </Link>
             </p>
           </article>
 
@@ -554,6 +561,39 @@ export function MarketingScrollContent() {
       {/* SECTION 5: Shared Stripe-backed Pricing Section */}
       <ObservedSection sectionId="pricing_options">
         <PricingPlansSection headingAs="h2" />
+      </ObservedSection>
+
+      {/* SECTION 6: Answer-First FAQ Section (SEO / AEO) */}
+      <ObservedSection sectionId="faq_section" className="space-y-6 sm:space-y-8">
+        <div className="text-center max-w-2xl mx-auto space-y-2.5 sm:space-y-3">
+          <Badge variant="framework">Documentation & Quick Answers</Badge>
+          <h2 className="text-2xl sm:text-4xl font-medium tracking-[-0.025em] text-balance">
+            Frequently asked <span className="text-gradient-brand">questions</span>
+          </h2>
+          <p className="text-sm sm:text-lg text-[var(--text-secondary)] leading-relaxed">
+            Direct answers about prompt compilation, frameworks, Prompt Autopsy, and privacy.{" "}
+            <Link
+              to="/docs"
+              className="text-[var(--accent-text)] font-medium hover:underline focus-ring rounded"
+            >
+              Read full docs →
+            </Link>
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {HOME_AEO_FAQS.map((faq) => (
+            <article
+              key={faq.question}
+              className="p-5 sm:p-6 rounded-2xl flat-surface space-y-2"
+            >
+              <h3 className="text-base sm:text-lg font-medium tracking-[-0.015em] text-[var(--text-primary)]">
+                {faq.question}
+              </h3>
+              <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{faq.answer}</p>
+            </article>
+          ))}
+        </div>
       </ObservedSection>
     </div>
   );

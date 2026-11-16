@@ -1,8 +1,9 @@
 import { Button, ToastViewport } from "@open-prompt-os/ui-web";
-import { ShieldCheck, Terminal } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import * as React from "react";
 import { Link, Outlet, useLocation } from "react-router";
 import { AuthDialog } from "../components/auth/auth-dialog.js";
+import { BrandLogo } from "../components/brand/brand-logo.js";
 import { StorageAndNetworkBanner } from "../components/feedback/storage-banner.js";
 import { MarketingScrollContent } from "../components/marketing/marketing-scroll-content.js";
 import { AppNavbar, MarketingNavbar } from "../components/navigation/navbar.js";
@@ -89,11 +90,7 @@ export function HybridLayout() {
       <StorageAndNetworkBanner />
 
       {/* 2. Navbar */}
-      {isAuthenticated ? (
-        <AppNavbar />
-      ) : (
-        <MarketingNavbar onReplayTour={tourController.replayTour} />
-      )}
+      {isAuthenticated ? <AppNavbar /> : <MarketingNavbar />}
 
       {/* 3. Main Product Workspace */}
       <main
@@ -129,11 +126,9 @@ export function HybridLayout() {
           className="border-t border-[var(--separator-subtle)] bg-[var(--surface-1)]/80 py-12 sm:py-16 px-4 sm:px-8 text-sm text-[var(--text-secondary)]"
         >
           <div className="mx-auto max-w-[1360px] grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-8 sm:gap-10 pb-10 sm:pb-12 border-b border-[var(--separator-subtle)]">
-            <div className="sm:col-span-2 lg:col-span-5 space-y-4">
+            <div className="sm:col-span-2 lg:col-span-4 space-y-4">
               <div className="inline-flex items-center gap-3 font-bold text-lg text-[var(--text-primary)]">
-                <span className="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-[var(--accent-subtle-bg)] text-[var(--accent-text)] border border-[var(--separator-strong)]">
-                  <Terminal className="w-4 h-4" />
-                </span>
+                <BrandLogo className="w-8 h-8 shrink-0 shadow-sm" />
                 <span>Open Prompt OS</span>
               </div>
               <p className="text-base text-[var(--text-secondary)] max-w-sm leading-relaxed">
@@ -164,6 +159,14 @@ export function HybridLayout() {
                 </li>
                 <li>
                   <Link
+                    to="/reverse-engineer"
+                    className="hover:text-[var(--text-primary)] focus-ring rounded"
+                  >
+                    Reverse Engineer
+                  </Link>
+                </li>
+                <li>
+                  <Link
                     to="/templates"
                     className="hover:text-[var(--text-primary)] focus-ring rounded"
                   >
@@ -181,23 +184,52 @@ export function HybridLayout() {
               </ul>
             </div>
 
-            <div className="lg:col-span-2 space-y-3">
-              <div className="font-semibold text-[var(--text-primary)]">Modes</div>
+            <div className="lg:col-span-3 space-y-3">
+              <div className="font-semibold text-[var(--text-primary)]">Docs & Guides</div>
               <ul className="space-y-2.5">
                 <li>
-                  <Link to="/" className="hover:text-[var(--text-primary)] focus-ring rounded">
-                    Text & Work Prompts
+                  <Link to="/docs" className="hover:text-[var(--text-primary)] focus-ring rounded">
+                    Documentation Hub
                   </Link>
                 </li>
                 <li>
-                  <Link to="/" className="hover:text-[var(--text-primary)] focus-ring rounded">
-                    Image Studio Prompts
+                  <Link
+                    to="/docs/prompt-frameworks-costar-rise-care-cot"
+                    className="hover:text-[var(--text-primary)] focus-ring rounded"
+                  >
+                    CO-STAR, RISE, CARE & CoT
                   </Link>
                 </li>
                 <li>
-                  <Link to="/" className="hover:text-[var(--text-primary)] focus-ring rounded">
-                    Cinema Video Prompts
+                  <Link
+                    to="/docs/prompt-autopsy-and-debugging"
+                    className="hover:text-[var(--text-primary)] focus-ring rounded"
+                  >
+                    Prompt Autopsy Guide
                   </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/docs/privacy-and-security"
+                    className="hover:text-[var(--text-primary)] focus-ring rounded"
+                  >
+                    Zero-Training Privacy
+                  </Link>
+                </li>
+                <li>
+                  <a
+                    href="/llms.txt"
+                    className="hover:text-[var(--text-primary)] focus-ring rounded font-mono text-xs"
+                  >
+                    llms.txt
+                  </a>
+                  {" · "}
+                  <a
+                    href="/sitemap.xml"
+                    className="hover:text-[var(--text-primary)] focus-ring rounded font-mono text-xs"
+                  >
+                    sitemap.xml
+                  </a>
                 </li>
               </ul>
             </div>

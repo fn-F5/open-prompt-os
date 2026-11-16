@@ -1,18 +1,41 @@
-import type { ComposerMode, PromptTemplate } from "@open-prompt-os/contracts";
+import {
+  type ComposerMode,
+  DEFAULT_CURATED_TEMPLATES,
+  type PromptTemplate,
+} from "@open-prompt-os/contracts";
 import { Badge, Button, Input, Tabs, toast } from "@open-prompt-os/ui-web";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUpRight, Search, Sparkles } from "lucide-react";
 import * as React from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
+import { SeoHead } from "../components/seo/seo-head.js";
 import { orpcClient } from "../lib/orpc.js";
 import { queryKeys } from "../lib/query-client.js";
+import { buildTemplateGallerySeo } from "../lib/seo.js";
 import { trackEvent } from "../lib/telemetry.js";
 import { composerActions } from "../state/composer-store.js";
 
+function parseModeParam(value: string | null): "all" | ComposerMode {
+  if (value === "text" || value === "image" || value === "video") return value;
+  return "all";
+}
+
 export function TemplateGalleryPage() {
   const navigate = useNavigate();
-  const [modeFilter, setModeFilter] = React.useState<"all" | ComposerMode>("all");
-  const [search, setSearch] = React.useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [modeFilter, setModeFilter] = React.useState<"all" | ComposerMode>(() =>
+    parseModeParam(searchParams.get("mode")),
+  );
+  const [search, setSearch] = React.useState(() => searchParams.get("q") ?? "");
+
+  const updateFilters = (nextMode: "all" | ComposerMode, nextSearch: string) => {
+    setModeFilter(nextMode);
+    setSearch(nextSearch);
+    const params = new URLSearchParams();
+    if (nextMode !== "all") params.set("mode", nextMode);
+    if (nextSearch.trim()) params.set("q", nextSearch.trim());
+    setSearchParams(params, { replace: true });
+  };
 
   const templatesQuery = useQuery({
     queryKey: queryKeys.templates.list({
@@ -41,9 +64,15 @@ export function TemplateGalleryPage() {
   };
 
   const templates = templatesQuery.data ?? [];
+  const seoMeta = React.useMemo(
+    () => buildTemplateGallerySeo(templates.length > 0 ? templates : DEFAULT_CURATED_TEMPLATES),
+    [templates],
+  );
 
   return (
     <div className="space-y-6">
+      <SeoHead meta={seoMeta} />
+
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <Badge variant="framework">Indexable Blueprints</Badge>
@@ -58,7 +87,7 @@ export function TemplateGalleryPage() {
         <Tabs
           ariaLabel="Filter templates by mode"
           value={modeFilter}
-          onValueChange={setModeFilter}
+          onValueChange={(next) => updateFilters(next, search)}
           options={[
             { value: "all", label: "All Modes" },
             { value: "text", label: "Text / Work" },
@@ -75,7 +104,7 @@ export function TemplateGalleryPage() {
           aria-label="Search templates"
           placeholder="Search by role, use case, or category..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => updateFilters(modeFilter, e.target.value)}
           className="pl-10"
         />
       </div>
@@ -90,8 +119,7 @@ export function TemplateGalleryPage() {
             variant="secondary"
             size="sm"
             onClick={() => {
-              setModeFilter("all");
-              setSearch("");
+              updateFilters("all", "");
             }}
           >
             Reset filters
@@ -145,11 +173,7 @@ export function TemplateGalleryPage() {
                   <ArrowUpRight className="w-3.5 h-3.5" />
                 </Link>
 
-                <Button
-                  variant="solid"
-                  size="sm"
-                  onClick={() => handleUseTemplate(tpl)}
-                >
+                <Button variant="solid" size="sm" onClick={() => handleUseTemplate(tpl)}>
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>Use template</span>
                 </Button>

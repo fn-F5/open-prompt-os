@@ -4,7 +4,7 @@ dist/
 .DS_Store
 *.log
 coverage/
-docs/
+docs/internal/
 .env
 .stryker-tmp/
 reports/
