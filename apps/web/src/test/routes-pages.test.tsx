@@ -199,6 +199,31 @@ describe("Web Route Pages & AuthGate", () => {
       });
     });
 
+    it("signs out from ProfileSettingsPage and navigates to /", async () => {
+      const signOutSpy = vi.spyOn(authClient, "signOut");
+      act(() => {
+        setAuthSessionForTest({
+          id: "u_signout",
+          email: "signout@example.com",
+          name: "Signout User",
+          plan: "free",
+          spaceId: "sp_1",
+          spaceName: "Workspace",
+          hasPasskey: false,
+        });
+      });
+
+      renderRoute(<ProfileSettingsPage />, ["/settings/profile"], "/settings/profile");
+
+      const signOutBtn = await screen.findByRole("button", { name: /Sign out/i });
+      fireEvent.click(signOutBtn);
+
+      await waitFor(() => {
+        expect(signOutSpy).toHaveBeenCalledTimes(1);
+        expect(screen.getByTestId("composer-dest")).toBeInTheDocument();
+      });
+    });
+
     it("renders single-source live Stripe prices across landing section and /pricing", async () => {
       const plansSpy = vi
         .spyOn(orpcClient.billing, "plans")

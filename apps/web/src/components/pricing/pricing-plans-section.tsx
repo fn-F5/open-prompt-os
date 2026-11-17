@@ -9,6 +9,7 @@ import { Check, ShieldCheck } from "lucide-react";
 import * as React from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useAuthSession } from "../../hooks/use-auth-session.js";
+import { shouldAnimateCard } from "../../hooks/use-card-parallax.js";
 import { orpcClient } from "../../lib/orpc.js";
 import { queryKeys } from "../../lib/query-client.js";
 import { openAuthDialog } from "../../state/auth-dialog-store.js";
@@ -187,6 +188,7 @@ export function PricingPlansSection({
           return (
             <div
               key={plan.id}
+              data-animate={shouldAnimateCard("pricingPlanCard", isAuthenticated)}
               className={`rounded-3xl p-6 sm:p-8 flex flex-col justify-between gap-6 sm:gap-8 ${
                 isHighlighted ? "glow-card overflow-hidden" : "flat-surface"
               }`}
@@ -243,7 +245,10 @@ export function PricingPlansSection({
       </div>
 
       {showPrivacyBanner ? (
-        <div className="rounded-2xl p-5 flat-surface flex items-center justify-center gap-2.5 text-sm sm:text-base text-[var(--text-secondary)]">
+        <div
+          data-animate={shouldAnimateCard("pricingPrivacyBanner", isAuthenticated)}
+          className="rounded-2xl p-5 flat-surface flex items-center justify-center gap-2.5 text-sm sm:text-base text-[var(--text-secondary)]"
+        >
           <ShieldCheck className="w-5 h-5 text-[var(--success-text)] shrink-0" />
           <span>Privacy Commitment: We never train on your prompts, regardless of plan tier.</span>
         </div>

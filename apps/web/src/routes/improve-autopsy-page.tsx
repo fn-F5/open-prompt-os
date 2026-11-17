@@ -16,6 +16,7 @@ import { useLocation, useNavigate } from "react-router";
 import { SanitizedPromptRenderer } from "../components/output/output-card.js";
 import { SeoHead } from "../components/seo/seo-head.js";
 import { useAutoResizeTextarea } from "../hooks/use-auto-resize-textarea.js";
+import { useCardHoverAnimation } from "../hooks/use-card-parallax.js";
 import { copyTextToClipboard, dispatchPrompt } from "../lib/dispatch.js";
 import { orpcClient } from "../lib/orpc.js";
 import { STATIC_ROUTE_SEO } from "../lib/seo.js";
@@ -24,6 +25,7 @@ import { composerActions } from "../state/composer-store.js";
 export function ImproveAutopsyPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const animateCard = useCardHoverAnimation();
   const preload = (location.state as { preloadPrompt?: string } | null)?.preloadPrompt ?? "";
 
   const [mode, setMode] = React.useState<"improve" | "autopsy">("improve");
@@ -130,6 +132,7 @@ export function ImproveAutopsyPage() {
         {/* Left Pane: Original Prompt & Failed Output */}
         <section
           aria-label="Original prompt and failed output input"
+          data-animate={animateCard("improveInput")}
           className={`rounded-xl p-5 flat-surface space-y-4 ${
             mobilePane === "diagnosis" ? "hidden lg:block" : "block"
           }`}
@@ -262,6 +265,7 @@ export function ImproveAutopsyPage() {
         {/* Right Pane: Diagnosis & Optimized Prompt (Section 12.4) */}
         <section
           aria-label="Diagnostic findings and optimized prompt"
+          data-animate={animateCard("improveOutput")}
           className={`rounded-xl p-5 flat-surface space-y-5 ${
             mobilePane === "input" ? "hidden lg:block" : "block"
           }`}

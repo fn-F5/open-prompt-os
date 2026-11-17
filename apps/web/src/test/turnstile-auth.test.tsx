@@ -363,7 +363,7 @@ describe("Cloudflare Turnstile in AuthDialog", () => {
     fireEvent.change(screen.getByLabelText("Sign-in code"), {
       target: { value: "123456" },
     });
-    fireEvent.change(screen.getByLabelText(/Workspace display name/i), {
+    fireEvent.change(screen.getByLabelText(/Name \(optional\)/i), {
       target: { value: "Ada Lovelace" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Verify code" }));

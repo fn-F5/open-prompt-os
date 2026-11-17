@@ -56,6 +56,8 @@ describe("Auth UI, Passkey removal, Settings & Placeholder tokens", () => {
         expect(screen.getByPlaceholderText("John Doe")).toBeInTheDocument();
       });
       expect(screen.getByText("Sign In to Open Prompt OS")).toBeInTheDocument();
+      expect(screen.getByLabelText(/Name \(optional\)/i)).toBeInTheDocument();
+      expect(screen.queryByLabelText(/Workspace display name/i)).toBeNull();
       expect(screen.queryByPlaceholderText("Alex Rivera")).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: /Continue with Passkey/i })).toBeNull();
       expect(screen.queryByText(/hardware passkey/i)).toBeNull();
@@ -72,6 +74,12 @@ describe("Auth UI, Passkey removal, Settings & Placeholder tokens", () => {
         expect(screen.getByPlaceholderText("6-digit code")).toBeInTheDocument();
       });
       expect(screen.queryByPlaceholderText("123456")).not.toBeInTheDocument();
+
+      const nameInput = screen.getByLabelText(/Name \(optional\)/i);
+      const codeInput = screen.getByLabelText("Sign-in code");
+      expect(
+        nameInput.compareDocumentPosition(codeInput) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
     });
 
     it("renders Google and GitHub buttons when enabled and triggers OAuth sign-in", async () => {

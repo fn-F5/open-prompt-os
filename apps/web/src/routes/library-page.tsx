@@ -16,6 +16,7 @@ import { useLocation, useNavigate } from "react-router";
 import { SanitizedPromptRenderer } from "../components/output/output-card.js";
 import { SeoHead } from "../components/seo/seo-head.js";
 import { useAuthSession } from "../hooks/use-auth-session.js";
+import { CARD_HOVER_ANIMATION } from "../hooks/use-card-parallax.js";
 import { copyTextToClipboard, dispatchPrompt } from "../lib/dispatch.js";
 import { orpcClient } from "../lib/orpc.js";
 import { queryKeys } from "../lib/query-client.js";
@@ -79,7 +80,10 @@ export function LibraryPage() {
 
   if (!isAuthenticated) {
     return (
-      <section className="rounded-2xl p-8 flat-surface text-center max-w-lg mx-auto my-8 space-y-4">
+      <section
+        data-animate={CARD_HOVER_ANIMATION.libraryAuthGate}
+        className="rounded-2xl p-8 flat-surface text-center max-w-lg mx-auto my-8 space-y-4"
+      >
         <SeoHead meta={noindexMeta} />
         <Badge variant="framework">Private Prompt Repository</Badge>
         <h1 className="text-2xl font-semibold">Sign in to access My Library</h1>
@@ -150,7 +154,10 @@ export function LibraryPage() {
       </div>
 
       {items.length === 0 ? (
-        <div className="rounded-xl p-10 flat-surface text-center space-y-3">
+        <div
+          data-animate={CARD_HOVER_ANIMATION.libraryEmpty}
+          className="rounded-xl p-10 flat-surface text-center space-y-3"
+        >
           <div className="text-sm font-medium">No saved prompts found</div>
           <p className="text-xs text-[var(--text-secondary)]">
             Compile a prompt in the Composer and click "Save to Library" to build your repository.
@@ -168,6 +175,7 @@ export function LibraryPage() {
           {items.map((item) => (
             <article
               key={item.id}
+              data-animate={CARD_HOVER_ANIMATION.libraryItem}
               className="rounded-xl p-5 flat-surface flex flex-col justify-between gap-4"
             >
               <div className="space-y-3">

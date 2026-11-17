@@ -26,8 +26,10 @@ export function HybridLayout() {
   // Trigger post-authentication guest interaction migration
   useGuestHydration();
 
-  // Drive 3D tilt and cursor-following spotlight across cards
-  useCardParallax(!prefersReducedMotion);
+  // Drive 3D tilt and cursor-following spotlight across cards on anonymous pages and Templates
+  const isTemplatesRoute =
+    location.pathname === "/templates" || location.pathname.startsWith("/templates/");
+  useCardParallax(!prefersReducedMotion && (!isAuthenticated || isTemplatesRoute));
 
   const isIndexRoute = location.pathname === "/";
   const isStreaming = streamingBuffer !== null;
@@ -95,7 +97,11 @@ export function HybridLayout() {
       {/* 3. Main Product Workspace */}
       <main
         id="main-workspace"
-        className="flex-1 mx-auto w-full max-w-[1360px] px-4 sm:px-8 pt-2 sm:pt-4 pb-8 sm:pb-12"
+        className={`flex-1 mx-auto w-full max-w-[1360px] px-4 sm:px-8 ${
+          !isAuthenticated && isIndexRoute
+            ? "min-h-[calc(100dvh-3.5rem)] sm:min-h-[calc(100dvh-4rem)] flex flex-col justify-center py-6 sm:py-10"
+            : "pt-3 sm:pt-6 pb-8 sm:pb-12"
+        }`}
       >
         <Outlet />
       </main>

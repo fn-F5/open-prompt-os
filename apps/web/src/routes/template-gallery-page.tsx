@@ -9,6 +9,7 @@ import { ArrowUpRight, Search, Sparkles } from "lucide-react";
 import * as React from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { SeoHead } from "../components/seo/seo-head.js";
+import { CARD_HOVER_ANIMATION } from "../hooks/use-card-parallax.js";
 import { orpcClient } from "../lib/orpc.js";
 import { queryKeys } from "../lib/query-client.js";
 import { buildTemplateGallerySeo } from "../lib/seo.js";
@@ -110,7 +111,10 @@ export function TemplateGalleryPage() {
       </div>
 
       {templates.length === 0 ? (
-        <div className="rounded-xl p-10 flat-surface text-center space-y-3">
+        <div
+          data-animate={CARD_HOVER_ANIMATION.templateGalleryEmpty}
+          className="rounded-xl p-10 flat-surface text-center space-y-3"
+        >
           <div className="text-sm font-medium">No templates matched your filter</div>
           <p className="text-xs text-[var(--text-secondary)]">
             Clear your search query or switch mode tabs to explore all blueprints.
@@ -130,6 +134,7 @@ export function TemplateGalleryPage() {
           {templates.map((tpl) => (
             <article
               key={tpl.slug}
+              data-animate={CARD_HOVER_ANIMATION.templateGalleryItem}
               className="rounded-xl p-5 flat-surface flex flex-col justify-between gap-4"
             >
               <div className="space-y-3">

@@ -1,12 +1,17 @@
 import { Badge, Button } from "@open-prompt-os/ui-web";
 import { useNavigate } from "react-router";
 import { SeoHead } from "../components/seo/seo-head.js";
+import { useCardHoverAnimation } from "../hooks/use-card-parallax.js";
 
 export function NotFoundPage() {
   const navigate = useNavigate();
+  const animateCard = useCardHoverAnimation();
 
   return (
-    <section className="max-w-md mx-auto my-12 rounded-2xl p-8 flat-surface text-center space-y-4">
+    <section
+      data-animate={animateCard("notFoundCard")}
+      className="max-w-md mx-auto my-12 rounded-2xl p-8 flat-surface text-center space-y-4"
+    >
       <SeoHead
         meta={{
           title: "Page Not Found (404) | Open Prompt OS",

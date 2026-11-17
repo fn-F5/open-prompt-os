@@ -9,7 +9,12 @@ import { ModelPicker } from "../components/composer/model-picker.js";
 import { PromptComposer } from "../components/composer/prompt-composer.js";
 import { AppNavbar, MarketingNavbar } from "../components/navigation/navbar.js";
 import { OutputCard } from "../components/output/output-card.js";
-import { useCardParallax } from "../hooks/use-card-parallax.js";
+import {
+  CARD_HOVER_ANIMATION,
+  type CardAnimationKey,
+  shouldAnimateCard,
+  useCardParallax,
+} from "../hooks/use-card-parallax.js";
 import { useTypingPlaceholder } from "../hooks/use-typing-placeholder.js";
 import { authClient, setAuthSessionForTest } from "../lib/auth-client.js";
 import { orpcClient, resetOrpcTestState } from "../lib/orpc.js";
@@ -390,6 +395,117 @@ describe("Modern Web Guidance fixes", () => {
       expect(card.style.getPropertyValue("--rx")).toBe("0deg");
       expect(card.style.getPropertyValue("--ry")).toBe("0deg");
     });
+
+    it("animates all cards when anonymous, only Templates cards when logged in, and skips parallax when data-animate is false", () => {
+      const allKeys = Object.keys(CARD_HOVER_ANIMATION) as CardAnimationKey[];
+      for (const key of allKeys) {
+        expect(shouldAnimateCard(key, false)).toBe(true);
+      }
+
+      const templateKeys: CardAnimationKey[] = [
+        "templateGalleryEmpty",
+        "templateGalleryItem",
+        "templateDetailLoading",
+        "templateDetailNotFound",
+        "templateDetailMain",
+        "templateDetailRelated",
+      ];
+      for (const key of templateKeys) {
+        expect(shouldAnimateCard(key, true)).toBe(true);
+      }
+
+      const loggedInDisabledKeys: CardAnimationKey[] = [
+        "profileIdentity",
+        "profileBilling",
+        "outputLoading",
+        "outputResult",
+        "improveInput",
+        "improveOutput",
+        "reverseEngineerInput",
+        "reverseEngineerOutput",
+        "historyLoading",
+        "historyEmpty",
+        "historyItem",
+        "libraryEmpty",
+        "libraryItem",
+        "pricingPlanCard",
+        "pricingPrivacyBanner",
+        "docsHubEmpty",
+        "docsHubItem",
+        "docsArticleNotFound",
+        "docsArticleHeader",
+        "docsArticleSection",
+        "docsArticleRelatedTemplates",
+        "docsArticleContinueReading",
+        "publicPromptNotFound",
+        "publicPromptMain",
+        "billingReturnCard",
+        "notFoundCard",
+      ];
+      for (const key of loggedInDisabledKeys) {
+        expect(shouldAnimateCard(key, true)).toBe(false);
+      }
+
+      function ToggleHarness() {
+        useCardParallax(true);
+        return (
+          <div>
+            <article data-testid="static-card" data-animate={false} className="flat-surface">
+              <span>Static card</span>
+            </article>
+            <article data-testid="animated-card" data-animate={true} className="glow-card">
+              <span>Animated card</span>
+            </article>
+          </div>
+        );
+      }
+
+      render(<ToggleHarness />);
+      const staticCard = screen.getByTestId("static-card");
+      const animatedCard = screen.getByTestId("animated-card");
+
+      const mockRect = {
+        left: 0,
+        top: 0,
+        right: 200,
+        bottom: 100,
+        width: 200,
+        height: 100,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      };
+      vi.spyOn(staticCard, "getBoundingClientRect").mockReturnValue(mockRect);
+      vi.spyOn(animatedCard, "getBoundingClientRect").mockReturnValue(mockRect);
+
+      const staticMove = new MouseEvent("pointermove", {
+        bubbles: true,
+        clientX: 150,
+        clientY: 25,
+      });
+      Object.defineProperty(staticMove, "pointerType", { value: "mouse" });
+      act(() => {
+        staticCard.dispatchEvent(staticMove);
+      });
+
+      expect(staticCard.style.getPropertyValue("--rx")).toBe("");
+      expect(staticCard.style.getPropertyValue("--ry")).toBe("");
+      expect(staticCard.style.getPropertyValue("--mx")).toBe("");
+      expect(staticCard.style.getPropertyValue("--my")).toBe("");
+
+      const animatedMove = new MouseEvent("pointermove", {
+        bubbles: true,
+        clientX: 150,
+        clientY: 25,
+      });
+      Object.defineProperty(animatedMove, "pointerType", { value: "mouse" });
+      act(() => {
+        animatedCard.dispatchEvent(animatedMove);
+      });
+
+      expect(animatedCard.style.getPropertyValue("--rx")).toBe("1.50deg");
+      expect(animatedCard.style.getPropertyValue("--ry")).toBe("2.00deg");
+    });
   });
 
   describe("9. AppNavbar workspace badge removal & OutputCard Save to Library fixes", () => {
@@ -417,6 +533,22 @@ describe("Modern Web Guidance fixes", () => {
 
       expect(screen.queryByText("subin C's Workspace")).toBeNull();
       expect(screen.getByText("Subin C")).toBeInTheDocument();
+      expect(screen.queryByRole("link", { name: "Settings" })).toBeNull();
+      expect(screen.queryByRole("button", { name: /Sign out/i })).toBeNull();
+      expect(screen.getByRole("link", { name: "Subin C" })).toHaveAttribute(
+        "href",
+        "/settings/profile",
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "Open workspace menu" }));
+      const mobileNav = screen.getByRole("navigation", { name: "Mobile workspace navigation" });
+      expect(mobileNav).not.toHaveTextContent("Settings");
+      expect(mobileNav).not.toHaveTextContent("Sign out");
+      const mobileProfileLink = screen
+        .getAllByRole("link", { name: "Subin C" })
+        .find((el) => mobileNav.contains(el));
+      expect(mobileProfileLink).toHaveAttribute("href", "/settings/profile");
+
       await authClient.signOut();
     });
 
@@ -534,6 +666,30 @@ describe("Modern Web Guidance fixes", () => {
       });
 
       await authClient.signOut();
+    });
+  });
+
+  describe("10. PromptComposer quick questions visibility", () => {
+    it("hides the quick questions toggle when typing in the prompt composer", () => {
+      const qc = createAppQueryClient();
+
+      render(
+        <QueryClientProvider client={qc}>
+          <MemoryRouter>
+            <PromptComposer isPending={false} onSubmitPrompt={vi.fn()} onStopGeneration={vi.fn()} />
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+
+      const textarea = screen.getByLabelText<HTMLTextAreaElement>(
+        /Prompt intent and instructions/i,
+      );
+      fireEvent.change(textarea, {
+        target: { value: "Design a resilient billing webhook queue" },
+      });
+
+      expect(screen.queryByRole("button", { name: /quick question/i })).toBeNull();
+      expect(screen.queryByText(/quick question/i)).toBeNull();
     });
   });
 });

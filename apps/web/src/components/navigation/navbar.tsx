@@ -1,7 +1,7 @@
 import { DEFAULT_PRICING_PLANS } from "@open-prompt-os/contracts";
 import { Button } from "@open-prompt-os/ui-web";
 import { useQuery } from "@tanstack/react-query";
-import { LogOut, Menu, Moon, Sun, User, X } from "lucide-react";
+import { Menu, Moon, Sun, User, X } from "lucide-react";
 import * as React from "react";
 import { Link, useLocation } from "react-router";
 import { useAuthSession } from "../../hooks/use-auth-session.js";
@@ -240,7 +240,7 @@ export function MarketingNavbar() {
 
 export function AppNavbar() {
   const location = useLocation();
-  const { user, signOut } = useAuthSession();
+  const { user } = useAuthSession();
   const { theme, toggleTheme } = useThemeMode();
   const [mobileOpen, setMobileOpen] = React.useState(false);
 
@@ -256,8 +256,9 @@ export function AppNavbar() {
     { to: "/history", label: "History" },
     { to: "/library", label: "Library" },
     { to: "/templates", label: "Templates" },
-    { to: "/settings/profile", label: "Settings" },
   ];
+
+  const isSettingsActive = location.pathname.startsWith("/settings");
 
   const defaultFreeLimit =
     DEFAULT_PRICING_PLANS.find((plan) => plan.id === "free")?.dailyPromptLimit ?? 20;
@@ -273,12 +274,12 @@ export function AppNavbar() {
             className="inline-flex items-center gap-2.5 font-bold tracking-tight text-base sm:text-lg whitespace-nowrap shrink-0 focus-ring rounded-xl py-1"
           >
             <BrandLogo className="w-9 h-9 shrink-0 shadow-sm" />
-            <span className="inline lg:hidden xl:inline">Open Prompt OS</span>
+            <span>Open Prompt OS</span>
           </Link>
 
           <nav
             aria-label="Workspace navigation"
-            className="hidden lg:flex items-center gap-0.5 xl:gap-1 min-w-0"
+            className="hidden lg:flex items-center gap-0.5 xl:gap-1.5 min-w-0"
           >
             {navLinks.map((item) => {
               const isActive =
@@ -289,7 +290,7 @@ export function AppNavbar() {
                   key={item.to}
                   to={item.to}
                   aria-current={isActive ? "page" : undefined}
-                  className={`inline-flex items-center gap-1 px-1.5 xl:px-2 2xl:px-2.5 py-1.5 rounded-xl text-xs 2xl:text-sm whitespace-nowrap shrink-0 transition-all focus-ring ${
+                  className={`inline-flex items-center gap-1.5 px-2 xl:px-2.5 py-1.5 rounded-xl text-xs xl:text-sm whitespace-nowrap shrink-0 transition-all focus-ring ${
                     isActive
                       ? "bg-[var(--accent-subtle-bg)] text-[var(--text-primary)] font-semibold border border-[var(--separator-strong)] shadow-sm"
                       : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)] font-medium border border-transparent"
@@ -308,7 +309,7 @@ export function AppNavbar() {
           </nav>
         </div>
 
-        <div className="hidden lg:flex items-center gap-1.5 xl:gap-2 shrink-0">
+        <div className="hidden lg:flex items-center gap-2 xl:gap-2.5 shrink-0">
           <span
             aria-label="Daily prompt quota"
             className="hidden 2xl:inline-flex text-xs text-[var(--text-secondary)] tabular-nums whitespace-nowrap shrink-0 px-2.5 py-1.5 rounded-xl bg-[var(--surface-2)] border border-[var(--separator-subtle)]"
@@ -321,24 +322,18 @@ export function AppNavbar() {
           <Link
             to="/settings/profile"
             aria-label={user?.name ?? "Operator"}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs 2xl:text-sm font-medium whitespace-nowrap shrink-0 bg-[var(--surface-2)] text-[var(--text-primary)] border border-[var(--separator-subtle)] hover:border-[var(--separator-strong)] focus-ring"
+            aria-current={isSettingsActive ? "page" : undefined}
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs xl:text-sm whitespace-nowrap shrink-0 transition-colors focus-ring ${
+              isSettingsActive
+                ? "bg-[var(--accent-subtle-bg)] text-[var(--text-primary)] font-semibold border border-[var(--separator-strong)] shadow-sm"
+                : "bg-[var(--surface-2)] text-[var(--text-primary)] font-medium border border-[var(--separator-subtle)] hover:border-[var(--separator-strong)]"
+            }`}
           >
             <User className="w-4 h-4 text-[var(--accent-text)] shrink-0" />
-            <span className="hidden xl:inline max-w-[110px] 2xl:max-w-[150px] truncate">
+            <span className="max-w-[120px] xl:max-w-[150px] truncate">
               {user?.name ?? "Operator"}
             </span>
           </Link>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            className="whitespace-nowrap shrink-0 px-2.5 xl:px-3.5"
-            onClick={() => signOut()}
-            aria-label="Sign out of workspace"
-          >
-            <LogOut className="w-4 h-4" />
-            <span className="hidden xl:inline">Sign out</span>
-          </Button>
         </div>
 
         <div className="flex lg:hidden items-center gap-2 shrink-0">
@@ -383,20 +378,19 @@ export function AppNavbar() {
               </Link>
             );
           })}
-          <div className="pt-3 border-t border-[var(--separator-subtle)] flex items-center justify-between">
+          <div className="pt-3 border-t border-[var(--separator-subtle)] flex items-center justify-between gap-2">
             <span className="text-sm text-[var(--text-secondary)] tabular-nums">
               {remaining}/{limit} runs left
             </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setMobileOpen(false);
-                signOut();
-              }}
+            <Link
+              to="/settings/profile"
+              aria-current={isSettingsActive ? "page" : undefined}
+              onClick={() => setMobileOpen(false)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium bg-[var(--surface-2)] text-[var(--text-primary)] border border-[var(--separator-subtle)] hover:border-[var(--separator-strong)] focus-ring max-w-[180px]"
             >
-              Sign out
-            </Button>
+              <User className="w-4 h-4 text-[var(--accent-text)] shrink-0" />
+              <span className="truncate">{user?.name ?? "Operator"}</span>
+            </Link>
           </div>
         </nav>
       ) : null}
