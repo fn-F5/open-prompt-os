@@ -115,7 +115,6 @@ export function PromptComposer({
   const { activeMode, activeDraft, isAdvancedOpen } = useComposerStore();
 
   const [validationError, setValidationError] = React.useState<string | null>(null);
-  const [parametersExpandedManual] = React.useState(false);
   const [isTextareaFocused, setIsTextareaFocused] = React.useState(false);
 
   const { prefersReducedMotion } = useReducedEffects();
@@ -137,7 +136,16 @@ export function PromptComposer({
   const errorId = React.useId();
   const hintId = React.useId();
 
-  const hasTypedOrConfigured = parametersExpandedManual;
+  const hasTypedOrConfigured = Boolean(
+    activeDraft.rawInput.trim().length > 0 ||
+      activeDraft.goal ||
+      activeDraft.audience ||
+      activeDraft.format ||
+      activeDraft.persona ||
+      activeDraft.tone ||
+      activeDraft.constraints.length > 0 ||
+      activeDraft.guardrails.length > 0,
+  );
 
   const validateAndSubmit = () => {
     const trimmed = activeDraft.rawInput.trim();
@@ -305,30 +313,28 @@ export function PromptComposer({
               disabled={isPending}
             />
 
-            {!hasTypedOrConfigured ? null : (
-              <div className="inline-flex items-center gap-2">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  aria-expanded={isAdvancedOpen}
-                  onClick={() => composerActions.setAdvancedOpen(!isAdvancedOpen)}
-                >
-                  <SlidersHorizontal className="w-4 h-4 text-[var(--accent-text)]" />
-                  <span>Advanced</span>
-                  {activeDraft.framework && activeDraft.framework !== "none" ? (
-                    <Badge variant="framework" className="ml-1">
-                      {activeDraft.framework.toUpperCase()}
-                    </Badge>
-                  ) : null}
-                </Button>
+            <div className="inline-flex items-center gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                aria-expanded={isAdvancedOpen}
+                onClick={() => composerActions.setAdvancedOpen(!isAdvancedOpen)}
+              >
+                <SlidersHorizontal className="w-4 h-4 text-[var(--accent-text)]" />
+                <span>Advanced</span>
+                {activeDraft.framework && activeDraft.framework !== "none" ? (
+                  <Badge variant="framework" className="ml-1">
+                    {activeDraft.framework.toUpperCase()}
+                  </Badge>
+                ) : null}
+              </Button>
 
-                <PulseHotspot
-                  hotspotId="advanced_controls_v1"
-                  label="New: Prompt Frameworks"
-                  description="Switch between CO-STAR, RISE, CARE, and Chain-of-Thought or lock output length."
-                />
-              </div>
-            )}
+              <PulseHotspot
+                hotspotId="advanced_controls_v1"
+                label="New: Prompt Frameworks"
+                description="Switch between CO-STAR, RISE, CARE, and Chain-of-Thought or lock output length."
+              />
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 sm:gap-3">
