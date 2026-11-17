@@ -73,19 +73,47 @@ enum CircuitStateKind {
   half_open
 }
 
+enum FeedbackKind {
+  feature_request
+  general_feedback
+  bug_report
+}
+
+enum FeedbackStatus {
+  open
+  under_review
+  planned
+  completed
+  closed
+}
+
+enum ReferralSource {
+  search_engine
+  social_media
+  friend_or_colleague
+  github_or_open_source
+  blog_or_newsletter
+  ai_assistant
+  other
+}
+
 // ───────────────────────── Identity (Better Auth) ─────────────────────────
 
 model User {
-  id            String   @id @default(cuid())
-  email         String   @unique
-  name          String?
-  image         String?
-  emailVerified Boolean  @default(false) @map("email_verified")
-  locale        String   @default("en")
+  id             String          @id @default(cuid())
+  email          String          @unique
+  name           String?
+  image          String?
+  emailVerified  Boolean         @default(false) @map("email_verified")
+  locale         String          @default("en")
   /// { dismissedHotspots: Record<string,string>, completedTours: Record<string,string> }
-  preferences   Json     @default("{\"dismissedHotspots\":{},\"completedTours\":{}}")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  preferences    Json            @default("{\"dismissedHotspots\":{},\"completedTours\":{}}")
+  /// Captured once during initial signup ("How did you come to know about us?")
+  referralSource ReferralSource? @map("referral_source")
+  referralDetail String?         @map("referral_detail") @db.VarChar(200)
+  referredAt     DateTime?       @map("referred_at")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
 
   sessions          Session[]
   accounts          Account[]
@@ -93,6 +121,7 @@ model User {
   memberships       SpaceMember[]
   promptGenerations PromptGeneration[]
   savedPrompts      SavedPrompt[]
+  feedbacks         UserFeedback[]
 
   @@map("users")
 }
@@ -184,6 +213,7 @@ model Space {
   savedPrompts       SavedPrompt[]
   billingAuditEvents BillingAuditEvent[]
   usageCounters      UsageCounter[]
+  feedbacks          UserFeedback[]
 
   @@map("spaces")
 }
@@ -393,4 +423,31 @@ model SelfHealingIncident {
 
   @@index([createdAt(sort: Desc)])
   @@map("self_healing_incidents")
+}
+
+// ─────────────────────────────── Feedback ───────────────────────────────
+
+/// Stores feedback & feature requests from both authenticated users and anonymous guests.
+model UserFeedback {
+  id           String         @id @default(cuid())
+  spaceId      String?        @map("space_id")
+  userId       String?        @map("user_id")
+  /// SHA-256 of client IP/key for anonymous rate-limiting & abuse prevention
+  clientKey    String?        @map("client_key")
+  kind         FeedbackKind   @default(feature_request)
+  title        String?        @db.VarChar(160)
+  message      String         @db.Text
+  contactEmail String?        @map("contact_email") @db.VarChar(254)
+  pagePath     String?        @map("page_path") @db.VarChar(255)
+  status       FeedbackStatus @default(open)
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+
+  space Space? @relation(fields: [spaceId], references: [id], onDelete: SetNull)
+  user  User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([kind, status, createdAt(sort: Desc)])
+  @@index([spaceId, createdAt(sort: Desc)])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("user_feedback")
 }

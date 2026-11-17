@@ -12,6 +12,7 @@ import {
   startCheckoutSession,
   switchEmulatedPlan,
 } from "./services/billing-service.js";
+import { listMyFeedback, submitFeedback } from "./services/feedback-service.js";
 import {
   deletePrompt,
   getSharedPrompt,
@@ -23,7 +24,11 @@ import {
 } from "./services/prompt-library-service.js";
 import { getTemplateBySlug, listTemplates } from "./services/template-service.js";
 import { getBillingStatus } from "./services/usage-quota.js";
-import { getUserPreferences, updateUserPreferences } from "./services/user-preferences-service.js";
+import {
+  getUserPreferences,
+  recordSignupAttribution,
+  updateUserPreferences,
+} from "./services/user-preferences-service.js";
 
 export interface RequestContext {
   requestId: string;
@@ -173,6 +178,19 @@ export function createRouter(deps: RouterDeps) {
       }),
       updateOnboarding: os.userPreferences.updateOnboarding.handler(async ({ input, context }) => {
         return updateUserPreferences(context.actor, input);
+      }),
+      recordSignupAttribution: os.userPreferences.recordSignupAttribution.handler(
+        async ({ input, context }) => {
+          return recordSignupAttribution(context.actor, input);
+        },
+      ),
+    },
+    feedback: {
+      submit: os.feedback.submit.handler(async ({ input, context }) => {
+        return submitFeedback(context.actor, input);
+      }),
+      listMine: os.feedback.listMine.handler(async ({ input, context }) => {
+        return listMyFeedback(context.actor, input?.limit);
       }),
     },
     billing: {

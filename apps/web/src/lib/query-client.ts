@@ -33,6 +33,9 @@ export const queryKeys = {
   preferences: {
     onboarding: () => ["preferences", "onboarding"] as const,
   },
+  feedback: {
+    mine: () => ["feedback", "mine"] as const,
+  },
 } as const;
 
 export function shouldRetryQueryError(failureCount: number, error: unknown): boolean {

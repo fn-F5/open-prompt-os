@@ -1,10 +1,20 @@
-import { DEFAULT_PRICING_PLANS } from "@open-prompt-os/contracts";
-import { Button, Dialog, Input } from "@open-prompt-os/ui-web";
+import {
+  DEFAULT_PRICING_PLANS,
+  REFERRAL_SOURCE_OPTIONS,
+  type ReferralSource,
+} from "@open-prompt-os/contracts";
+import { Button, Dialog, Input, Select, Tabs } from "@open-prompt-os/ui-web";
 import * as React from "react";
 import { useNavigate } from "react-router";
 import { useAuthSession } from "../../hooks/use-auth-session.js";
 import { type OAuthProviderStatus, authClient } from "../../lib/auth-client.js";
 import {
+  clearPendingSignupReferral,
+  recordSignupReferral,
+  savePendingSignupReferral,
+} from "../../lib/signup-referral.js";
+import {
+  type AuthDialogMode,
   type AuthTriggerReason,
   closeAuthDialog,
   consumeSafeReplayAction,
@@ -92,7 +102,7 @@ const REASON_COPY: Record<
 };
 
 export function AuthDialog({ turnstileSiteKey }: { turnstileSiteKey?: string | null } = {}) {
-  const { isOpen, reason, intendedRoute } = useAuthDialogStore();
+  const { isOpen, reason, mode, intendedRoute } = useAuthDialogStore();
   const { sendEmailCode, verifyEmailCode, signInWithGoogle, signInWithGitHub } = useAuthSession();
   const navigate = useNavigate();
 
@@ -100,6 +110,10 @@ export function AuthDialog({ turnstileSiteKey }: { turnstileSiteKey?: string | n
   const [name, setName] = React.useState("");
   const [code, setCode] = React.useState("");
   const [step, setStep] = React.useState<"email" | "code">("email");
+  const [authMode, setAuthMode] = React.useState<AuthDialogMode>(mode);
+  const [isKnownExistingUser, setIsKnownExistingUser] = React.useState(false);
+  const [referralSource, setReferralSource] = React.useState<ReferralSource | "">("");
+  const [referralDetail, setReferralDetail] = React.useState("");
   const [captchaToken, setCaptchaToken] = React.useState<string | null>(null);
   const turnstileRef = React.useRef<TurnstileWidgetHandle | null>(null);
   const [providers, setProviders] = React.useState<OAuthProviderStatus>({
@@ -114,7 +128,17 @@ export function AuthDialog({ turnstileSiteKey }: { turnstileSiteKey?: string | n
       ? turnstileSiteKey?.trim() || undefined
       : resolveTurnstileSiteKey();
   const hasSocial = providers.google || providers.github;
-  const copy = REASON_COPY[reason];
+  const baseCopy = REASON_COPY[reason];
+  const copy =
+    reason === "navbar_signin" && authMode === "signup"
+      ? {
+          title: "Create your Open Prompt OS Workspace",
+          description:
+            "Set up a free workspace to sync your prompt history, organize templates, and save prompts.",
+          badge: "Free Workspace",
+        }
+      : baseCopy;
+  const showSignupAttribution = authMode === "signup" && !isKnownExistingUser;
 
   React.useEffect(() => {
     if (!isOpen) {
@@ -123,6 +147,10 @@ export function AuthDialog({ turnstileSiteKey }: { turnstileSiteKey?: string | n
     }
     setError(null);
     setCaptchaToken(null);
+    setAuthMode(mode);
+    setIsKnownExistingUser(false);
+    setReferralSource("");
+    setReferralDetail("");
     setProviders({ google: true, github: true });
     let active = true;
     void authClient.getOAuthProviders().then((status) => {
@@ -133,7 +161,7 @@ export function AuthDialog({ turnstileSiteKey }: { turnstileSiteKey?: string | n
     return () => {
       active = false;
     };
-  }, [isOpen]);
+  }, [isOpen, mode]);
 
   const handleSuccessPostAuth = () => {
     closeAuthDialog();
@@ -157,13 +185,32 @@ export function AuthDialog({ turnstileSiteKey }: { turnstileSiteKey?: string | n
     try {
       if (step === "email") {
         await sendEmailCode({ email, captchaToken: captchaToken ?? undefined });
+        const isNewUser = await authClient.checkSignupStatus(email);
+        if (isNewUser === false) {
+          setIsKnownExistingUser(true);
+          setReferralSource("");
+          setReferralDetail("");
+        } else if (isNewUser === true) {
+          setIsKnownExistingUser(false);
+          setAuthMode("signup");
+        }
         setCaptchaToken(null);
         setStep("code");
         return;
       }
       await verifyEmailCode({ email, otp: code, name: name || undefined });
+      if (showSignupAttribution && referralSource) {
+        await recordSignupReferral({
+          referralSource,
+          referralDetail:
+            referralSource === "other" ? referralDetail.trim() || undefined : undefined,
+        });
+      }
       setStep("email");
       setCode("");
+      setReferralSource("");
+      setReferralDetail("");
+      setIsKnownExistingUser(false);
       handleSuccessPostAuth();
     } catch (err) {
       if (step === "email") {
@@ -183,6 +230,14 @@ export function AuthDialog({ turnstileSiteKey }: { turnstileSiteKey?: string | n
   const handleSocialSignIn = async (provider: "google" | "github") => {
     setError(null);
     setIsSubmitting(true);
+    if (showSignupAttribution && referralSource) {
+      savePendingSignupReferral({
+        referralSource,
+        referralDetail: referralSource === "other" ? referralDetail.trim() || undefined : undefined,
+      });
+    } else {
+      clearPendingSignupReferral();
+    }
     try {
       if (provider === "google") {
         await signInWithGoogle();
@@ -190,6 +245,7 @@ export function AuthDialog({ turnstileSiteKey }: { turnstileSiteKey?: string | n
         await signInWithGitHub();
       }
     } catch (err) {
+      clearPendingSignupReferral();
       setError(err instanceof Error ? err.message : `Could not start ${provider} sign-in.`);
       setIsSubmitting(false);
     }
@@ -205,6 +261,28 @@ export function AuthDialog({ turnstileSiteKey }: { turnstileSiteKey?: string | n
       description={copy.description}
       variant="glass"
     >
+      {step === "email" ? (
+        <div className="mb-3">
+          <Tabs
+            ariaLabel="Authentication mode"
+            value={authMode}
+            onValueChange={(nextMode) => {
+              setAuthMode(nextMode);
+              setIsKnownExistingUser(false);
+              if (nextMode === "signin") {
+                setReferralSource("");
+                setReferralDetail("");
+              }
+            }}
+            options={[
+              { value: "signin", label: "Sign In" },
+              { value: "signup", label: "Sign Up" },
+            ]}
+            className="w-full !flex-nowrap [&>button]:flex-1 [&>button]:justify-center"
+          />
+        </div>
+      ) : null}
+
       {step === "email" && hasSocial ? (
         <div className="mb-3 space-y-2">
           <div className="flex flex-col gap-2">
@@ -272,6 +350,48 @@ export function AuthDialog({ turnstileSiteKey }: { turnstileSiteKey?: string | n
           />
         </div>
 
+        {showSignupAttribution ? (
+          <div className="space-y-2">
+            <div>
+              <label htmlFor="auth-referral-select" className="block text-sm font-medium mb-1">
+                How did you come to know about us?{" "}
+                <span className="text-[var(--text-secondary)]">(optional)</span>
+              </label>
+              <Select
+                id="auth-referral-select"
+                ariaLabel="How did you come to know about us (optional)"
+                value={referralSource}
+                onValueChange={(val) => {
+                  setReferralSource(val as ReferralSource | "");
+                  if (val !== "other") {
+                    setReferralDetail("");
+                  }
+                }}
+                options={[
+                  { value: "", label: "Select an option (optional)" },
+                  ...REFERRAL_SOURCE_OPTIONS,
+                ]}
+                className="w-full"
+                disabled={isSubmitting}
+              />
+            </div>
+            {referralSource === "other" ? (
+              <div>
+                <Input
+                  id="auth-referral-detail-input"
+                  aria-label="Other referral source details (optional)"
+                  type="text"
+                  maxLength={200}
+                  placeholder="Please specify (optional)"
+                  value={referralDetail}
+                  onChange={(e) => setReferralDetail(e.target.value)}
+                  disabled={isSubmitting}
+                />
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
         {step === "code" ? (
           <div>
             <div className="flex items-center justify-between mb-1">
@@ -285,6 +405,7 @@ export function AuthDialog({ turnstileSiteKey }: { turnstileSiteKey?: string | n
                   setStep("email");
                   setCode("");
                   setCaptchaToken(null);
+                  setIsKnownExistingUser(false);
                   setError(null);
                 }}
                 disabled={isSubmitting}

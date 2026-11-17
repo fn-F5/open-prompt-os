@@ -2,10 +2,12 @@ import type { BillingProvider, PromptOrchestrator } from "@open-prompt-os/adapte
 import { createLocalBillingEmulator } from "@open-prompt-os/adapters";
 import type { Auth } from "@open-prompt-os/auth";
 import { redactSecrets } from "@open-prompt-os/core";
+import { prisma } from "@open-prompt-os/db";
 import { RPCHandler } from "@orpc/server/fetch";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
+import { z } from "zod";
 import type { ApiEnv } from "./app-env.js";
 import { resolveActor } from "./auth/session-resolver.js";
 import { clientKey } from "./client-key.js";
@@ -108,6 +110,56 @@ export function createApp(options: AppOptions) {
       google: Boolean(options.oauthProviders?.google),
       github: Boolean(options.oauthProviders?.github),
     });
+  });
+
+  const SignupStatusBodySchema = z.object({
+    email: z.string().trim().email(),
+  });
+
+  app.post("/api/auth/signup-status", async (c) => {
+    let rawBody: unknown;
+    try {
+      rawBody = await c.req.json();
+    } catch {
+      return c.json(
+        {
+          code: "VALIDATION_ERROR",
+          message: "Invalid JSON payload.",
+          requestId: c.get("requestId"),
+        },
+        400,
+      );
+    }
+    const parsed = SignupStatusBodySchema.safeParse(rawBody);
+    if (!parsed.success) {
+      return c.json(
+        {
+          code: "VALIDATION_ERROR",
+          message: "A valid email address is required.",
+          requestId: c.get("requestId"),
+        },
+        400,
+      );
+    }
+    const email = parsed.data.email.toLowerCase();
+    const timeoutSentinel = Symbol("signup-status-timeout");
+    try {
+      const existing = await Promise.race([
+        prisma.user.findUnique({
+          where: { email },
+          select: { id: true },
+        }),
+        new Promise<typeof timeoutSentinel>((resolve) =>
+          setTimeout(() => resolve(timeoutSentinel), 1500),
+        ),
+      ]);
+      if (existing === timeoutSentinel) {
+        return c.json({ isNewUser: null });
+      }
+      return c.json({ isNewUser: !existing });
+    } catch {
+      return c.json({ isNewUser: null });
+    }
   });
 
   app.on(["GET", "POST"], "/api/auth/*", (c) => {

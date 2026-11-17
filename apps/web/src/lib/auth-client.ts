@@ -125,6 +125,24 @@ export const authClient = {
     }
   },
 
+  async checkSignupStatus(email: string): Promise<boolean | null> {
+    if (import.meta.env.MODE === "test") return null;
+    try {
+      const response = await fetch(`${authBaseUrl()}/api/auth/signup-status`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+        signal: typeof AbortSignal.timeout === "function" ? AbortSignal.timeout(2000) : undefined,
+      });
+      if (!response.ok) return null;
+      const data = (await response.json()) as { isNewUser?: unknown };
+      return typeof data.isNewUser === "boolean" ? data.isNewUser : null;
+    } catch {
+      return null;
+    }
+  },
+
   async sendEmailCode(input: { email: string; captchaToken?: string }): Promise<void> {
     const email = input.email.trim().toLowerCase();
     if (!email.includes("@")) throw new Error("Enter a valid email address.");

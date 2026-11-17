@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "db:generate": "tsx scripts/prisma.ts generate",
     "db:migrate": "tsx scripts/prisma.ts migrate dev",
-    "db:rls": "tsx scripts/prisma.ts db execute --schema prisma/schema.prisma --file prisma/sql/rls.sql",
+    "db:rls": "tsx scripts/prisma.ts db execute --file prisma/sql/rls.sql",
     "db:seed": "tsx scripts/prisma.ts db seed",
     "db:studio": "tsx scripts/prisma.ts studio"
   },

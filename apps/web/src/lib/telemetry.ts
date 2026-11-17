@@ -14,7 +14,10 @@ export type TelemetryEventName =
   | "hotspot_dismissed"
   | "template_used"
   | "prompt_saved"
-  | "marketing_section_viewed";
+  | "marketing_section_viewed"
+  | "feedback_dialog_opened"
+  | "feedback_submitted"
+  | "signup_attribution_recorded";
 
 const FORBIDDEN_TELEMETRY_KEYS = new Set([
   "rawInput",
@@ -23,6 +26,8 @@ const FORBIDDEN_TELEMETRY_KEYS = new Set([
   "originalPrompt",
   "failedOutput",
   "email",
+  "contactEmail",
+  "message",
   "passkey",
   "apiKey",
   "evidence",

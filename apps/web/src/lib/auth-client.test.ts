@@ -407,4 +407,22 @@ describe("authClient", () => {
       credentials: "include",
     });
   });
+
+  it("checks signup status outside test mode and handles failures gracefully", async () => {
+    expect(await authClient.checkSignupStatus("ada@example.com")).toBeNull();
+
+    vi.stubEnv("MODE", "development");
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ isNewUser: true }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ isNewUser: false }), { status: 200 }))
+      .mockResolvedValueOnce(new Response("err", { status: 500 }))
+      .mockRejectedValueOnce(new Error("offline"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    expect(await authClient.checkSignupStatus("  New@Example.com ")).toBe(true);
+    expect(await authClient.checkSignupStatus("old@example.com")).toBe(false);
+    expect(await authClient.checkSignupStatus("err@example.com")).toBeNull();
+    expect(await authClient.checkSignupStatus("net@example.com")).toBeNull();
+  });
 });

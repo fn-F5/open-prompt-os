@@ -1,6 +1,9 @@
 import {
   type OnboardingPreferences,
   OnboardingPreferencesSchema,
+  type RecordSignupAttributionInput,
+  type RecordSignupAttributionOutput,
+  type ReferralSource,
   type UpdateOnboardingInput,
 } from "@open-prompt-os/contracts";
 import { prisma } from "@open-prompt-os/db";
@@ -63,4 +66,47 @@ export async function updateUserPreferences(
   });
 
   return updated;
+}
+
+/**
+ * Records signup attribution ("How did you come to know about us?") write-once.
+ * Only writes if the user exists and `referralSource` is currently null.
+ */
+export async function recordSignupAttribution(
+  actor: ResolvedActor,
+  input: RecordSignupAttributionInput,
+): Promise<RecordSignupAttributionOutput> {
+  if (!actor.userId) {
+    return { recorded: false, referralSource: null };
+  }
+
+  const detail = input.referralDetail?.trim() || null;
+  const result = await prisma.user.updateMany({
+    where: {
+      id: actor.userId,
+      referralSource: null,
+    },
+    data: {
+      referralSource: input.referralSource,
+      referralDetail: detail,
+      referredAt: new Date(),
+    },
+  });
+
+  if (result.count === 1) {
+    return {
+      recorded: true,
+      referralSource: input.referralSource,
+    };
+  }
+
+  const existing = await prisma.user.findUnique({
+    where: { id: actor.userId },
+    select: { referralSource: true },
+  });
+
+  return {
+    recorded: false,
+    referralSource: (existing?.referralSource as ReferralSource | null) ?? null,
+  };
 }

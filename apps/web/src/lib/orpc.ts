@@ -8,6 +8,7 @@ import {
   DEFAULT_CURATED_TEMPLATES,
   DEFAULT_PRICING_PLANS,
   type EmulatePlanSwitchInput,
+  type FeedbackItem,
   type GenerationKind,
   type ImportGuestInteractionInput,
   type ImportGuestInteractionOutput,
@@ -18,12 +19,16 @@ import {
   type PromptGenerationItem,
   type PromptTemplate,
   type ProviderHealth,
+  type RecordSignupAttributionInput,
+  type RecordSignupAttributionOutput,
+  type ReferralSource,
   type RefinePromptInput,
   type RefinePromptOutput,
   type ReverseEngineerInput,
   type ReverseEngineerOutput,
   type SavePromptInput,
   type SavedPromptItem,
+  type SubmitFeedbackInput,
   type SystemHealth,
   type UpdateOnboardingInput,
 } from "@open-prompt-os/contracts";
@@ -341,6 +346,16 @@ let onboardingPrefsStore: OnboardingPreferences = {
   completedTours: {},
 };
 
+let feedbackStore: FeedbackItem[] = [];
+
+let signupReferralStore: {
+  referralSource: ReferralSource | null;
+  referralDetail: string | null;
+} = {
+  referralSource: null,
+  referralDetail: null,
+};
+
 export function resetOrpcTestState(): void {
   importedInteractionIds.clear();
   guestRemainingQuota = 5;
@@ -348,6 +363,11 @@ export function resetOrpcTestState(): void {
   onboardingPrefsStore = {
     dismissedHotspots: {},
     completedTours: {},
+  };
+  feedbackStore = [];
+  signupReferralStore = {
+    referralSource: null,
+    referralDetail: null,
   };
 }
 
@@ -390,15 +410,21 @@ function apiErrorCode(status: number, code: string | undefined): ApiErrorCode {
 }
 
 async function throwApiError(response: Response, fallbackRequestId: string): Promise<never> {
-  let payload: { code?: string; message?: string; requestId?: string } = {};
+  let payload: {
+    code?: string;
+    message?: string;
+    requestId?: string;
+    json?: { code?: string; message?: string; status?: number };
+  } = {};
   try {
     payload = (await response.json()) as typeof payload;
   } catch {
     payload = {};
   }
+  const err = payload.json ?? payload;
   throw new OrpcClientError(
-    apiErrorCode(response.status, payload.code),
-    payload.message ?? "Request failed",
+    apiErrorCode(response.status, err.code ?? payload.code),
+    err.message ?? payload.message ?? "Request failed",
     payload.requestId ?? response.headers.get("x-request-id") ?? fallbackRequestId,
   );
 }
@@ -1066,6 +1092,74 @@ export const orpcClient = {
           : onboardingPrefsStore.completedTours,
       };
       return onboardingPrefsStore;
+    },
+
+    async recordSignupAttribution(
+      input: RecordSignupAttributionInput,
+    ): Promise<RecordSignupAttributionOutput> {
+      const headers = createCorrelationHeaders();
+      if (remoteApiUrl() !== undefined) {
+        return postRpc<RecordSignupAttributionOutput>(
+          "/rpc/userPreferences/recordSignupAttribution",
+          input,
+          undefined,
+          headers,
+        );
+      }
+      const session = authClient.getSession();
+      if (!session.isAuthenticated) {
+        return { recorded: false, referralSource: null };
+      }
+      if (signupReferralStore.referralSource !== null) {
+        return { recorded: false, referralSource: signupReferralStore.referralSource };
+      }
+      signupReferralStore = {
+        referralSource: input.referralSource,
+        referralDetail: input.referralDetail?.trim() || null,
+      };
+      return {
+        recorded: true,
+        referralSource: signupReferralStore.referralSource,
+      };
+    },
+  },
+
+  feedback: {
+    async submit(input: SubmitFeedbackInput): Promise<FeedbackItem> {
+      const headers = createCorrelationHeaders();
+      const trimmedMessage = input.message.trim();
+      if (trimmedMessage.length < 5 || trimmedMessage.length > 2000) {
+        throw new OrpcClientError(
+          "VALIDATION_ERROR",
+          "Feedback message must be between 5 and 2,000 characters.",
+          headers["x-request-id"],
+        );
+      }
+      if (remoteApiUrl() !== undefined) {
+        return postRpc<FeedbackItem>("/rpc/feedback/submit", input, undefined, headers);
+      }
+      const item: FeedbackItem = {
+        id: `fbk_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+        kind: input.kind ?? "feature_request",
+        title: input.title?.trim() || null,
+        message: trimmedMessage,
+        status: "open",
+        pagePath: input.pagePath?.trim() || null,
+        createdAt: new Date().toISOString(),
+      };
+      feedbackStore = [item, ...feedbackStore];
+      return item;
+    },
+
+    async listMine(input?: { limit?: number }): Promise<FeedbackItem[]> {
+      const headers = createCorrelationHeaders();
+      if (remoteApiUrl() !== undefined) {
+        return postRpc<FeedbackItem[]>("/rpc/feedback/listMine", input ?? {}, undefined, headers);
+      }
+      const session = authClient.getSession();
+      if (!session.isAuthenticated) return [];
+      const limit = Math.min(Math.max(input?.limit ?? 20, 1), 50);
+      return feedbackStore.slice(0, limit);
     },
   },
 
