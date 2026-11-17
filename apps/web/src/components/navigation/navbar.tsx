@@ -1,7 +1,7 @@
 import { DEFAULT_PRICING_PLANS } from "@open-prompt-os/contracts";
 import { Button } from "@open-prompt-os/ui-web";
 import { useQuery } from "@tanstack/react-query";
-import { Menu, Moon, Sun, User, X } from "lucide-react";
+import { Menu, MessageSquarePlus, Moon, Sun, User, X } from "lucide-react";
 import * as React from "react";
 import { Link, useLocation } from "react-router";
 import { useAuthSession } from "../../hooks/use-auth-session.js";
@@ -9,6 +9,7 @@ import { orpcClient } from "../../lib/orpc.js";
 import { queryKeys } from "../../lib/query-client.js";
 import { safeGetItem, safeSetItem } from "../../lib/storage.js";
 import { openAuthDialog } from "../../state/auth-dialog-store.js";
+import { openFeedbackDialog } from "../../state/feedback-dialog-store.js";
 import { BrandLogo } from "../brand/brand-logo.js";
 
 const THEME_STORAGE_KEY = "open-prompt-os:theme";
@@ -150,13 +151,24 @@ export function MarketingNavbar() {
         </div>
 
         <div className="hidden lg:flex items-center gap-2 xl:gap-3 shrink-0">
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-label="Send feedback or feature request"
+            className="whitespace-nowrap shrink-0"
+            onClick={() => openFeedbackDialog({ defaultKind: "feature_request", source: "navbar" })}
+          >
+            <MessageSquarePlus className="w-4 h-4 text-[var(--accent-text)]" aria-hidden="true" />
+            <span>Feedback</span>
+          </Button>
+
           <ThemeToggle theme={theme} onToggle={toggleTheme} />
 
           <Button
             variant="ghost"
             size="sm"
             className="whitespace-nowrap shrink-0"
-            onClick={() => openAuthDialog({ reason: "navbar_signin" })}
+            onClick={() => openAuthDialog({ reason: "navbar_signin", mode: "signin" })}
           >
             Sign In
           </Button>
@@ -164,7 +176,7 @@ export function MarketingNavbar() {
             variant="solid"
             size="sm"
             className="whitespace-nowrap shrink-0"
-            onClick={() => openAuthDialog({ reason: "navbar_signin" })}
+            onClick={() => openAuthDialog({ reason: "navbar_signin", mode: "signup" })}
           >
             Get Started
           </Button>
@@ -214,10 +226,20 @@ export function MarketingNavbar() {
           })}
           <div className="pt-3 flex flex-col gap-2.5 border-t border-[var(--separator-subtle)]">
             <Button
+              variant="ghost"
+              onClick={() => {
+                setMobileOpen(false);
+                openFeedbackDialog({ defaultKind: "feature_request", source: "navbar" });
+              }}
+            >
+              <MessageSquarePlus className="w-4 h-4 text-[var(--accent-text)]" aria-hidden="true" />
+              <span>Feedback &amp; Feature Requests</span>
+            </Button>
+            <Button
               variant="secondary"
               onClick={() => {
                 setMobileOpen(false);
-                openAuthDialog({ reason: "navbar_signin" });
+                openAuthDialog({ reason: "navbar_signin", mode: "signin" });
               }}
             >
               Sign In
@@ -226,7 +248,7 @@ export function MarketingNavbar() {
               variant="solid"
               onClick={() => {
                 setMobileOpen(false);
-                openAuthDialog({ reason: "navbar_signin" });
+                openAuthDialog({ reason: "navbar_signin", mode: "signup" });
               }}
             >
               Get Started
@@ -317,6 +339,17 @@ export function AppNavbar() {
             {remaining}/{limit} runs left
           </span>
 
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-label="Send feedback or feature request"
+            className="whitespace-nowrap shrink-0"
+            onClick={() => openFeedbackDialog({ defaultKind: "feature_request", source: "navbar" })}
+          >
+            <MessageSquarePlus className="w-4 h-4 text-[var(--accent-text)]" aria-hidden="true" />
+            <span className="hidden xl:inline">Feedback</span>
+          </Button>
+
           <ThemeToggle theme={theme} onToggle={toggleTheme} />
 
           <Link
@@ -378,19 +411,32 @@ export function AppNavbar() {
               </Link>
             );
           })}
-          <div className="pt-3 border-t border-[var(--separator-subtle)] flex items-center justify-between gap-2">
-            <span className="text-sm text-[var(--text-secondary)] tabular-nums">
-              {remaining}/{limit} runs left
-            </span>
-            <Link
-              to="/settings/profile"
-              aria-current={isSettingsActive ? "page" : undefined}
-              onClick={() => setMobileOpen(false)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium bg-[var(--surface-2)] text-[var(--text-primary)] border border-[var(--separator-subtle)] hover:border-[var(--separator-strong)] focus-ring max-w-[180px]"
+          <div className="pt-3 border-t border-[var(--separator-subtle)] space-y-2.5">
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              onClick={() => {
+                setMobileOpen(false);
+                openFeedbackDialog({ defaultKind: "feature_request", source: "navbar" });
+              }}
             >
-              <User className="w-4 h-4 text-[var(--accent-text)] shrink-0" />
-              <span className="truncate">{user?.name ?? "Operator"}</span>
-            </Link>
+              <MessageSquarePlus className="w-4 h-4 text-[var(--accent-text)]" aria-hidden="true" />
+              <span>Feedback &amp; Feature Requests</span>
+            </Button>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm text-[var(--text-secondary)] tabular-nums">
+                {remaining}/{limit} runs left
+              </span>
+              <Link
+                to="/settings/profile"
+                aria-current={isSettingsActive ? "page" : undefined}
+                onClick={() => setMobileOpen(false)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium bg-[var(--surface-2)] text-[var(--text-primary)] border border-[var(--separator-subtle)] hover:border-[var(--separator-strong)] focus-ring max-w-[180px]"
+              >
+                <User className="w-4 h-4 text-[var(--accent-text)] shrink-0" />
+                <span className="truncate">{user?.name ?? "Operator"}</span>
+              </Link>
+            </div>
           </div>
         </nav>
       ) : null}

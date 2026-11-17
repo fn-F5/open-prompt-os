@@ -80,6 +80,7 @@ describe("API Routes & Database Integration", () => {
     // Clean up test data
     try {
       await runAsSystem(async (tx) => {
+        await tx.userFeedback.deleteMany({ where: { spaceId: testSpaceId } });
         await tx.billingAuditEvent.deleteMany({ where: { spaceId: testSpaceId } });
         await tx.subscription.deleteMany({ where: { spaceId: testSpaceId } });
         await tx.savedPrompt.deleteMany({ where: { spaceId: testSpaceId } });
@@ -892,6 +893,109 @@ describe("API Routes & Database Integration", () => {
 
       const spaceDowngraded = await prisma.space.findUnique({ where: { id: testSpaceId } });
       expect(spaceDowngraded?.plan).toBe("free");
+    });
+  });
+
+  describe("Feedback & Signup Attribution (user_feedback & users.referral_source)", () => {
+    it("persists feedback for guests and authenticated users under RLS", async () => {
+      const guestKey = `guest_fb_${Date.now()}`;
+      const guestRes = await app.request("http://localhost/rpc/feedback/submit", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-client-key": guestKey },
+        body: JSON.stringify({
+          json: {
+            kind: "feature_request",
+            title: "Export prompt templates as JSON",
+            message: "Would love a 1-click JSON export for prompt templates.",
+            contactEmail: "guest@example.com",
+            pagePath: "/templates",
+          },
+        }),
+      });
+      expect(guestRes.status).toBe(200);
+      const { json: guestFeedback } = (await guestRes.json()) as {
+        json: { id: string; kind: string; status: string };
+      };
+      expect(guestFeedback.kind).toBe("feature_request");
+      expect(guestFeedback.status).toBe("open");
+
+      const authRes = await app.request("http://localhost/rpc/feedback/submit", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-space-id": testSpaceId,
+          "x-user-id": testUserId,
+        },
+        body: JSON.stringify({
+          json: {
+            kind: "general_feedback",
+            message: "Autocomplete for detected variables works great!",
+            pagePath: "/",
+          },
+        }),
+      });
+      expect(authRes.status).toBe(200);
+
+      const listRes = await app.request("http://localhost/rpc/feedback/listMine", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-space-id": testSpaceId,
+          "x-user-id": testUserId,
+        },
+        body: JSON.stringify({ json: { limit: 10 } }),
+      });
+      expect(listRes.status).toBe(200);
+      const { json: myItems } = (await listRes.json()) as {
+        json: Array<{ message: string }>;
+      };
+      expect(myItems.some((item) => item.message.includes("Autocomplete"))).toBe(true);
+
+      await runAsSystem((tx) => tx.userFeedback.deleteMany({ where: { id: guestFeedback.id } }));
+    });
+
+    it("records signup attribution once and preserves original referralSource", async () => {
+      const first = await app.request(
+        "http://localhost/rpc/userPreferences/recordSignupAttribution",
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-space-id": testSpaceId,
+            "x-user-id": testUserId,
+          },
+          body: JSON.stringify({
+            json: {
+              referralSource: "github_or_open_source",
+            },
+          }),
+        },
+      );
+      expect(first.status).toBe(200);
+      expect(await first.json()).toEqual({
+        json: { recorded: true, referralSource: "github_or_open_source" },
+      });
+
+      const second = await app.request(
+        "http://localhost/rpc/userPreferences/recordSignupAttribution",
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-space-id": testSpaceId,
+            "x-user-id": testUserId,
+          },
+          body: JSON.stringify({
+            json: {
+              referralSource: "social_media",
+            },
+          }),
+        },
+      );
+      expect(second.status).toBe(200);
+      expect(await second.json()).toEqual({
+        json: { recorded: false, referralSource: "github_or_open_source" },
+      });
     });
   });
 });

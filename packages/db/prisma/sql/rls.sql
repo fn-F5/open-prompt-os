@@ -47,3 +47,19 @@ CREATE POLICY usage_owner ON usage_counters
   WITH CHECK (space_id = current_setting('app.space_id', true)
       OR client_key = current_setting('app.client_key', true)
       OR current_setting('app.is_system', true) = 'true');
+
+-- user_feedback: tenant rows by space, guest rows by client key, or system mode
+ALTER TABLE user_feedback ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_feedback FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS feedback_access ON user_feedback;
+CREATE POLICY feedback_access ON user_feedback
+  USING (
+    current_setting('app.is_system', true) = 'true'
+    OR (space_id IS NOT NULL AND space_id = current_setting('app.space_id', true))
+    OR (space_id IS NULL AND client_key = current_setting('app.client_key', true))
+  )
+  WITH CHECK (
+    current_setting('app.is_system', true) = 'true'
+    OR (space_id IS NOT NULL AND space_id = current_setting('app.space_id', true))
+    OR (space_id IS NULL AND client_key = current_setting('app.client_key', true))
+  );

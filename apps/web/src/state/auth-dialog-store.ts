@@ -8,9 +8,12 @@ export type AuthTriggerReason =
   | "protected_route"
   | "navbar_signin";
 
+export type AuthDialogMode = "signin" | "signup";
+
 export interface AuthDialogState {
   readonly isOpen: boolean;
   readonly reason: AuthTriggerReason;
+  readonly mode: AuthDialogMode;
   readonly intendedRoute?: string;
   readonly safeReplayAction?: (() => void) | null;
 }
@@ -20,9 +23,17 @@ type Listener = (state: AuthDialogState) => void;
 let currentState: AuthDialogState = {
   isOpen: false,
   reason: "navbar_signin",
+  mode: "signin",
   intendedRoute: undefined,
   safeReplayAction: null,
 };
+
+function defaultModeForReason(reason: AuthTriggerReason): AuthDialogMode {
+  if (reason === "save_prompt" || reason === "quota_limit" || reason === "advanced_controls") {
+    return "signup";
+  }
+  return "signin";
+}
 
 const listeners = new Set<Listener>();
 
@@ -38,16 +49,20 @@ export function getAuthDialogState(): AuthDialogState {
 
 export function openAuthDialog(options: {
   reason: AuthTriggerReason;
+  mode?: AuthDialogMode;
   intendedRoute?: string;
   safeReplayAction?: (() => void) | null;
 }): void {
+  const mode = options.mode ?? defaultModeForReason(options.reason);
   trackEvent("auth_gate_triggered", {
     reason: options.reason,
+    mode,
     intendedRoute: options.intendedRoute ?? null,
   });
   currentState = {
     isOpen: true,
     reason: options.reason,
+    mode,
     intendedRoute: options.intendedRoute,
     safeReplayAction: options.safeReplayAction ?? null,
   };
@@ -83,6 +98,7 @@ export function resetAuthDialogStoreForTest(): void {
   currentState = {
     isOpen: false,
     reason: "navbar_signin",
+    mode: "signin",
     intendedRoute: undefined,
     safeReplayAction: null,
   };

@@ -251,4 +251,98 @@ describe("remote compose client", () => {
       }),
     ).rejects.toThrowError(OrpcClientError);
   });
+
+  it("dispatches remote RPC calls for feedback and signup referral attribution", async () => {
+    vi.stubEnv("VITE_API_URL", "http://127.0.0.1:3001");
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
+      const urlStr = String(url);
+      if (urlStr.includes("/rpc/feedback/submit")) {
+        return new Response(
+          JSON.stringify({
+            json: {
+              id: "fbk_remote_1",
+              kind: "feature_request",
+              title: "Dark glass polish",
+              message: "Polish frosted glass blur in Safari.",
+              status: "open",
+              pagePath: "/",
+              createdAt: "2026-11-17T12:00:00.000Z",
+            },
+          }),
+          { status: 200 },
+        );
+      }
+      if (urlStr.includes("/rpc/feedback/listMine")) {
+        return new Response(
+          JSON.stringify({
+            json: [
+              {
+                id: "fbk_remote_1",
+                kind: "feature_request",
+                title: "Dark glass polish",
+                message: "Polish frosted glass blur in Safari.",
+                status: "open",
+                pagePath: "/",
+                createdAt: "2026-11-17T12:00:00.000Z",
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+      if (urlStr.includes("/rpc/userPreferences/recordSignupAttribution")) {
+        return new Response(
+          JSON.stringify({
+            json: { recorded: true, referralSource: "search_engine" },
+          }),
+          { status: 200 },
+        );
+      }
+      return new Response(JSON.stringify({ json: {} }), { status: 200 });
+    });
+
+    const submitted = await orpcClient.feedback.submit({
+      kind: "feature_request",
+      title: "Dark glass polish",
+      message: "Polish frosted glass blur in Safari.",
+      pagePath: "/",
+    });
+    expect(submitted.id).toBe("fbk_remote_1");
+
+    const mine = await orpcClient.feedback.listMine({ limit: 10 });
+    expect(mine).toHaveLength(1);
+
+    const attr = await orpcClient.userPreferences.recordSignupAttribution({
+      referralSource: "search_engine",
+    });
+    expect(attr).toEqual({ recorded: true, referralSource: "search_engine" });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("unwraps oRPC json-wrapped error payloads in throwApiError", async () => {
+    vi.stubEnv("VITE_API_URL", "http://127.0.0.1:3001");
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          json: {
+            defined: false,
+            code: "INTERNAL_SERVER_ERROR",
+            status: 500,
+            message: "Unable to save feedback right now.",
+          },
+        }),
+        { status: 500, headers: { "content-type": "application/json" } },
+      ),
+    );
+
+    await expect(
+      orpcClient.feedback.submit({
+        kind: "feature_request",
+        message: "Test error message unwrapping",
+      }),
+    ).rejects.toMatchObject({
+      code: "INTERNAL_ERROR",
+      message: "Unable to save feedback right now.",
+    });
+  });
 });

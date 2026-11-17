@@ -1,12 +1,18 @@
 import { oc } from "@orpc/contract";
 import { z } from "zod";
-import { OnboardingPreferencesSchema, UpdateOnboardingInputSchema } from "./auth.js";
+import {
+  OnboardingPreferencesSchema,
+  RecordSignupAttributionInputSchema,
+  RecordSignupAttributionOutputSchema,
+  UpdateOnboardingInputSchema,
+} from "./auth.js";
 import {
   BillingStatusSchema,
   CheckoutInputSchema,
   EmulatePlanSwitchInputSchema,
   PricingPlanItemSchema,
 } from "./billing.js";
+import { FeedbackItemSchema, SubmitFeedbackInputSchema } from "./feedback.js";
 import { ModelOptionSchema, ProviderHealthSchema } from "./models.js";
 import {
   ComposePromptInputSchema,
@@ -104,6 +110,15 @@ export const appContract = {
   userPreferences: {
     get: oc.output(OnboardingPreferencesSchema),
     updateOnboarding: oc.input(UpdateOnboardingInputSchema).output(OnboardingPreferencesSchema),
+    recordSignupAttribution: oc
+      .input(RecordSignupAttributionInputSchema)
+      .output(RecordSignupAttributionOutputSchema),
+  },
+  feedback: {
+    submit: oc.input(SubmitFeedbackInputSchema).output(FeedbackItemSchema),
+    listMine: oc
+      .input(z.object({ limit: z.number().int().min(1).max(50).default(20) }).optional())
+      .output(z.array(FeedbackItemSchema)),
   },
   billing: {
     plans: oc.output(z.array(PricingPlanItemSchema)),

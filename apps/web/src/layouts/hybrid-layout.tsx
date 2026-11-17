@@ -1,9 +1,10 @@
 import { Button, ToastViewport } from "@open-prompt-os/ui-web";
-import { ShieldCheck } from "lucide-react";
+import { MessageSquarePlus, ShieldCheck } from "lucide-react";
 import * as React from "react";
 import { Link, Outlet, useLocation } from "react-router";
 import { AuthDialog } from "../components/auth/auth-dialog.js";
 import { BrandLogo } from "../components/brand/brand-logo.js";
+import { FeedbackDialog } from "../components/feedback/feedback-dialog.js";
 import { StorageAndNetworkBanner } from "../components/feedback/storage-banner.js";
 import { MarketingScrollContent } from "../components/marketing/marketing-scroll-content.js";
 import { AppNavbar, MarketingNavbar } from "../components/navigation/navbar.js";
@@ -13,8 +14,10 @@ import { useCardParallax } from "../hooks/use-card-parallax.js";
 import { useGuestHydration } from "../hooks/use-guest-hydration.js";
 import { useIdleTour } from "../hooks/use-idle-tour.js";
 import { useReducedEffects } from "../hooks/use-reduced-effects.js";
+import { flushPendingSignupReferral } from "../lib/signup-referral.js";
 import { openAuthDialog, useAuthDialogStore } from "../state/auth-dialog-store.js";
 import { useComposerStore } from "../state/composer-store.js";
+import { openFeedbackDialog } from "../state/feedback-dialog-store.js";
 
 export function HybridLayout() {
   const { isAuthenticated, isLoading } = useAuthSession();
@@ -25,6 +28,13 @@ export function HybridLayout() {
 
   // Trigger post-authentication guest interaction migration
   useGuestHydration();
+
+  // Flush any pending OAuth signup attribution once authenticated
+  React.useEffect(() => {
+    if (isAuthenticated) {
+      void flushPendingSignupReferral();
+    }
+  }, [isAuthenticated]);
 
   // Drive 3D tilt and cursor-following spotlight across cards on anonymous pages and Templates
   const isTemplatesRoute =
@@ -120,10 +130,25 @@ export function HybridLayout() {
               <span className="h-2.5 w-2.5 rounded-full bg-[var(--success-text)]" />
               <span>Open Prompt OS · Authenticated Workspace</span>
             </span>
-            <span className="inline-flex items-center gap-1.5">
-              <ShieldCheck className="w-4 h-4 text-[var(--success-text)]" />
-              <span>We never train on your prompts</span>
-            </span>
+            <div className="flex flex-wrap items-center gap-4">
+              <button
+                type="button"
+                onClick={() =>
+                  openFeedbackDialog({ defaultKind: "feature_request", source: "footer" })
+                }
+                className="inline-flex items-center gap-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-ring rounded cursor-pointer"
+              >
+                <MessageSquarePlus
+                  className="w-4 h-4 text-[var(--accent-text)]"
+                  aria-hidden="true"
+                />
+                <span>Feedback &amp; Feature Requests</span>
+              </button>
+              <span className="inline-flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-[var(--success-text)]" />
+                <span>We never train on your prompts</span>
+              </span>
+            </div>
           </div>
         </footer>
       ) : (
@@ -187,6 +212,17 @@ export function HybridLayout() {
                     Pricing Plans
                   </Link>
                 </li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openFeedbackDialog({ defaultKind: "feature_request", source: "footer" })
+                    }
+                    className="hover:text-[var(--text-primary)] focus-ring rounded cursor-pointer text-left"
+                  >
+                    Feedback &amp; Feature Requests
+                  </button>
+                </li>
               </ul>
             </div>
 
@@ -248,7 +284,7 @@ export function HybridLayout() {
               <Button
                 variant="solid"
                 size="sm"
-                onClick={() => openAuthDialog({ reason: "navbar_signin" })}
+                onClick={() => openAuthDialog({ reason: "navbar_signin", mode: "signup" })}
               >
                 Sign in / Create Account
               </Button>
@@ -264,6 +300,7 @@ export function HybridLayout() {
 
       {/* 6. Global Dialogs, Onboarding Tour & Toasts */}
       <AuthDialog />
+      <FeedbackDialog />
       {!isAuthenticated && isIndexRoute ? <AnonymousTour controller={tourController} /> : null}
       <ToastViewport />
     </div>
