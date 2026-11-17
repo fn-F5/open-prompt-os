@@ -9,7 +9,8 @@ import { trackEvent } from "../lib/telemetry.js";
 import { useComposerStore } from "../state/composer-store.js";
 
 export function ComposerPage() {
-  const { activeDraft, completedOutput, streamingBuffer } = useComposerStore();
+  const { activeDraft, completedOutput, completedSourceDraft, streamingBuffer } =
+    useComposerStore();
   const composeMutation = useComposePrompt();
   const seoMeta = React.useMemo(() => STATIC_ROUTE_SEO.home(HOME_AEO_FAQS), []);
 
@@ -35,6 +36,7 @@ export function ComposerPage() {
 
       <OutputCard
         draft={activeDraft}
+        sourceDraft={completedSourceDraft}
         output={completedOutput}
         streamingBuffer={streamingBuffer}
         isPending={composeMutation.isPending}

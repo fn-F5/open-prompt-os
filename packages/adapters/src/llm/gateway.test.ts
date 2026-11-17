@@ -306,4 +306,49 @@ describe("createOrchestrator", () => {
     expect(ReverseEngineerOutputSchema.parse(fallbackOut).providerId).toBe("rule-synthesizer");
     expect(fallbackOut.requestId).toBe("req_rev_fallback");
   });
+
+  it("routes frontend platform IDs like openai-text to configured live providers with valid upstream model IDs", async () => {
+    const gemini = createFakeAdapter({
+      id: "gemini",
+      defaultModel: "gemini-3.6-flash",
+      text: "Compiled via Gemini",
+    });
+    const geminiOnly = createOrchestrator({
+      registry: createRegistry([createSynthesizerAdapter(), gemini]),
+      timeoutMs: 1000,
+    });
+
+    const streamEvents: ComposeStreamEvent[] = [];
+    for await (const event of geminiOnly.composeStream(
+      draftInput("Create a rollout checklist", "openai-text"),
+      { requestId: "req_platform_stream" },
+    )) {
+      streamEvents.push(event);
+    }
+    const done = streamEvents.find((event) => event.type === "done");
+    expect(done?.type).toBe("done");
+    if (done?.type === "done") {
+      expect(done.output.providerId).toBe("gemini");
+      expect(done.output.compiledPrompt).toBe("Compiled via Gemini");
+      expect(done.output.healedFromFailure).toBe(false);
+    }
+    expect(gemini.lastRequest?.modelId).toBe("gemini-3.6-flash");
+
+    const openai = createFakeAdapter({
+      id: "openai",
+      defaultModel: "gpt-4.1",
+      text: "Compiled via OpenAI",
+    });
+    const withOpenAi = createOrchestrator({
+      registry: createRegistry([createSynthesizerAdapter(), gemini, openai]),
+      timeoutMs: 1000,
+    });
+
+    const composed = await withOpenAi.compose(
+      draftInput("Create a rollout checklist", "openai-text"),
+      { requestId: "req_platform_openai" },
+    );
+    expect(composed.providerId).toBe("openai");
+    expect(openai.lastRequest?.modelId).toBe("gpt-4.1");
+  });
 });

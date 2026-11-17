@@ -207,7 +207,7 @@ export function PromptComposer({
       ) : (
         <div className="mb-3 sm:mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3">
           <div>
-            <h1 className="text-xl sm:text-3xl font-medium tracking-[-0.03em]">Prompt Composer</h1>
+            <h1 className="text-xl sm:text-3xl font-medium tracking-[-0.03em]">Prompt Compiler</h1>
             <p className="text-sm sm:text-base text-[var(--text-secondary)] max-w-2xl">
               Draft, parameterize, and dispatch model-specific prompts from your workspace.
             </p>

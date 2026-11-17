@@ -44,7 +44,7 @@ export function generateLlmsTxt(
     "",
     "## Core Product Surfaces",
     "",
-    `- [Prompt Composer](${cleanOrigin}/): Guided multi-modal prompt builder (Text, Image, Video) with CO-STAR, RISE, CARE, and Chain-of-Thought frameworks and one-click dispatch.`,
+    `- [Prompt Compiler](${cleanOrigin}/): Guided multi-modal prompt builder (Text, Image, Video) with CO-STAR, RISE, CARE, and Chain-of-Thought frameworks and one-click dispatch.`,
     `- [Improve & Prompt Autopsy](${cleanOrigin}/improve): Structural prompt optimizer and root-cause debugger across 8 diagnostic categories.`,
     `- [Reverse Engineer](${cleanOrigin}/reverse-engineer): Upload PNG, JPEG, or WebP images to extract a 6-axis visual anatomy and reusable prompt draft.`,
     `- [Template Gallery](${cleanOrigin}/templates): Curated, permissively licensed prompt blueprints with [Variable] parameters.`,

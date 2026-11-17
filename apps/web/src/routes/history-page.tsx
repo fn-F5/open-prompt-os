@@ -60,11 +60,13 @@ export function HistoryPage() {
 
   const saveMutation = useMutation({
     mutationFn: (item: PromptGenerationItem) => {
-      const derivedTitle = item.rawInput.trim().slice(0, 80) || `${KIND_LABELS[item.kind]} Run`;
+      const compiledPrompt = item.compiledPrompt.trim().slice(0, 16000);
+      const rawInput = item.rawInput.trim().slice(0, 8000) || compiledPrompt.slice(0, 8000);
+      const derivedTitle = rawInput.slice(0, 80) || `${KIND_LABELS[item.kind]} Run`;
       return orpcClient.prompts.save({
         title: derivedTitle,
-        rawInput: item.rawInput,
-        compiledPrompt: item.compiledPrompt,
+        rawInput,
+        compiledPrompt,
         mode: item.mode,
         framework: item.framework,
         modelId: item.modelId ?? "gpt-4.1",

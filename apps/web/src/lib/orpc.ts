@@ -429,6 +429,16 @@ async function postRpc<T>(
   return payload.json;
 }
 
+function emitSseChunk(chunk: string, onEvent: (event: string, data: string) => void): void {
+  let event = "message";
+  const dataLines: string[] = [];
+  for (const line of chunk.split(/\r?\n/)) {
+    if (line.startsWith("event:")) event = line.slice(6).trim();
+    else if (line.startsWith("data:")) dataLines.push(line.slice(5).trim());
+  }
+  if (dataLines.length > 0) onEvent(event, dataLines.join("\n"));
+}
+
 async function readServerSentEvents(
   response: Response,
   onEvent: (event: string, data: string) => void,
@@ -441,17 +451,15 @@ async function readServerSentEvents(
     const { done, value } = await reader.read();
     if (done) break;
     buffer += decoder.decode(value, { stream: true });
-    const chunks = buffer.split("\n\n");
+    const chunks = buffer.split(/\r?\n\r?\n/);
     buffer = chunks.pop() ?? "";
     for (const chunk of chunks) {
-      let event = "message";
-      const dataLines: string[] = [];
-      for (const line of chunk.split("\n")) {
-        if (line.startsWith("event:")) event = line.slice(6).trim();
-        else if (line.startsWith("data:")) dataLines.push(line.slice(5).trim());
-      }
-      if (dataLines.length > 0) onEvent(event, dataLines.join("\n"));
+      emitSseChunk(chunk, onEvent);
     }
+  }
+  buffer += decoder.decode();
+  if (buffer.trim().length > 0) {
+    emitSseChunk(buffer, onEvent);
   }
 }
 
@@ -496,14 +504,6 @@ export const orpcClient = {
         );
       }
 
-      if (!session.isAuthenticated && guestRemainingQuota <= 0) {
-        throw new OrpcClientError(
-          "QUOTA_EXCEEDED",
-          "Daily anonymous generation limit reached. Sign in for free to unlock higher daily capacity and save your work.",
-          headers["x-request-id"],
-        );
-      }
-
       if (options?.signal?.aborted) {
         throw new DOMException("Aborted", "AbortError");
       }
@@ -526,6 +526,7 @@ export const orpcClient = {
               if (!response.ok) await throwApiError(response, headers["x-request-id"]);
               let accumulated = "";
               let done: ComposePromptOutput | undefined;
+              let streamError: { code?: string; message?: string; requestId?: string } | undefined;
               await readServerSentEvents(response, (event, data) => {
                 if (event === "text-delta") {
                   const payload = JSON.parse(data) as { text?: string };
@@ -533,8 +534,21 @@ export const orpcClient = {
                   options.onChunk?.(accumulated);
                 } else if (event === "done") {
                   done = JSON.parse(data) as ComposePromptOutput;
+                } else if (event === "error") {
+                  streamError = JSON.parse(data) as {
+                    code?: string;
+                    message?: string;
+                    requestId?: string;
+                  };
                 }
               });
+              if (streamError) {
+                throw new OrpcClientError(
+                  apiErrorCode(500, streamError.code),
+                  streamError.message ?? "Prompt compilation failed",
+                  streamError.requestId ?? headers["x-request-id"],
+                );
+              }
               if (!done) {
                 throw new OrpcClientError(
                   "INTERNAL_ERROR",
@@ -554,6 +568,14 @@ export const orpcClient = {
           ...result,
           requestId: result.requestId || headers["x-request-id"],
         };
+      }
+
+      if (!session.isAuthenticated && guestRemainingQuota <= 0) {
+        throw new OrpcClientError(
+          "QUOTA_EXCEEDED",
+          "Daily anonymous generation limit reached. Sign in for free to unlock higher daily capacity and save your work.",
+          headers["x-request-id"],
+        );
       }
 
       const synthesized = synthesizeCompiledPrompt(

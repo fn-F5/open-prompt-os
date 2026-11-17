@@ -146,7 +146,7 @@ export function HybridLayout() {
               <ul className="space-y-2.5">
                 <li>
                   <Link to="/" className="hover:text-[var(--text-primary)] focus-ring rounded">
-                    Prompt Composer
+                    Prompt Compiler
                   </Link>
                 </li>
                 <li>

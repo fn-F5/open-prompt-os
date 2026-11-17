@@ -1,5 +1,5 @@
 import { DEFAULT_PRICING_PLANS } from "@open-prompt-os/contracts";
-import { Badge, Button } from "@open-prompt-os/ui-web";
+import { Button } from "@open-prompt-os/ui-web";
 import { useQuery } from "@tanstack/react-query";
 import { LogOut, Menu, Moon, Sun, User, X } from "lucide-react";
 import * as React from "react";
@@ -275,15 +275,6 @@ export function AppNavbar() {
             <BrandLogo className="w-9 h-9 shrink-0 shadow-sm" />
             <span className="inline lg:hidden xl:inline">Open Prompt OS</span>
           </Link>
-
-          {user?.spaceName ? (
-            <Badge
-              variant="framework"
-              className="hidden 2xl:inline-flex max-w-[180px] truncate whitespace-nowrap shrink-0"
-            >
-              {user.spaceName}
-            </Badge>
-          ) : null}
 
           <nav
             aria-label="Workspace navigation"

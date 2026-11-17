@@ -72,6 +72,22 @@ describe("remote compose client", () => {
     expect(result.providerId).toBe("rule-synthesizer");
   });
 
+  it("surfaces SSE error events from the compose stream instead of masking them", async () => {
+    vi.stubEnv("VITE_API_URL", "http://127.0.0.1:3001");
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(
+        `event: error\ndata: ${JSON.stringify({ code: "INTERNAL_ERROR", message: "Upstream failure", requestId: "req_sse_err" })}\n\n`,
+        { status: 200, headers: { "content-type": "text/event-stream" } },
+      ),
+    );
+
+    await expect(orpcClient.prompts.compose(input, { onChunk: () => {} })).rejects.toMatchObject({
+      code: "INTERNAL_ERROR",
+      message: "Upstream failure",
+      requestId: "req_sse_err",
+    });
+  });
+
   it("dispatches remote RPC calls with auth headers for library operations", async () => {
     vi.stubEnv("VITE_API_URL", "http://127.0.0.1:3001");
     setAuthSessionForTest({
