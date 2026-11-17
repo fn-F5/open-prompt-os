@@ -40,12 +40,17 @@ describe("assertNoClientSystemPrompt", () => {
 });
 
 describe("redactSecrets", () => {
-  it("removes Google, secret, and bearer tokens", () => {
-    const raw = "key AIzaSyTESTKEY123456 and sk-live-secret-value and Bearer abc.def-ghi";
+  it("removes Google, Stripe, Resend, secret, cookie, and bearer tokens", () => {
+    const raw =
+      "key AIzaSyTESTKEY123456 and sk-live-secret-value and sk_test_51AbcDefGh12 and re_live_987654321 and __Secure-better-auth.session_token=secret.tok and Bearer abc.def-ghi";
     const cleaned = redactSecrets(raw);
     expect(cleaned).not.toContain("AIza");
     expect(cleaned).not.toContain("sk-");
+    expect(cleaned).not.toContain("sk_test_");
+    expect(cleaned).not.toContain("re_live_");
+    expect(cleaned).not.toContain("secret.tok");
     expect(cleaned).not.toContain("abc.def-ghi");
+    expect(cleaned).toContain("__Secure-better-auth.session_token=[redacted]");
     expect(cleaned).toContain("[redacted]");
     expect(cleaned).toContain("Bearer [redacted]");
   });

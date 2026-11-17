@@ -10,6 +10,7 @@ import type {
 import { isInputGuardError, redactSecrets } from "@open-prompt-os/core";
 import { ORPCError } from "@orpc/server";
 import type { ResolvedActor } from "../auth/session-resolver.js";
+import { logger } from "../logger.js";
 import { checkQuota, recordPromptGeneration, recordUsage } from "../services/usage-quota.js";
 
 function failure(error: unknown, requestId: string): never {
@@ -17,11 +18,21 @@ function failure(error: unknown, requestId: string): never {
     throw error;
   }
   if (isInputGuardError(error)) {
+    logger.warn("Prompt input rejected by guard", {
+      event: "prompt.validation_error",
+      requestId,
+      err: error,
+    });
     throw new ORPCError("BAD_REQUEST", {
       message: `VALIDATION_ERROR: ${redactSecrets(error.message)}`,
       data: { requestId },
     });
   }
+  logger.error("Prompt procedure execution failed", {
+    event: "prompt.execution_failed",
+    requestId,
+    err: error,
+  });
   const message = redactSecrets(error instanceof Error ? error.message : "Internal error");
   throw new ORPCError("INTERNAL_SERVER_ERROR", {
     message: `INTERNAL_ERROR: ${message}`,

@@ -11,6 +11,13 @@ import { z } from "zod";
 import type { ApiEnv } from "./app-env.js";
 import { resolveActor } from "./auth/session-resolver.js";
 import { clientKey } from "./client-key.js";
+import {
+  createLogger,
+  enrichRequestContext,
+  parseTraceparent,
+  resolveRequestId,
+  runWithRequestContext,
+} from "./logger.js";
 import { createRouter } from "./router.js";
 import { registerComposeStream } from "./routes/compose-stream.js";
 import { registerSeoRoutes } from "./routes/seo-routes.js";
@@ -36,20 +43,39 @@ export function createApp(options: AppOptions) {
     webOrigins: options.webOrigins,
   });
   const rpc = new RPCHandler(router);
-  const log = options.log ?? ((line: string) => console.log(line));
+  const appLogger = createLogger({ sink: options.log });
 
   app.use("*", async (c, next) => {
-    const requestId = crypto.randomUUID();
+    const requestId = resolveRequestId(c.req.header("x-request-id"));
+    const { traceId, spanId } = parseTraceparent(c.req.header("traceparent"));
     c.set("requestId", requestId);
     const started = Date.now();
-    await next();
-    c.res.headers.set("x-content-type-options", "nosniff");
-    c.res.headers.set("referrer-policy", "strict-origin-when-cross-origin");
-    c.res.headers.set("x-frame-options", "DENY");
-    log(
-      redactSecrets(
-        `${c.req.method} ${c.req.path} ${c.res.status} ${requestId} ${Date.now() - started}ms`,
-      ),
+
+    await runWithRequestContext(
+      {
+        requestId,
+        traceId,
+        spanId,
+        sink: options.log,
+      },
+      async () => {
+        await next();
+        c.res.headers.set("x-request-id", requestId);
+        c.res.headers.set("x-content-type-options", "nosniff");
+        c.res.headers.set("referrer-policy", "strict-origin-when-cross-origin");
+        c.res.headers.set("x-frame-options", "DENY");
+
+        const durationMs = Date.now() - started;
+        const status = c.res.status;
+        const level = status >= 500 ? "error" : status >= 400 ? "warn" : "info";
+        appLogger[level](`${c.req.method} ${c.req.path} ${status} ${durationMs}ms`, {
+          event: "http.request",
+          method: c.req.method,
+          path: c.req.path,
+          status,
+          durationMs,
+        });
+      },
     );
   });
   app.use(
@@ -189,6 +215,11 @@ export function createApp(options: AppOptions) {
   app.use("/rpc/*", async (c) => {
     const requestId = c.get("requestId");
     const actor = await resolveActor(c, options.trustProxy, options.auth);
+    enrichRequestContext({
+      userId: actor.userId,
+      spaceId: actor.spaceId,
+      rpcProcedure: c.req.path.replace(/^\/rpc\//, ""),
+    });
     const { matched, response } = await rpc.handle(c.req.raw, {
       prefix: "/rpc",
       context: {
@@ -220,7 +251,24 @@ export function createApp(options: AppOptions) {
             ? "VALIDATION_ERROR"
             : (err?.code ?? "VALIDATION_ERROR");
 
+      appLogger.warn("oRPC validation failed", {
+        event: "rpc.validation_error",
+        code,
+        errorMessage: message,
+      });
+
       return c.json({ code, message, requestId }, 400);
+    }
+    if (response.status >= 500) {
+      const errorText = await response
+        .clone()
+        .text()
+        .catch(() => "");
+      appLogger.error("oRPC procedure returned server error", {
+        event: "rpc.error",
+        status: response.status,
+        errorBody: errorText.slice(0, 500),
+      });
     }
     const headers = new Headers(response.headers);
     headers.set("x-request-id", requestId);
@@ -229,6 +277,11 @@ export function createApp(options: AppOptions) {
 
   app.onError((error, c) => {
     const requestId = c.get("requestId");
+    appLogger.error("Unhandled HTTP exception", {
+      event: "http.unhandled_error",
+      path: c.req.path,
+      err: error,
+    });
     return c.json(
       {
         code: "INTERNAL_ERROR",

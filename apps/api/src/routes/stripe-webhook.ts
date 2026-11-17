@@ -1,6 +1,7 @@
 import type { BillingProvider } from "@open-prompt-os/adapter-kit";
 import type { Hono } from "hono";
 import type { ApiEnv } from "../app-env.js";
+import { logger } from "../logger.js";
 import { reconcileCustomerSubscription } from "../services/billing-service.js";
 
 export function registerStripeWebhook(app: Hono<ApiEnv>, billingProvider: BillingProvider): void {
@@ -10,6 +11,9 @@ export function registerStripeWebhook(app: Hono<ApiEnv>, billingProvider: Billin
     const parsed = billingProvider.parseWebhook(rawBody, signature);
 
     if (parsed.kind === "invalid") {
+      logger.warn("Rejected invalid Stripe webhook signature", {
+        event: "billing.webhook_invalid_signature",
+      });
       return c.json(
         {
           code: "INVALID_SIGNATURE",
@@ -21,6 +25,10 @@ export function registerStripeWebhook(app: Hono<ApiEnv>, billingProvider: Billin
     }
     if (parsed.kind === "reconcile") {
       await reconcileCustomerSubscription(parsed.customerId, billingProvider, parsed.eventId);
+      logger.info("Reconciled Stripe webhook event", {
+        event: "billing.webhook_reconciled",
+        customerId: parsed.customerId,
+      });
     }
     return c.json({ received: true }, 200);
   });

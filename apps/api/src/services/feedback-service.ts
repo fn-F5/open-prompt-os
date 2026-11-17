@@ -8,6 +8,7 @@ import type {
 import { prisma, runAsTenant } from "@open-prompt-os/db";
 import { ORPCError } from "@orpc/server";
 import type { ResolvedActor } from "../auth/session-resolver.js";
+import { logger } from "../logger.js";
 import { type FeedbackMailer, createDefaultFeedbackMailer } from "./feedback-mailer.js";
 
 const devFallbackFeedbackStore: Array<
@@ -111,8 +112,9 @@ export async function submitFeedback(
       process.env.NODE_ENV === "development" &&
       (isDatabaseUnavailableError(error) || isMissingTableError(error))
     ) {
-      console.warn(
-        "[feedback] PostgreSQL is unavailable or unmigrated in development; storing feedback in local memory.",
+      logger.warn(
+        "PostgreSQL is unavailable or unmigrated in development; storing feedback in local memory.",
+        { event: "feedback.dev_fallback", err: error },
       );
       item = {
         id,
@@ -170,7 +172,11 @@ export async function submitFeedback(
       createdAt: item.createdAt,
     });
   } catch (err) {
-    console.error("[feedback] Failed to send feedback notification email:", err);
+    logger.error("Failed to send feedback notification email", {
+      event: "feedback.email_failed",
+      feedbackId: item.id,
+      err,
+    });
   }
 
   return item;

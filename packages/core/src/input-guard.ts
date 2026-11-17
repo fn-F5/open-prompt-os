@@ -1,6 +1,9 @@
 const BIDI_AND_NUL = new RegExp(`[${String.fromCharCode(0)}\\u202A-\\u202E\\u2066-\\u2069]`, "g");
 const GOOGLE_KEY = /AIza[0-9A-Za-z\-_]*/g;
 const SECRET_KEY = /sk-[A-Za-z0-9_\-]{4,}/g;
+const STRIPE_KEY = /\b(?:sk|rk|whsec)_[A-Za-z0-9_]{8,}/g;
+const RESEND_KEY = /\bre_[A-Za-z0-9_]{8,}/g;
+const SESSION_COOKIE = /((?:__Secure-)?better-auth\.session_token|session_token)=[^;\s]+/gi;
 const BEARER = /Bearer\s+[A-Za-z0-9\-._~+/]+=*/gi;
 const FORBIDDEN_KEYS = new Set(["systemPrompt", "system", "messages"]);
 
@@ -64,6 +67,9 @@ export function assertNoClientSystemPrompt(payload: unknown): void {
 export function redactSecrets(text: string): string {
   return text
     .replace(GOOGLE_KEY, "[redacted]")
+    .replace(STRIPE_KEY, "[redacted]")
     .replace(SECRET_KEY, "[redacted]")
+    .replace(RESEND_KEY, "[redacted]")
+    .replace(SESSION_COOKIE, "$1=[redacted]")
     .replace(BEARER, "Bearer [redacted]");
 }
