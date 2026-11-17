@@ -2,6 +2,7 @@ import { Badge, Button } from "@open-prompt-os/ui-web";
 import { Shield, User } from "lucide-react";
 import { Link, Outlet, useLocation } from "react-router";
 import { useAuthSession } from "../hooks/use-auth-session.js";
+import { CARD_HOVER_ANIMATION } from "../hooks/use-card-parallax.js";
 import { openAuthDialog } from "../state/auth-dialog-store.js";
 
 export function SettingsLayout() {
@@ -10,7 +11,10 @@ export function SettingsLayout() {
 
   if (!isAuthenticated) {
     return (
-      <section className="rounded-2xl p-8 flat-surface text-center max-w-lg mx-auto my-8 space-y-4">
+      <section
+        data-animate={CARD_HOVER_ANIMATION.settingsAuthGate}
+        className="rounded-2xl p-8 flat-surface text-center max-w-lg mx-auto my-8 space-y-4"
+      >
         <Badge variant="framework">Authenticated Route</Badge>
         <h1 className="text-xl font-semibold">Sign in to manage Workspace Settings</h1>
         <p className="text-xs sm:text-sm text-[var(--text-secondary)]">

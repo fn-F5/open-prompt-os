@@ -5,6 +5,7 @@ import * as React from "react";
 import { useNavigate, useParams } from "react-router";
 import { SanitizedPromptRenderer } from "../components/output/output-card.js";
 import { SeoHead } from "../components/seo/seo-head.js";
+import { useCardHoverAnimation } from "../hooks/use-card-parallax.js";
 import { dispatchPrompt } from "../lib/dispatch.js";
 import { orpcClient } from "../lib/orpc.js";
 import { queryKeys } from "../lib/query-client.js";
@@ -14,6 +15,7 @@ import { composerActions } from "../state/composer-store.js";
 export function PublicPromptPage() {
   const { shareId = "" } = useParams();
   const navigate = useNavigate();
+  const animateCard = useCardHoverAnimation();
 
   const sharedQuery = useQuery({
     queryKey: queryKeys.prompts.shared(shareId),
@@ -25,7 +27,10 @@ export function PublicPromptPage() {
 
   if (!item) {
     return (
-      <div className="rounded-xl p-8 flat-surface text-center space-y-3">
+      <div
+        data-animate={animateCard("publicPromptNotFound")}
+        className="rounded-xl p-8 flat-surface text-center space-y-3"
+      >
         <SeoHead
           meta={{
             title: "Shared Prompt Not Found | Open Prompt OS",
@@ -43,7 +48,10 @@ export function PublicPromptPage() {
   }
 
   return (
-    <article className="max-w-3xl mx-auto rounded-2xl p-6 sm:p-8 flat-surface space-y-5">
+    <article
+      data-animate={animateCard("publicPromptMain")}
+      className="max-w-3xl mx-auto rounded-2xl p-6 sm:p-8 flat-surface space-y-5"
+    >
       {seoMeta ? <SeoHead meta={seoMeta} /> : null}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Badge variant="framework">Shared Prompt Specification</Badge>

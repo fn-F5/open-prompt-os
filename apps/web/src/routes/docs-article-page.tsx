@@ -5,6 +5,7 @@ import * as React from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { SeoHead } from "../components/seo/seo-head.js";
 import { DOCS_CATALOG, findDocBySlug } from "../content/docs-catalog.js";
+import { useCardHoverAnimation } from "../hooks/use-card-parallax.js";
 import { copyTextToClipboard } from "../lib/dispatch.js";
 import { buildDocArticleSeo } from "../lib/seo.js";
 import { composerActions } from "../state/composer-store.js";
@@ -12,11 +13,15 @@ import { composerActions } from "../state/composer-store.js";
 export function DocsArticlePage() {
   const { docSlug = "" } = useParams();
   const navigate = useNavigate();
+  const animateCard = useCardHoverAnimation();
   const doc = findDocBySlug(docSlug);
 
   if (!doc) {
     return (
-      <div className="rounded-2xl p-8 flat-surface text-center space-y-4 max-w-2xl mx-auto">
+      <div
+        data-animate={animateCard("docsArticleNotFound")}
+        className="rounded-2xl p-8 flat-surface text-center space-y-4 max-w-2xl mx-auto"
+      >
         <SeoHead
           meta={{
             title: "Documentation Guide Not Found | Open Prompt OS",
@@ -66,7 +71,10 @@ export function DocsArticlePage() {
       </nav>
 
       {/* Header & Answer-First TL;DR Box */}
-      <header className="rounded-2xl p-6 sm:p-8 flat-surface space-y-5">
+      <header
+        data-animate={animateCard("docsArticleHeader")}
+        className="rounded-2xl p-6 sm:p-8 flat-surface space-y-5"
+      >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="framework">{doc.category}</Badge>
@@ -133,6 +141,7 @@ export function DocsArticlePage() {
             key={section.id}
             id={section.id}
             aria-labelledby={`${section.id}-heading`}
+            data-animate={animateCard("docsArticleSection")}
             className="rounded-2xl p-6 sm:p-8 flat-surface space-y-4"
           >
             <h2 id={`${section.id}-heading`} className="text-xl font-semibold tracking-tight">
@@ -245,7 +254,10 @@ export function DocsArticlePage() {
       {/* Related Templates & Next Guides */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {relatedTemplates.length > 0 ? (
-          <section className="rounded-2xl p-5 flat-surface space-y-3">
+          <section
+            data-animate={animateCard("docsArticleRelatedTemplates")}
+            className="rounded-2xl p-5 flat-surface space-y-3"
+          >
             <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
               Related Prompt Blueprints
             </h2>
@@ -265,7 +277,10 @@ export function DocsArticlePage() {
           </section>
         ) : null}
 
-        <section className="rounded-2xl p-5 flat-surface space-y-3">
+        <section
+          data-animate={animateCard("docsArticleContinueReading")}
+          className="rounded-2xl p-5 flat-surface space-y-3"
+        >
           <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
             Continue Reading
           </h2>

@@ -5,18 +5,19 @@ import {
 } from "@open-prompt-os/contracts";
 import { Badge, Button, Dialog, Tabs, toast } from "@open-prompt-os/ui-web";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, CreditCard, ExternalLink } from "lucide-react";
+import { Check, CreditCard, ExternalLink, LogOut } from "lucide-react";
 import * as React from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { formatUsdPrice } from "../../components/pricing/pricing-plans-section.js";
 import { SeoHead } from "../../components/seo/seo-head.js";
 import { useAuthSession } from "../../hooks/use-auth-session.js";
+import { CARD_HOVER_ANIMATION } from "../../hooks/use-card-parallax.js";
 import { authClient } from "../../lib/auth-client.js";
 import { orpcClient } from "../../lib/orpc.js";
 import { queryKeys } from "../../lib/query-client.js";
 
 export function ProfileSettingsPage() {
-  const { user } = useAuthSession();
+  const { user, signOut } = useAuthSession();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -97,6 +98,11 @@ export function ProfileSettingsPage() {
     }
   };
 
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/");
+  };
+
   return (
     <div className="space-y-6">
       <SeoHead
@@ -107,10 +113,19 @@ export function ProfileSettingsPage() {
           noindex: true,
         }}
       />
-      <section className="rounded-xl p-6 flat-surface space-y-4">
-        <div>
-          <Badge variant="framework">Workspace Identity</Badge>
-          <h1 className="mt-2 text-xl font-semibold">Profile & Workspace</h1>
+      <section
+        data-animate={CARD_HOVER_ANIMATION.profileIdentity}
+        className="rounded-xl p-6 flat-surface space-y-4"
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <Badge variant="framework">Workspace Identity</Badge>
+            <h1 className="mt-2 text-xl font-semibold">Profile & Workspace</h1>
+          </div>
+          <Button variant="secondary" size="sm" onClick={handleSignOut}>
+            <LogOut className="w-4 h-4" />
+            <span>Sign out</span>
+          </Button>
         </div>
         <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm pt-2">
           <div className="p-3.5 rounded-lg bg-[var(--surface-2)]">
@@ -132,7 +147,10 @@ export function ProfileSettingsPage() {
         </dl>
       </section>
 
-      <section className="rounded-xl p-6 flat-surface space-y-4">
+      <section
+        data-animate={CARD_HOVER_ANIMATION.profileBilling}
+        className="rounded-xl p-6 flat-surface space-y-4"
+      >
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <Badge variant="neutral">Subscription & Billing</Badge>

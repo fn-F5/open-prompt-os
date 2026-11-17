@@ -7,6 +7,7 @@ import { useLocation, useNavigate } from "react-router";
 import { SanitizedPromptRenderer } from "../components/output/output-card.js";
 import { SeoHead } from "../components/seo/seo-head.js";
 import { useAuthSession } from "../hooks/use-auth-session.js";
+import { CARD_HOVER_ANIMATION } from "../hooks/use-card-parallax.js";
 import { dispatchPrompt } from "../lib/dispatch.js";
 import { orpcClient } from "../lib/orpc.js";
 import { queryKeys } from "../lib/query-client.js";
@@ -101,7 +102,10 @@ export function HistoryPage() {
 
   if (!isAuthenticated) {
     return (
-      <section className="rounded-2xl p-8 flat-surface text-center max-w-lg mx-auto my-8 space-y-4">
+      <section
+        data-animate={CARD_HOVER_ANIMATION.historyAuthGate}
+        className="rounded-2xl p-8 flat-surface text-center max-w-lg mx-auto my-8 space-y-4"
+      >
         <SeoHead meta={noindexMeta} />
         <Badge variant="framework">Activity Ledger</Badge>
         <h1 className="text-2xl font-semibold">Sign in to access Interaction History</h1>
@@ -202,12 +206,16 @@ export function HistoryPage() {
       {generationsQuery.isLoading ? (
         <div
           aria-busy="true"
+          data-animate={CARD_HOVER_ANIMATION.historyLoading}
           className="rounded-xl p-10 flat-surface text-center text-sm text-[var(--text-secondary)]"
         >
           Loading interaction history...
         </div>
       ) : items.length === 0 ? (
-        <div className="rounded-xl p-10 flat-surface text-center space-y-3">
+        <div
+          data-animate={CARD_HOVER_ANIMATION.historyEmpty}
+          className="rounded-xl p-10 flat-surface text-center space-y-3"
+        >
           <div className="text-sm font-medium">No interactions found</div>
           <p className="text-xs text-[var(--text-secondary)]">
             {hasFilters
@@ -235,7 +243,11 @@ export function HistoryPage() {
       ) : (
         <div className="space-y-4">
           {items.map((item) => (
-            <article key={item.id} className="rounded-xl p-5 flat-surface space-y-4">
+            <article
+              key={item.id}
+              data-animate={CARD_HOVER_ANIMATION.historyItem}
+              className="rounded-xl p-5 flat-surface space-y-4"
+            >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="framework">{KIND_LABELS[item.kind]}</Badge>

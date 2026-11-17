@@ -257,6 +257,21 @@ export function AuthDialog({ turnstileSiteKey }: { turnstileSiteKey?: string | n
           />
         </div>
 
+        <div>
+          <label htmlFor="auth-name-input" className="block text-sm font-medium mb-1">
+            Name <span className="text-[var(--text-secondary)]">(optional)</span>
+          </label>
+          <Input
+            id="auth-name-input"
+            type="text"
+            autoComplete="name"
+            placeholder="John Doe"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            disabled={isSubmitting}
+          />
+        </div>
+
         {step === "code" ? (
           <div>
             <div className="flex items-center justify-between mb-1">
@@ -292,21 +307,6 @@ export function AuthDialog({ turnstileSiteKey }: { turnstileSiteKey?: string | n
             />
           </div>
         ) : null}
-
-        <div>
-          <label htmlFor="auth-name-input" className="block text-sm font-medium mb-1">
-            Workspace display name <span className="text-[var(--text-secondary)]">(optional)</span>
-          </label>
-          <Input
-            id="auth-name-input"
-            type="text"
-            autoComplete="name"
-            placeholder="John Doe"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            disabled={isSubmitting}
-          />
-        </div>
 
         {step === "email" && siteKey && isOpen ? (
           <TurnstileWidget

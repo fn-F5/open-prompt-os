@@ -1,5 +1,4 @@
 import type { ComposerMode } from "@open-prompt-os/contracts";
-import { generateFollowUpQuestions } from "@open-prompt-os/core";
 import { Badge, Button, Tabs, Textarea } from "@open-prompt-os/ui-web";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -116,8 +115,6 @@ export function PromptComposer({
   const { activeMode, activeDraft, isAdvancedOpen } = useComposerStore();
 
   const [validationError, setValidationError] = React.useState<string | null>(null);
-  const [followUpAnswers, setFollowUpAnswers] = React.useState<Record<string, string>>({});
-  const [showFollowUps, setShowFollowUps] = React.useState(false);
   const [parametersExpandedManual] = React.useState(false);
   const [isTextareaFocused, setIsTextareaFocused] = React.useState(false);
 
@@ -128,7 +125,7 @@ export function PromptComposer({
   });
 
   const textareaRef = useAutoResizeTextarea(activeDraft.rawInput, {
-    minHeightPx: 68,
+    minHeightPx: 128,
     maxHeightPx: 320,
   });
 
@@ -139,11 +136,6 @@ export function PromptComposer({
 
   const errorId = React.useId();
   const hintId = React.useId();
-
-  const followUpQuestions = React.useMemo(
-    () => generateFollowUpQuestions(activeDraft),
-    [activeDraft],
-  );
 
   const hasTypedOrConfigured = parametersExpandedManual;
 
@@ -158,7 +150,7 @@ export function PromptComposer({
       return;
     }
     setValidationError(null);
-    onSubmitPrompt(Object.keys(followUpAnswers).length > 0 ? followUpAnswers : undefined);
+    onSubmitPrompt();
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -181,25 +173,25 @@ export function PromptComposer({
 
   return (
     <div className="relative">
-      {/* Dedicated Hero Section for Anonymous Visitors (Compact so composer CTA stays above the fold) */}
+      {/* Dedicated Hero Section for Anonymous Visitors */}
       {!isAuthenticated ? (
-        <div className="text-center max-w-4xl mx-auto pt-0 pb-1.5 sm:pt-1 sm:pb-3 space-y-1 sm:space-y-2">
-          <div className="hidden sm:inline-flex flex-wrap items-center justify-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[var(--accent-subtle-bg)] border border-[var(--separator-strong)] font-mono text-[10px] sm:text-xs uppercase tracking-[0.05em] font-normal text-[var(--text-primary)] max-w-full">
+        <div className="text-center max-w-4xl mx-auto pt-0 pb-4 sm:pt-1 sm:pb-8 space-y-2.5 sm:space-y-3.5">
+          <div className="hidden sm:inline-flex flex-wrap items-center justify-center gap-2 px-3.5 py-1 sm:px-4 sm:py-1.5 rounded-full bg-[var(--accent-subtle-bg)] border border-[var(--separator-strong)] font-mono text-xs uppercase tracking-[0.08em] font-normal text-[var(--text-primary)] max-w-full">
             <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--accent-text)] shrink-0" />
             <span>The Operating System for Prompts · Instant free use</span>
           </div>
 
-          <h1 className="text-xl sm:text-3xl lg:text-4xl font-medium tracking-[-0.03em] leading-[1.06] text-balance text-[var(--text-primary)]">
-            Write prompts that work{" "}
-            <span className="text-gradient-brand whitespace-nowrap">on the first try.</span>
+          <h1 className="text-[26px] sm:text-4xl lg:text-5xl font-medium tracking-[-0.03em] leading-[1.08] text-balance text-[var(--text-primary)]">
+            Stop overthinking{" "}
+            <span className="text-gradient-brand whitespace-nowrap">your prompts.</span>
           </h1>
 
-          <p className="text-xs sm:text-sm lg:text-base text-[var(--text-secondary)] max-w-2xl mx-auto leading-snug">
-            Turn rough ideas into clear, structured prompts for ChatGPT, Claude, and Gemini. Pick
-            your goal, audience, and format—then send in one click.
+          <p className="text-sm sm:text-lg text-[var(--text-secondary)] max-w-3xl mx-auto leading-relaxed">
+            Skip the 10 back-and-forth messages fixing weak AI answers. Type a rough idea below and
+            hit Compile for a master-level prompt on the first run.
           </p>
 
-          <div className="hidden lg:inline-flex items-center gap-1.5 text-xs text-[var(--success-text)] font-medium">
+          <div className="hidden sm:inline-flex items-center gap-2 text-sm text-[var(--success-text)] font-medium">
             <ShieldCheck className="w-4 h-4" />
             <span>Privacy by default: We never train on your prompts.</span>
           </div>
@@ -218,10 +210,10 @@ export function PromptComposer({
       {/* Main Frosted Glass Composer Card */}
       <section
         aria-label="Prompt operating system composer"
-        className="relative p-3 sm:p-5 lg:p-6 glass-surface space-y-2.5 sm:space-y-3.5"
+        className="relative p-4 sm:p-8 glass-surface space-y-3.5 sm:space-y-5"
       >
         {/* Top Row: Mode Switcher + Wrapping Quick Example Strip */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2 pb-2 sm:pb-3 border-b border-[var(--separator-subtle)]">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 sm:pb-4 border-b border-[var(--separator-subtle)]">
           <Tabs
             ariaLabel="Prompt generation mode"
             value={activeMode}
@@ -303,47 +295,8 @@ export function PromptComposer({
           />
         ) : null}
 
-        {/* Optional Clarifying Questions */}
-        {followUpQuestions.length > 0 && activeDraft.rawInput.trim().length > 0 ? (
-          <div className="pt-1">
-            <button
-              type="button"
-              aria-expanded={showFollowUps}
-              onClick={() => setShowFollowUps((s) => !s)}
-              className="min-h-[36px] inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-[var(--accent-text)] hover:underline focus-ring rounded px-1 py-1 cursor-pointer whitespace-nowrap"
-            >
-              <Sparkles className="w-4 h-4 shrink-0" />
-              <span>
-                {showFollowUps ? "Hide" : "Answer"} {followUpQuestions.length} quick question
-                {followUpQuestions.length > 1 ? "s" : ""}
-              </span>
-            </button>
-
-            {showFollowUps ? (
-              <div className="mt-3 grid grid-cols-1 gap-3 p-4 rounded-2xl bg-[var(--surface-2)] border border-[var(--separator-subtle)]">
-                {followUpQuestions.map((q) => (
-                  <div key={q} className="space-y-1.5">
-                    <label className="block text-sm font-medium text-[var(--text-primary)]">
-                      {q}
-                    </label>
-                    <input
-                      type="text"
-                      value={followUpAnswers[q] ?? ""}
-                      placeholder="Your optional answer..."
-                      onChange={(e) =>
-                        setFollowUpAnswers((prev) => ({ ...prev, [q]: e.target.value }))
-                      }
-                      className="w-full px-3.5 py-2 text-sm rounded-xl bg-[var(--surface-1)] text-[var(--text-primary)] border border-[var(--separator-subtle)] focus-ring"
-                    />
-                  </div>
-                ))}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-
         {/* Bottom Action Bar (wrapping cleanly on narrow screens, 1 balanced row on desktop) */}
-        <div className="pt-2.5 sm:pt-3.5 border-t border-[var(--separator-subtle)] flex flex-col md:flex-row md:items-center justify-between gap-2.5 sm:gap-3">
+        <div className="pt-3 sm:pt-4 border-t border-[var(--separator-subtle)] flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="flex flex-wrap items-center justify-between sm:justify-start gap-2 min-w-0">
             <ModelPicker
               mode={activeMode}
@@ -399,10 +352,10 @@ export function PromptComposer({
             {isPending ? (
               <Button
                 variant="secondary"
-                size="md"
+                size="lg"
                 onClick={onStopGeneration}
                 aria-label="Stop prompt compilation"
-                className="flex-1 sm:flex-initial px-3.5 sm:px-6 text-xs sm:text-sm"
+                className="flex-1 sm:flex-initial px-6 sm:px-7"
               >
                 <Square className="w-4 h-4 fill-current" />
                 <span>Stop</span>
@@ -410,13 +363,13 @@ export function PromptComposer({
             ) : (
               <Button
                 variant="primary-inverse"
-                size="md"
+                size="lg"
                 onClick={validateAndSubmit}
                 aria-label="Compile structured prompt"
-                className="flex-1 sm:flex-initial px-3.5 sm:px-6 text-xs sm:text-sm"
+                className="flex-1 sm:flex-initial px-6 sm:px-7"
               >
                 <span>Compile Prompt</span>
-                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
+                <ArrowRight className="w-5 h-5" />
               </Button>
             )}
           </div>

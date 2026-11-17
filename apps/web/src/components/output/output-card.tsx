@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import * as React from "react";
 import { useNavigate } from "react-router";
+import { useCardHoverAnimation } from "../../hooks/use-card-parallax.js";
 import { copyTextToClipboard, dispatchPrompt } from "../../lib/dispatch.js";
 import { OrpcClientError, orpcClient } from "../../lib/orpc.js";
 import { queryKeys } from "../../lib/query-client.js";
@@ -94,6 +95,7 @@ export function OutputCard({
 }: OutputCardProps) {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const animateCard = useCardHoverAnimation();
   const [copied, setCopied] = React.useState(false);
   const [savedOutputKey, setSavedOutputKey] = React.useState<string | null>(null);
 
@@ -188,6 +190,7 @@ export function OutputCard({
       <section
         aria-label="Compiling prompt specification"
         aria-busy="true"
+        data-animate={animateCard("outputLoading")}
         className="mt-6 rounded-2xl p-6 flat-surface space-y-4 min-h-[220px]"
       >
         <div className="flex items-center justify-between gap-2">
@@ -225,6 +228,7 @@ export function OutputCard({
   return (
     <section
       aria-label="Compiled prompt output"
+      data-animate={animateCard("outputResult")}
       className="mt-6 rounded-3xl p-6 sm:p-8 glow-card space-y-5"
     >
       <div className="sr-only" aria-live="polite">

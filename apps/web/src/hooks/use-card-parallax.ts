@@ -1,12 +1,88 @@
 import * as React from "react";
+import { authClient } from "../lib/auth-client.js";
 
-const PARALLAX_CARD_SELECTOR = ".flat-surface, .glow-card";
+/**
+ * Per-card hover animation toggles when authenticated (3D tilt + spotlight).
+ * Anonymous pages animate all cards; once logged in, only Templates cards keep hover animations.
+ */
+export const CARD_HOVER_ANIMATION = {
+  profileIdentity: false,
+  profileBilling: false,
+  settingsAuthGate: true,
+  outputLoading: false,
+  outputResult: false,
+  improveInput: false,
+  improveOutput: false,
+  reverseEngineerInput: false,
+  reverseEngineerOutput: false,
+  historyAuthGate: true,
+  historyLoading: false,
+  historyEmpty: false,
+  historyItem: false,
+  libraryAuthGate: true,
+  libraryEmpty: false,
+  libraryItem: false,
+  templateGalleryEmpty: true,
+  templateGalleryItem: true,
+  templateDetailLoading: true,
+  templateDetailNotFound: true,
+  templateDetailMain: true,
+  templateDetailRelated: true,
+  pricingPlanCard: false,
+  pricingPrivacyBanner: false,
+  docsHubEmpty: false,
+  docsHubItem: false,
+  docsArticleNotFound: false,
+  docsArticleHeader: false,
+  docsArticleSection: false,
+  docsArticleRelatedTemplates: false,
+  docsArticleContinueReading: false,
+  publicPromptNotFound: false,
+  publicPromptMain: false,
+  billingReturnCard: false,
+  notFoundCard: false,
+  marketingBeforeCard: true,
+  marketingAfterCard: true,
+  marketingBentoCard: true,
+  marketingShowcaseTab: true,
+  marketingFaqCard: true,
+};
+
+export type CardAnimationKey = keyof typeof CARD_HOVER_ANIMATION;
+
+/**
+ * Returns whether a card should animate on hover given authentication state.
+ * All cards animate for anonymous visitors; logged-in sessions use `CARD_HOVER_ANIMATION`.
+ */
+export function shouldAnimateCard(key: CardAnimationKey, isAuthenticated: boolean): boolean {
+  if (!isAuthenticated) return true;
+  return CARD_HOVER_ANIMATION[key];
+}
+
+/**
+ * Reactively resolves per-card hover animation flags from the current auth session.
+ */
+export function useCardHoverAnimation(): (key: CardAnimationKey) => boolean {
+  const isAuthenticated = React.useSyncExternalStore(
+    (listener) => authClient.subscribe(listener),
+    () => authClient.getSession().isAuthenticated,
+    () => authClient.getSession().isAuthenticated,
+  );
+  return React.useCallback(
+    (key: CardAnimationKey) => shouldAnimateCard(key, isAuthenticated),
+    [isAuthenticated],
+  );
+}
+
+const PARALLAX_CARD_SELECTOR =
+  '.flat-surface:not([data-animate="false"]), .glow-card:not([data-animate="false"])';
 
 /**
  * Updates 3D tilt (`--rx`, `--ry`) and cursor-following spotlight (`--mx`, `--my`)
  * CSS custom properties on a card element matching openpromptos.com.
  */
 export function updateCardParallax(card: HTMLElement, clientX: number, clientY: number): void {
+  if (card.getAttribute("data-animate") === "false") return;
   const rect = card.getBoundingClientRect();
   if (rect.width <= 0 || rect.height <= 0) return;
 

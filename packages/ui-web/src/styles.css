@@ -265,6 +265,14 @@ pre,
     transition: transform 0.12s linear, border-color 0.2s ease, box-shadow 0.2s ease;
   }
 
+  .flat-surface[data-animate="false"],
+  .glow-card[data-animate="false"] {
+    transform: none !important;
+    will-change: auto;
+    background-image: var(--bg-card);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
   /* Dialog modal backdrop and entrance animation */
   @keyframes dialog-backdrop-in {
     from {

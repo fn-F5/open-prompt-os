@@ -6,6 +6,7 @@ import * as React from "react";
 import { useNavigate } from "react-router";
 import { SanitizedPromptRenderer } from "../components/output/output-card.js";
 import { SeoHead } from "../components/seo/seo-head.js";
+import { useCardHoverAnimation } from "../hooks/use-card-parallax.js";
 import { copyTextToClipboard } from "../lib/dispatch.js";
 import { orpcClient } from "../lib/orpc.js";
 import { STATIC_ROUTE_SEO } from "../lib/seo.js";
@@ -62,6 +63,7 @@ async function createThumbnailDataUrl(dataUrl: string): Promise<string | undefin
 
 export function ReverseEngineerPage() {
   const navigate = useNavigate();
+  const animateCard = useCardHoverAnimation();
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const [targetMode, setTargetMode] = React.useState<"image" | "video">("image");
@@ -187,6 +189,7 @@ export function ReverseEngineerPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         <section
           aria-label="Reference image upload"
+          data-animate={animateCard("reverseEngineerInput")}
           className="rounded-xl p-5 flat-surface space-y-4"
         >
           <div
@@ -295,6 +298,7 @@ export function ReverseEngineerPage() {
 
         <section
           aria-label="Visual breakdown and reconstructed prompt"
+          data-animate={animateCard("reverseEngineerOutput")}
           className="rounded-xl p-5 flat-surface space-y-5"
         >
           {!result ? (

@@ -4,6 +4,7 @@ import { CheckCircle2 } from "lucide-react";
 import * as React from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { SeoHead } from "../components/seo/seo-head.js";
+import { CARD_HOVER_ANIMATION } from "../hooks/use-card-parallax.js";
 import { orpcClient } from "../lib/orpc.js";
 import { queryKeys } from "../lib/query-client.js";
 
@@ -36,7 +37,10 @@ export function BillingReturnPage() {
   }, [queryClient]);
 
   return (
-    <section className="max-w-md mx-auto my-12 rounded-2xl p-6 flat-surface text-center space-y-4">
+    <section
+      data-animate={CARD_HOVER_ANIMATION.billingReturnCard}
+      className="max-w-md mx-auto my-12 rounded-2xl p-6 flat-surface text-center space-y-4"
+    >
       <SeoHead
         meta={{
           title: "Billing Confirmation | Open Prompt OS",

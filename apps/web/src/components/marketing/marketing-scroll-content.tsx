@@ -17,8 +17,9 @@ import {
 } from "lucide-react";
 import * as React from "react";
 import { Link } from "react-router";
-import { trackEvent } from "../../lib/telemetry.js";
 import { HOME_AEO_FAQS } from "../../content/docs-catalog.js";
+import { CARD_HOVER_ANIMATION } from "../../hooks/use-card-parallax.js";
+import { trackEvent } from "../../lib/telemetry.js";
 import { composerActions } from "../../state/composer-store.js";
 import { PricingPlansSection } from "../pricing/pricing-plans-section.js";
 
@@ -173,7 +174,7 @@ export function MarketingScrollContent() {
   return (
     <div
       data-testid="anonymous-marketing-content"
-      className="mx-auto max-w-[1360px] px-4 sm:px-8 pt-6 sm:pt-12 pb-12 sm:pb-24 space-y-14 sm:space-y-24"
+      className="mx-auto max-w-[1360px] px-4 sm:px-8 pt-4 sm:pt-8 pb-12 sm:pb-24 space-y-14 sm:space-y-24"
     >
       {/* SECTION 1: Simplified Before & After Product Showcase */}
       <ObservedSection
@@ -194,7 +195,10 @@ export function MarketingScrollContent() {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 items-stretch">
           {/* Before Card */}
-          <div className="lg:col-span-5 p-5 sm:p-8 flat-surface flex flex-col justify-between space-y-4 sm:space-y-6">
+          <div
+            data-animate={CARD_HOVER_ANIMATION.marketingBeforeCard}
+            className="lg:col-span-5 p-5 sm:p-8 flat-surface flex flex-col justify-between space-y-4 sm:space-y-6"
+          >
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-base font-medium text-[var(--danger-text)]">
@@ -226,7 +230,10 @@ export function MarketingScrollContent() {
           </div>
 
           {/* After Card: 4 Calm Divided Rows */}
-          <div className="lg:col-span-7 p-5 sm:p-8 glow-card flex flex-col justify-between space-y-4 sm:space-y-6">
+          <div
+            data-animate={CARD_HOVER_ANIMATION.marketingAfterCard}
+            className="lg:col-span-7 p-5 sm:p-8 glow-card flex flex-col justify-between space-y-4 sm:space-y-6"
+          >
             <div className="space-y-3 sm:space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[var(--separator-subtle)]">
                 <span className="inline-flex items-center gap-2 text-base font-semibold text-[var(--accent-text)]">
@@ -290,7 +297,10 @@ export function MarketingScrollContent() {
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 sm:gap-5">
           {/* Wide Spotlight 1 (7 cols) */}
-          <article className="md:col-span-7 p-5 sm:p-8 flat-surface flex flex-col justify-between gap-4 sm:gap-6">
+          <article
+            data-animate={CARD_HOVER_ANIMATION.marketingBentoCard}
+            className="md:col-span-7 p-5 sm:p-8 flat-surface flex flex-col justify-between gap-4 sm:gap-6"
+          >
             <div className="space-y-3 sm:space-y-4">
               <div className="flex items-center justify-between gap-3">
                 <span className="inline-flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-[10px] bg-[var(--accent-subtle-bg)] text-[var(--accent-text)] border border-[var(--separator-strong)]">
@@ -322,7 +332,10 @@ export function MarketingScrollContent() {
           </article>
 
           {/* Spotlight 2 (5 cols) */}
-          <article className="md:col-span-5 p-5 sm:p-8 flat-surface flex flex-col justify-between gap-4 sm:gap-6">
+          <article
+            data-animate={CARD_HOVER_ANIMATION.marketingBentoCard}
+            className="md:col-span-5 p-5 sm:p-8 flat-surface flex flex-col justify-between gap-4 sm:gap-6"
+          >
             <div className="space-y-3 sm:space-y-4">
               <div className="flex items-center justify-between gap-3">
                 <span className="inline-flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-[10px] bg-[var(--cyan-subtle-bg)] text-[var(--cyan-text)] border border-[var(--accent-cyan)]">
@@ -348,7 +361,10 @@ export function MarketingScrollContent() {
           </article>
 
           {/* 4 Focused Cards below */}
-          <article className="md:col-span-6 lg:col-span-3 p-5 sm:p-6 flat-surface space-y-2.5">
+          <article
+            data-animate={CARD_HOVER_ANIMATION.marketingBentoCard}
+            className="md:col-span-6 lg:col-span-3 p-5 sm:p-6 flat-surface space-y-2.5"
+          >
             <span className="inline-flex items-center justify-center w-10 h-10 rounded-[10px] bg-[var(--cyan-subtle-bg)] text-[var(--cyan-text)] border border-[var(--accent-cyan)]">
               <Send className="w-5 h-5" />
             </span>
@@ -359,7 +375,10 @@ export function MarketingScrollContent() {
             </p>
           </article>
 
-          <article className="md:col-span-6 lg:col-span-3 p-5 sm:p-6 flat-surface space-y-2.5">
+          <article
+            data-animate={CARD_HOVER_ANIMATION.marketingBentoCard}
+            className="md:col-span-6 lg:col-span-3 p-5 sm:p-6 flat-surface space-y-2.5"
+          >
             <span className="inline-flex items-center justify-center w-10 h-10 rounded-[10px] bg-[var(--accent-subtle-bg)] text-[var(--accent-text)] border border-[var(--separator-strong)]">
               <Layers className="w-5 h-5" />
             </span>
@@ -376,7 +395,10 @@ export function MarketingScrollContent() {
             </p>
           </article>
 
-          <article className="md:col-span-6 lg:col-span-3 p-5 sm:p-6 flat-surface space-y-2.5">
+          <article
+            data-animate={CARD_HOVER_ANIMATION.marketingBentoCard}
+            className="md:col-span-6 lg:col-span-3 p-5 sm:p-6 flat-surface space-y-2.5"
+          >
             <span className="inline-flex items-center justify-center w-10 h-10 rounded-[10px] bg-[var(--success-subtle-bg)] text-[var(--success-text)] border border-[var(--separator-subtle)]">
               <Sparkles className="w-5 h-5" />
             </span>
@@ -387,7 +409,10 @@ export function MarketingScrollContent() {
             </p>
           </article>
 
-          <article className="md:col-span-6 lg:col-span-3 p-5 sm:p-6 flat-surface space-y-2.5">
+          <article
+            data-animate={CARD_HOVER_ANIMATION.marketingBentoCard}
+            className="md:col-span-6 lg:col-span-3 p-5 sm:p-6 flat-surface space-y-2.5"
+          >
             <span className="inline-flex items-center justify-center w-10 h-10 rounded-[10px] bg-[var(--accent-subtle-bg)] text-[var(--accent-text)] border border-[var(--separator-strong)]">
               <Lock className="w-5 h-5" />
             </span>
@@ -423,6 +448,7 @@ export function MarketingScrollContent() {
               <button
                 key={item.mode}
                 type="button"
+                data-animate={CARD_HOVER_ANIMATION.marketingShowcaseTab}
                 onClick={() => setSelectedUseCase(item.mode)}
                 className={`text-left p-4 sm:p-5 transition-all focus-ring cursor-pointer flex flex-col justify-between gap-2 ${
                   isSelected ? "glow-card" : "flat-surface opacity-85 hover:opacity-100"
@@ -585,6 +611,7 @@ export function MarketingScrollContent() {
           {HOME_AEO_FAQS.map((faq) => (
             <article
               key={faq.question}
+              data-animate={CARD_HOVER_ANIMATION.marketingFaqCard}
               className="p-5 sm:p-6 rounded-2xl flat-surface space-y-2"
             >
               <h3 className="text-base sm:text-lg font-medium tracking-[-0.015em] text-[var(--text-primary)]">

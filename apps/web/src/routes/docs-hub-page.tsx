@@ -4,6 +4,7 @@ import * as React from "react";
 import { Link, useNavigate } from "react-router";
 import { SeoHead } from "../components/seo/seo-head.js";
 import { DOCS_CATALOG, type DocArticle, HOME_AEO_FAQS } from "../content/docs-catalog.js";
+import { useCardHoverAnimation } from "../hooks/use-card-parallax.js";
 import { STATIC_ROUTE_SEO } from "../lib/seo.js";
 import { composerActions } from "../state/composer-store.js";
 
@@ -18,6 +19,7 @@ const CATEGORIES: ReadonlyArray<"All" | DocArticle["category"]> = [
 
 export function DocsHubPage() {
   const navigate = useNavigate();
+  const animateCard = useCardHoverAnimation();
   const [category, setCategory] = React.useState<"All" | DocArticle["category"]>("All");
   const [query, setQuery] = React.useState("");
 
@@ -117,7 +119,10 @@ export function DocsHubPage() {
 
       {/* Guides Grid */}
       {filteredDocs.length === 0 ? (
-        <div className="rounded-xl p-10 flat-surface text-center space-y-3">
+        <div
+          data-animate={animateCard("docsHubEmpty")}
+          className="rounded-xl p-10 flat-surface text-center space-y-3"
+        >
           <div className="text-sm font-medium">No documentation guides matched "{query}"</div>
           <Button
             variant="secondary"
@@ -135,6 +140,7 @@ export function DocsHubPage() {
           {filteredDocs.map((doc) => (
             <article
               key={doc.slug}
+              data-animate={animateCard("docsHubItem")}
               className="rounded-2xl p-6 flat-surface flex flex-col justify-between gap-4"
             >
               <div className="space-y-3">

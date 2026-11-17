@@ -216,7 +216,10 @@ describe("Open Prompt OS Landing Page & Frontend Plan Verification", () => {
         </QueryClientProvider>,
       );
 
-      // Product composer is immediately accessible
+      // Product composer is immediately accessible and fills first-screen viewport when anonymous
+      const mainWorkspace = document.getElementById("main-workspace");
+      expect(mainWorkspace?.className).toContain("min-h-[calc(100dvh-3.5rem)]");
+      expect(mainWorkspace?.className).toContain("sm:min-h-[calc(100dvh-4rem)]");
       const textarea = screen.getByLabelText(/Prompt intent and instructions/i);
       expect(textarea).toBeInTheDocument();
 
@@ -259,6 +262,7 @@ describe("Open Prompt OS Landing Page & Frontend Plan Verification", () => {
       // Marketing content must be completely unmounted after authentication without redirecting away from composer
       await waitFor(() => {
         expect(screen.queryByTestId("anonymous-marketing-content")).toBeNull();
+        expect(mainWorkspace?.className).not.toContain("min-h-[calc(100dvh-3.5rem)]");
       });
 
       // Guest record is migrated once and cleared from localStorage

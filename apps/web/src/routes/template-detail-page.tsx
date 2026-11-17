@@ -7,6 +7,7 @@ import * as React from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { SanitizedPromptRenderer } from "../components/output/output-card.js";
 import { SeoHead } from "../components/seo/seo-head.js";
+import { CARD_HOVER_ANIMATION } from "../hooks/use-card-parallax.js";
 import { copyTextToClipboard } from "../lib/dispatch.js";
 import { orpcClient } from "../lib/orpc.js";
 import { queryKeys } from "../lib/query-client.js";
@@ -45,12 +46,21 @@ export function TemplateDetailPage() {
   );
 
   if (detailQuery.isPending) {
-    return <div aria-busy="true" className="rounded-xl p-8 flat-surface animate-pulse h-64" />;
+    return (
+      <div
+        aria-busy="true"
+        data-animate={CARD_HOVER_ANIMATION.templateDetailLoading}
+        className="rounded-xl p-8 flat-surface animate-pulse h-64"
+      />
+    );
   }
 
   if (!tpl) {
     return (
-      <div className="rounded-xl p-8 flat-surface text-center space-y-3">
+      <div
+        data-animate={CARD_HOVER_ANIMATION.templateDetailNotFound}
+        className="rounded-xl p-8 flat-surface text-center space-y-3"
+      >
         <SeoHead
           meta={{
             title: "Template Not Found | Open Prompt OS",
@@ -102,7 +112,10 @@ export function TemplateDetailPage() {
         </Link>
       </div>
 
-      <div className="rounded-2xl p-6 sm:p-8 flat-surface space-y-5">
+      <div
+        data-animate={CARD_HOVER_ANIMATION.templateDetailMain}
+        className="rounded-2xl p-6 sm:p-8 flat-surface space-y-5"
+      >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="framework">{tpl.frameworkBadge}</Badge>
@@ -234,6 +247,7 @@ export function TemplateDetailPage() {
               <Link
                 key={rel.slug}
                 to={`/templates/${rel.slug}`}
+                data-animate={CARD_HOVER_ANIMATION.templateDetailRelated}
                 className="p-4 rounded-xl flat-surface hover:border-[var(--separator-strong)] transition-colors space-y-2 focus-ring"
               >
                 <div className="flex items-center justify-between gap-2">
