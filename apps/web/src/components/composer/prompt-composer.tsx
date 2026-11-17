@@ -175,20 +175,20 @@ export function PromptComposer({
     <div className="relative">
       {/* Dedicated Hero Section for Anonymous Visitors */}
       {!isAuthenticated ? (
-        <div className="text-center max-w-4xl mx-auto pt-1 pb-4 sm:pt-6 sm:pb-10 space-y-2.5 sm:space-y-5">
+        <div className="text-center max-w-4xl mx-auto pt-0 pb-4 sm:pt-1 sm:pb-8 space-y-2.5 sm:space-y-3.5">
           <div className="hidden sm:inline-flex flex-wrap items-center justify-center gap-2 px-3.5 py-1 sm:px-4 sm:py-1.5 rounded-full bg-[var(--accent-subtle-bg)] border border-[var(--separator-strong)] font-mono text-xs uppercase tracking-[0.08em] font-normal text-[var(--text-primary)] max-w-full">
             <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--accent-text)] shrink-0" />
             <span>The Operating System for Prompts · Instant free use</span>
           </div>
 
-          <h1 className="text-[28px] sm:text-6xl lg:text-[64px] font-medium tracking-[-0.03em] leading-[1.06] text-balance text-[var(--text-primary)]">
-            Write prompts that work{" "}
-            <span className="text-gradient-brand whitespace-nowrap">on the first try.</span>
+          <h1 className="text-[26px] sm:text-4xl lg:text-5xl font-medium tracking-[-0.03em] leading-[1.08] text-balance text-[var(--text-primary)]">
+            Stop overthinking{" "}
+            <span className="text-gradient-brand whitespace-nowrap">your prompts.</span>
           </h1>
 
-          <p className="text-sm sm:text-xl text-[var(--text-secondary)] max-w-2xl mx-auto leading-relaxed">
-            Turn rough ideas into clear, structured prompts for ChatGPT, Claude, and Gemini. Pick
-            your goal, audience, and format—then send in one click.
+          <p className="text-sm sm:text-lg text-[var(--text-secondary)] max-w-3xl mx-auto leading-relaxed">
+            Skip the 10 back-and-forth messages fixing weak AI answers. Type a rough idea below and
+            hit Compile for a master-level prompt on the first run.
           </p>
 
           <div className="hidden sm:inline-flex items-center gap-2 text-sm text-[var(--success-text)] font-medium">

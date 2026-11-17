@@ -99,7 +99,7 @@ export function HybridLayout() {
         id="main-workspace"
         className={`flex-1 mx-auto w-full max-w-[1360px] px-4 sm:px-8 ${
           !isAuthenticated && isIndexRoute
-            ? "min-h-[calc(100dvh-3.5rem)] sm:min-h-[calc(100dvh-4rem)] flex flex-col justify-center py-6 sm:py-10"
+            ? "min-h-[calc(100dvh-3.5rem)] sm:min-h-[calc(100dvh-4rem)] pt-4 pb-8 sm:pt-7 sm:pb-12"
             : "pt-3 sm:pt-6 pb-8 sm:pb-12"
         }`}
       >
