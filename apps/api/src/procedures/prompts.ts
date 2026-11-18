@@ -51,7 +51,7 @@ export async function executeCompose(
     // Atomically increment daily usage counter
     await recordUsage(ctx.actor, "compose");
 
-    // Persist to prompt_generations if in a tenant workspace
+    // Persist to prompt_generations
     await recordPromptGeneration(ctx.actor, {
       kind: "compose",
       rawInput: input.draft.rawInput,
@@ -95,7 +95,7 @@ export async function executeRefine(
     // Atomically increment daily usage counter
     await recordUsage(ctx.actor, action);
 
-    // Persist to prompt_generations if in a tenant workspace
+    // Persist to prompt_generations
     await recordPromptGeneration(ctx.actor, {
       kind: action,
       rawInput: input.originalPrompt,

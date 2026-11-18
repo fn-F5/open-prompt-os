@@ -70,7 +70,7 @@ export function registerComposeStream(app: Hono<ApiEnv>, deps: ComposeStreamDeps
               // Atomically increment daily usage counter
               await recordUsage(actor, "compose");
 
-              // Persist to prompt_generations if in a tenant workspace
+              // Persist to prompt_generations
               await recordPromptGeneration(actor, {
                 kind: "compose",
                 rawInput: parsed.data.draft.rawInput,
