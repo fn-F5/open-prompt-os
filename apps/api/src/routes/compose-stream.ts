@@ -5,6 +5,7 @@ import { redactSecrets } from "@open-prompt-os/core";
 import type { Context, Hono } from "hono";
 import type { ApiEnv } from "../app-env.js";
 import { resolveActor } from "../auth/session-resolver.js";
+import { enrichRequestContext, logger } from "../logger.js";
 import { checkQuota, recordPromptGeneration, recordUsage } from "../services/usage-quota.js";
 
 export interface ComposeStreamDeps {
@@ -18,6 +19,11 @@ export function registerComposeStream(app: Hono<ApiEnv>, deps: ComposeStreamDeps
   app.post("/api/prompts/compose/stream", async (c) => {
     const requestId = c.get("requestId");
     const actor = await resolveActor(c, deps.trustProxy, deps.auth);
+    enrichRequestContext({
+      userId: actor.userId,
+      spaceId: actor.spaceId,
+      rpcProcedure: "prompts.composeStream",
+    });
 
     if (!deps.allowRequest(actor.clientKey)) {
       return c.json({ code: "RATE_LIMITED", message: "Too many requests.", requestId }, 429);
@@ -91,6 +97,11 @@ export function registerComposeStream(app: Hono<ApiEnv>, deps: ComposeStreamDeps
             }
           }
         } catch (error) {
+          logger.error("Compose stream failed", {
+            event: "prompt.stream_failed",
+            requestId,
+            err: error,
+          });
           const message = redactSecrets(error instanceof Error ? error.message : "Internal error");
           controller.enqueue(
             encoder.encode(

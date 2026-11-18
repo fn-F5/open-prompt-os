@@ -692,4 +692,38 @@ describe("Modern Web Guidance fixes", () => {
       expect(screen.queryByText(/quick question/i)).toBeNull();
     });
   });
+
+  describe("11. PromptComposer Advanced controls & GuidedParameters visibility", () => {
+    it("renders Advanced button to switch frameworks and reveals GuidedParameters when typing", () => {
+      const qc = createAppQueryClient();
+
+      render(
+        <QueryClientProvider client={qc}>
+          <MemoryRouter>
+            <PromptComposer isPending={false} onSubmitPrompt={vi.fn()} onStopGeneration={vi.fn()} />
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+
+      // Advanced button is visible right away and opens framework controls
+      const advButton = screen.getByRole("button", { name: /Advanced/i });
+      fireEvent.click(advButton);
+      expect(screen.getByText("Advanced Prompt Settings")).toBeInTheDocument();
+
+      // Switch framework from COSTAR to RISE
+      fireEvent.click(screen.getByRole("button", { name: /Inspired by RISE/i }));
+      expect(composerActions.getActiveDraft().framework).toBe("rise");
+      expect(advButton).toHaveTextContent("RISE");
+
+      // Typing reveals GuidedParameters
+      expect(screen.queryByRole("region", { name: /Guided prompt parameters/i })).toBeNull();
+      const textarea = screen.getByLabelText<HTMLTextAreaElement>(
+        /Prompt intent and instructions/i,
+      );
+      fireEvent.change(textarea, {
+        target: { value: "Draft a rollout checklist for billing alerts" },
+      });
+      expect(screen.getByRole("button", { name: /Goal/i })).toBeInTheDocument();
+    });
+  });
 });

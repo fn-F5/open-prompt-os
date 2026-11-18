@@ -6,6 +6,7 @@ import { createAuth, loadAuthBoot } from "@open-prompt-os/auth";
 import { prisma, resolveDatabaseUrl } from "@open-prompt-os/db";
 import { createApp } from "./app.js";
 import { loadConfig } from "./config.js";
+import { logger } from "./logger.js";
 import { createRateLimiter } from "./rate-limit.js";
 import { createRuntime } from "./runtime.js";
 
@@ -35,5 +36,5 @@ const app = createApp({
 });
 
 serve({ fetch: app.fetch, port: config.port }, (info) => {
-  console.log(`api listening on ${info.port}`);
+  logger.info("API server started", { event: "server.started", port: info.port });
 });
