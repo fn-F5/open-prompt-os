@@ -11,3 +11,4 @@ reports/
 
 # Prisma generated client
 packages/db/src/generated/
+db/

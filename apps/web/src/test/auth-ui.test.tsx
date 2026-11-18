@@ -54,6 +54,8 @@ describe("Auth UI, Passkey removal, Settings & Placeholder tokens", () => {
 
       await waitFor(() => {
         expect(screen.getByPlaceholderText("John Doe")).toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: /Continue with Google/i })).toBeNull();
+        expect(screen.queryByRole("button", { name: /Continue with GitHub/i })).toBeNull();
       });
       expect(screen.getByText("Sign In to Open Prompt OS")).toBeInTheDocument();
       expect(screen.getByLabelText(/Name \(optional\)/i)).toBeInTheDocument();
@@ -61,9 +63,7 @@ describe("Auth UI, Passkey removal, Settings & Placeholder tokens", () => {
       expect(screen.queryByPlaceholderText("Alex Rivera")).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: /Continue with Passkey/i })).toBeNull();
       expect(screen.queryByText(/hardware passkey/i)).toBeNull();
-      expect(screen.getByText(/or continue with email/i)).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: /Continue with Google/i })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: /Continue with GitHub/i })).toBeInTheDocument();
+      expect(screen.queryByText(/or continue with email/i)).toBeNull();
 
       const emailInput = screen.getByPlaceholderText("you@company.com");
       fireEvent.change(emailInput, { target: { value: "user@example.com" } });

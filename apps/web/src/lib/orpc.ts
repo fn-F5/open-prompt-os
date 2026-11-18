@@ -382,10 +382,9 @@ function remoteApiUrl(): string | undefined {
     if (trimmed === "same-origin") return "";
     if (trimmed.length > 0) return trimmed;
   }
-  // Outside Vitest unit tests, talk to local API in dev or same-origin in production
+  // Outside Vitest unit tests, use same-origin (proxied by Vite in dev, direct in production)
   if (typeof window !== "undefined" && !import.meta.env.VITEST) {
-    const host = window.location.hostname;
-    return host === "localhost" || host === "127.0.0.1" ? "http://localhost:3001" : "";
+    return "";
   }
   return undefined;
 }

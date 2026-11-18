@@ -5,6 +5,11 @@
   "packageManager": "pnpm@12.18.0",
   "scripts": {
     "dev": "pnpm --filter=@open-prompt-os/api --filter @open-prompt-os/web dev",
+    "db:generate": "pnpm --filter @open-prompt-os/db db:generate",
+    "db:migrate": "pnpm --filter @open-prompt-os/db db:migrate && pnpm --filter @open-prompt-os/db db:rls",
+    "db:migrate:deploy": "pnpm --filter @open-prompt-os/db db:migrate:deploy && pnpm --filter @open-prompt-os/db db:rls",
+    "db:rls": "pnpm --filter @open-prompt-os/db db:rls",
+    "db:seed": "pnpm --filter @open-prompt-os/db db:seed",
     "build": "turbo run build",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",

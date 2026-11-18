@@ -14,16 +14,18 @@ export interface AuthSessionState {
     otp: string;
     name?: string;
   }) => Promise<AuthenticatedUser>;
-  readonly signInWithGoogle: () => Promise<void>;
-  readonly signInWithGitHub: () => Promise<void>;
+  readonly signInWithGoogle: (options?: { callbackURL?: string }) => Promise<void>;
+  readonly signInWithGitHub: (options?: { callbackURL?: string }) => Promise<void>;
   readonly signOut: () => Promise<void>;
 }
 
 const sendEmailCode: AuthSessionState["sendEmailCode"] = (input) => authClient.sendEmailCode(input);
 const verifyEmailCode: AuthSessionState["verifyEmailCode"] = (input) =>
   authClient.verifyEmailCode(input);
-const signInWithGoogle: AuthSessionState["signInWithGoogle"] = () => authClient.signInWithGoogle();
-const signInWithGitHub: AuthSessionState["signInWithGitHub"] = () => authClient.signInWithGitHub();
+const signInWithGoogle: AuthSessionState["signInWithGoogle"] = (options) =>
+  options ? authClient.signInWithGoogle(options) : authClient.signInWithGoogle();
+const signInWithGitHub: AuthSessionState["signInWithGitHub"] = (options) =>
+  options ? authClient.signInWithGitHub(options) : authClient.signInWithGitHub();
 
 export function useAuthSession(): AuthSessionState {
   const qc = useQueryClient();

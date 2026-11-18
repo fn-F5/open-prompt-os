@@ -66,6 +66,41 @@ function toUser(value: unknown): AuthenticatedUser | null {
   };
 }
 
+function resolveSocialCallbackUrl(callbackURL?: string): string {
+  const trimmed = callbackURL?.trim();
+  if (trimmed) {
+    if (trimmed.startsWith("/") && !trimmed.startsWith("//")) {
+      return new URL(trimmed, window.location.origin).toString();
+    }
+    try {
+      const parsed = new URL(trimmed);
+      if (parsed.origin === window.location.origin) {
+        return parsed.toString();
+      }
+    } catch {
+      // Fall through to current page URL
+    }
+  }
+  return window.location.href;
+}
+
+async function signInWithSocial(
+  provider: "google" | "github",
+  label: string,
+  options?: { callbackURL?: string },
+): Promise<void> {
+  const result = await betterAuth.signIn.social({
+    provider,
+    callbackURL: resolveSocialCallbackUrl(options?.callbackURL),
+  });
+  if (result?.error) {
+    const message = (result.error as { message?: unknown }).message;
+    throw new Error(
+      typeof message === "string" && message.trim() ? message : `Could not start ${label} sign-in.`,
+    );
+  }
+}
+
 function applyUser(value: unknown) {
   const user = toUser(value);
   currentSnapshot = {
@@ -182,18 +217,12 @@ export const authClient = {
     return user;
   },
 
-  async signInWithGoogle(): Promise<void> {
-    await betterAuth.signIn.social({
-      provider: "google",
-      callbackURL: window.location.href,
-    });
+  async signInWithGoogle(options?: { callbackURL?: string }): Promise<void> {
+    await signInWithSocial("google", "Google", options);
   },
 
-  async signInWithGitHub(): Promise<void> {
-    await betterAuth.signIn.social({
-      provider: "github",
-      callbackURL: window.location.href,
-    });
+  async signInWithGitHub(options?: { callbackURL?: string }): Promise<void> {
+    await signInWithSocial("github", "GitHub", options);
   },
 
   async signOut(): Promise<void> {

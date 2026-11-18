@@ -405,12 +405,14 @@ describe("Cloudflare Turnstile in AuthDialog", () => {
       expect(screen.getByRole("alert")).toHaveTextContent("Google popup blocked");
     });
     expect(googleSpy).toHaveBeenCalledTimes(1);
+    expect(googleSpy).toHaveBeenCalledWith({ callbackURL: "/library" });
 
     fireEvent.click(githubBtn);
     await waitFor(() => {
       expect(screen.getByRole("alert")).toHaveTextContent("Could not start github sign-in.");
     });
     expect(githubSpy).toHaveBeenCalledTimes(1);
+    expect(githubSpy).toHaveBeenCalledWith({ callbackURL: "/library" });
 
     fireEvent.change(screen.getByLabelText("Email address"), {
       target: { value: "ada@example.com" },

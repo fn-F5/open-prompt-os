@@ -64,6 +64,7 @@ export function createApp(options: AppOptions) {
         "x-user-id",
         "x-space-id",
         "x-captcha-response",
+        "authorization",
       ],
       exposeHeaders: ["x-request-id"],
       credentials: true,
