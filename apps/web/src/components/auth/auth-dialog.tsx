@@ -154,7 +154,7 @@ export function AuthDialog({ turnstileSiteKey }: { turnstileSiteKey?: string | n
     setProviders({ google: true, github: true });
     let active = true;
     void authClient.getOAuthProviders().then((status) => {
-      if (active && (status.google || status.github)) {
+      if (active) {
         setProviders(status);
       }
     });
@@ -239,10 +239,11 @@ export function AuthDialog({ turnstileSiteKey }: { turnstileSiteKey?: string | n
       clearPendingSignupReferral();
     }
     try {
+      const route = safeInternalRoute(intendedRoute);
       if (provider === "google") {
-        await signInWithGoogle();
+        await (route ? signInWithGoogle({ callbackURL: route }) : signInWithGoogle());
       } else {
-        await signInWithGitHub();
+        await (route ? signInWithGitHub({ callbackURL: route }) : signInWithGitHub());
       }
     } catch (err) {
       clearPendingSignupReferral();

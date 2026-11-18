@@ -234,11 +234,13 @@ model SpaceMember {
 
 // ─────────────────────────────── Prompts ───────────────────────────────
 
-/// RLS: space_id = current_setting('app.space_id')
+/// RLS: space_id = current_setting('app.space_id') or (space_id IS NULL AND client_key = current_setting('app.client_key'))
 model PromptGeneration {
   id                 String          @id @default(cuid())
-  spaceId            String          @map("space_id")
+  spaceId            String?         @map("space_id")
   userId             String?         @map("user_id")
+  /// SHA-256 of client IP/key for anonymous guest generations
+  clientKey          String?         @map("client_key")
   kind               GenerationKind  @default(compose)
   rawInput           String          @map("raw_input")
   compiledPrompt     String          @map("compiled_prompt")
@@ -253,12 +255,13 @@ model PromptGeneration {
   guestInteractionId String?         @map("guest_interaction_id")
   createdAt          DateTime        @default(now()) @map("created_at")
 
-  space        Space         @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  space        Space?        @relation(fields: [spaceId], references: [id], onDelete: Cascade)
   user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
   savedPrompts SavedPrompt[]
 
   @@unique([spaceId, guestInteractionId])
   @@index([spaceId, createdAt(sort: Desc)])
+  @@index([clientKey, createdAt(sort: Desc)])
   @@map("prompt_generations")
 }
 

@@ -96,7 +96,7 @@ describe("api", () => {
     expect(loadConfig({ GEMINI_API_KEY: "" }).geminiApiKey).toBeUndefined();
   });
 
-  it("allows x-captcha-response in CORS preflight headers", async () => {
+  it("allows x-captcha-response and authorization in CORS preflight headers", async () => {
     const app = buildApp(20);
     const response = await app.request(
       "http://localhost/api/auth/email-otp/send-verification-otp",
@@ -105,14 +105,14 @@ describe("api", () => {
         headers: {
           origin: "http://localhost:5173",
           "access-control-request-method": "POST",
-          "access-control-request-headers": "content-type,x-captcha-response",
+          "access-control-request-headers": "content-type,x-captcha-response,authorization",
         },
       },
     );
     expect(response.status).toBe(204);
-    expect(response.headers.get("access-control-allow-headers")?.toLowerCase()).toContain(
-      "x-captcha-response",
-    );
+    const allowedHeaders = response.headers.get("access-control-allow-headers")?.toLowerCase();
+    expect(allowedHeaders).toContain("x-captcha-response");
+    expect(allowedHeaders).toContain("authorization");
   });
 });
 

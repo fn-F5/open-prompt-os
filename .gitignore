@@ -11,3 +11,12 @@ reports/
 
 # Prisma generated client
 packages/db/src/generated/
+
+# Local root db data directory (anchored to repo root so packages/db/ is not ignored)
+/db/
+
+# Agent skill artifacts
+.agents/
+.claude/
+.windsurf/
+skills-lock.json

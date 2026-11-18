@@ -454,6 +454,62 @@ describe("API Routes & Database Integration", () => {
       const text = await res.text();
       expect(text).toContain("QUOTA_EXCEEDED");
     });
+
+    it("persists anonymous (guest) compose compilations in prompt_generations", async () => {
+      const guestKey = `anon_guest_${Date.now()}`;
+      const { hashClientKey } = await import("./auth/session-resolver.js");
+      const hashedGuestKey = hashClientKey(guestKey);
+
+      try {
+        const res = await app.request("http://localhost/rpc/prompts/compose", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-client-key": guestKey,
+          },
+          body: JSON.stringify({
+            json: {
+              interactionId: `int_guest_${Date.now()}`,
+              draft: {
+                rawInput: "Summarize database indexing strategies for [Workload_Type]",
+                mode: "text",
+                modelId: "gpt-4.1",
+                constraints: ["Keep under 300 words"],
+                guardrails: [],
+                advanced: {},
+              },
+            },
+          }),
+        });
+
+        expect(res.status).toBe(200);
+        const { json } = (await res.json()) as {
+          json: { compiledPrompt: string; remainingDailyPrompts: number };
+        };
+        expect(json.compiledPrompt).toBeDefined();
+        expect(json.remainingDailyPrompts).toBe(4); // guest dailyLimit is 5
+
+        const guestGens = await runAsSystem((tx) =>
+          tx.promptGeneration.findMany({
+            where: { clientKey: hashedGuestKey },
+          }),
+        );
+        expect(guestGens).toHaveLength(1);
+        expect(guestGens[0]?.spaceId).toBeNull();
+        expect(guestGens[0]?.userId).toBeNull();
+        expect(guestGens[0]?.clientKey).toBe(hashedGuestKey);
+        expect(guestGens[0]?.kind).toBe("compose");
+        expect(guestGens[0]?.rawInput).toBe(
+          "Summarize database indexing strategies for [Workload_Type]",
+        );
+        expect(guestGens[0]?.compiledPrompt).toBe(json.compiledPrompt);
+      } finally {
+        await runAsSystem(async (tx) => {
+          await tx.promptGeneration.deleteMany({ where: { clientKey: hashedGuestKey } });
+          await tx.usageCounter.deleteMany({ where: { clientKey: hashedGuestKey } });
+        });
+      }
+    });
   });
 
   describe("Session Authentication (sessions table)", () => {

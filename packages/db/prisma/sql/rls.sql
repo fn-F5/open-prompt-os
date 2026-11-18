@@ -19,7 +19,7 @@ DO $$
 DECLARE t text;
 BEGIN
   FOREACH t IN ARRAY ARRAY[
-    'prompt_generations', 'saved_prompts', 'subscriptions',
+    'saved_prompts', 'subscriptions',
     'billing_audit_events', 'space_members'
   ] LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
@@ -31,6 +31,23 @@ BEGIN
       'WITH CHECK (space_id = current_setting(''app.space_id'', true) OR current_setting(''app.is_system'', true) = ''true'')', t);
   END LOOP;
 END $$;
+
+-- prompt_generations: tenant rows by space, guest rows by client key, or system mode
+ALTER TABLE prompt_generations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE prompt_generations FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON prompt_generations;
+DROP POLICY IF EXISTS generation_access ON prompt_generations;
+CREATE POLICY generation_access ON prompt_generations
+  USING (
+    current_setting('app.is_system', true) = 'true'
+    OR (space_id IS NOT NULL AND space_id = current_setting('app.space_id', true))
+    OR (space_id IS NULL AND client_key = current_setting('app.client_key', true))
+  )
+  WITH CHECK (
+    current_setting('app.is_system', true) = 'true'
+    OR (space_id IS NOT NULL AND space_id = current_setting('app.space_id', true))
+    OR (space_id IS NULL AND client_key = current_setting('app.client_key', true))
+  );
 
 -- Shared prompts are publicly readable via share_id
 DROP POLICY IF EXISTS public_shared_read ON saved_prompts;

@@ -207,34 +207,42 @@ export interface PromptGenerationPayload {
 }
 
 /**
- * Persists an execution into `prompt_generations` if the actor has a space.
+ * Persists an execution into `prompt_generations` for both authenticated workspaces and anonymous guests.
  */
 export async function recordPromptGeneration(
   actor: ResolvedActor,
   payload: PromptGenerationPayload,
 ): Promise<string | null> {
-  if (!actor.spaceId) return null;
-  const spaceId = actor.spaceId;
+  const spaceId = actor.spaceId ?? null;
+  const clientKey = spaceId ? null : actor.hashedClientKey;
 
-  return runAsTenant({ spaceId, userId: actor.userId }, async (tx) => {
-    const created = await tx.promptGeneration.create({
-      data: {
-        spaceId,
-        userId: actor.userId ?? null,
-        kind: payload.kind,
-        rawInput: payload.rawInput,
-        compiledPrompt: payload.compiledPrompt,
-        draft: payload.draft ? (payload.draft as Prisma.InputJsonValue) : Prisma.JsonNull,
-        mode: payload.mode,
-        framework: payload.framework,
-        modelId: payload.modelId ?? null,
-        providerId: payload.providerId,
-        latencyMs: payload.latencyMs,
-      },
-      select: { id: true },
-    });
-    return created.id;
-  });
+  return runAsTenant(
+    {
+      spaceId: actor.spaceId,
+      userId: actor.userId,
+      clientKey: spaceId ? undefined : actor.hashedClientKey,
+    },
+    async (tx) => {
+      const created = await tx.promptGeneration.create({
+        data: {
+          spaceId,
+          userId: actor.userId ?? null,
+          clientKey,
+          kind: payload.kind,
+          rawInput: payload.rawInput,
+          compiledPrompt: payload.compiledPrompt,
+          draft: payload.draft ? (payload.draft as Prisma.InputJsonValue) : Prisma.JsonNull,
+          mode: payload.mode,
+          framework: payload.framework,
+          modelId: payload.modelId ?? null,
+          providerId: payload.providerId,
+          latencyMs: payload.latencyMs,
+        },
+        select: { id: true },
+      });
+      return created.id;
+    },
+  );
 }
 
 /**

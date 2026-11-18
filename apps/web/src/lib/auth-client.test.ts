@@ -168,7 +168,7 @@ describe("authClient", () => {
     });
   });
 
-  it("handles social sign-in", async () => {
+  it("handles social sign-in, callbackURL resolution, and errors", async () => {
     hoisted.signInSocialMock.mockResolvedValue({});
     await authClient.signInWithGoogle();
     expect(hoisted.signInSocialMock).toHaveBeenCalledWith({
@@ -181,6 +181,30 @@ describe("authClient", () => {
       provider: "github",
       callbackURL: window.location.href,
     });
+
+    await authClient.signInWithGoogle({ callbackURL: "/library" });
+    expect(hoisted.signInSocialMock).toHaveBeenLastCalledWith({
+      provider: "google",
+      callbackURL: `${window.location.origin}/library`,
+    });
+
+    await authClient.signInWithGitHub({ callbackURL: "https://evil.example.com/phish" });
+    expect(hoisted.signInSocialMock).toHaveBeenLastCalledWith({
+      provider: "github",
+      callbackURL: window.location.href,
+    });
+
+    hoisted.signInSocialMock.mockResolvedValueOnce({
+      data: null,
+      error: { message: "Provider not found" },
+    });
+    await expect(authClient.signInWithGoogle()).rejects.toThrow("Provider not found");
+
+    hoisted.signInSocialMock.mockResolvedValueOnce({
+      data: null,
+      error: {},
+    });
+    await expect(authClient.signInWithGitHub()).rejects.toThrow("Could not start GitHub sign-in.");
   });
 
   it("refreshes session, fetches OAuth providers, and signs out outside test mode", async () => {
