@@ -1,6 +1,6 @@
 import type { ComposePromptOutput, ComposerDraft, ComposerMode } from "@open-prompt-os/contracts";
 import * as React from "react";
-import { getGuestInteraction, saveGuestInteraction } from "../lib/guest-session-manager.js";
+import { saveGuestInteraction } from "../lib/guest-session-manager.js";
 import { trackEvent } from "../lib/telemetry.js";
 
 function createDefaultDraft(mode: ComposerMode, modelId: string | null = null): ComposerDraft {
@@ -37,45 +37,11 @@ export interface ComposerStoreState {
 }
 
 function createInitialStoreState(): ComposerStoreState {
-  const guest = getGuestInteraction();
   const baseDrafts: Record<ComposerMode, ComposerDraft> = {
     text: createDefaultDraft("text"),
     image: createDefaultDraft("image"),
     video: createDefaultDraft("video"),
   };
-
-  if (guest) {
-    const mode = guest.prompt.mode;
-    baseDrafts[mode] = guest.prompt;
-    const hydratedOutput: ComposePromptOutput | null = guest.response
-      ? {
-          interactionId: guest.interactionId,
-          compiledPrompt: guest.response.compiledPrompt,
-          detectedVariables: guest.response.detectedVariables,
-          followUpQuestions: [],
-          providerId: guest.response.providerId ?? "openai",
-          modelId: guest.response.modelId ?? guest.prompt.modelId ?? "openai-text",
-          latencyMs: 0,
-          healedFromFailure: false,
-          remainingDailyPrompts: null,
-          requestId: `req_hydrated_${guest.interactionId.slice(0, 8)}`,
-        }
-      : null;
-
-    return {
-      activeMode: mode,
-      draftsByMode: baseDrafts,
-      selectedModelByMode: {
-        text: mode === "text" && guest.prompt.modelId ? guest.prompt.modelId : "openai-text",
-        image: mode === "image" && guest.prompt.modelId ? guest.prompt.modelId : "openai-image",
-        video: mode === "video" && guest.prompt.modelId ? guest.prompt.modelId : "google-video",
-      },
-      completedOutput: hydratedOutput,
-      completedSourceDraft: hydratedOutput ? guest.prompt : null,
-      streamingBuffer: null,
-      isAdvancedOpen: false,
-    };
-  }
 
   return {
     activeMode: "text",

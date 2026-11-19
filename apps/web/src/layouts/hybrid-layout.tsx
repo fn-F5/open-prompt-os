@@ -4,6 +4,7 @@ import * as React from "react";
 import { Link, Outlet, useLocation } from "react-router";
 import { AuthDialog } from "../components/auth/auth-dialog.js";
 import { BrandLogo } from "../components/brand/brand-logo.js";
+import { GitHubLogo } from "../components/brand/github-logo.js";
 import { FeedbackDialog } from "../components/feedback/feedback-dialog.js";
 import { StorageAndNetworkBanner } from "../components/feedback/storage-banner.js";
 import { MarketingScrollContent } from "../components/marketing/marketing-scroll-content.js";
@@ -148,6 +149,15 @@ export function HybridLayout() {
                 <ShieldCheck className="w-4 h-4 text-[var(--success-text)]" />
                 <span>We never train on your prompts</span>
               </span>
+              <a
+                href="https://github.com/fn-F5/open-prompt-os"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors focus-ring rounded"
+              >
+                <GitHubLogo className="w-4 h-4 shrink-0" />
+                <span>GitHub</span>
+              </a>
             </div>
           </div>
         </footer>
@@ -166,9 +176,20 @@ export function HybridLayout() {
                 The complete lifecycle platform for creating, diagnosing, organizing, and sending
                 high-performing AI prompts across any model.
               </p>
-              <div className="inline-flex items-center gap-2 text-sm text-[var(--success-text)] font-medium">
-                <ShieldCheck className="w-4 h-4" />
-                <span>We never train on your prompts.</span>
+              <div className="flex flex-col items-start gap-2.5">
+                <div className="inline-flex items-center gap-2 text-sm text-[var(--success-text)] font-medium">
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>We never train on your prompts.</span>
+                </div>
+                <a
+                  href="https://github.com/fn-F5/open-prompt-os"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2.5 text-base font-medium text-[var(--text-primary)] hover:text-[var(--accent-text)] transition-colors focus-ring rounded"
+                >
+                  <GitHubLogo className="w-5 h-5 shrink-0" />
+                  <span>Open Source on GitHub</span>
+                </a>
               </div>
             </div>
 

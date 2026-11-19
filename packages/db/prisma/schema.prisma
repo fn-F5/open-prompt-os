@@ -122,6 +122,7 @@ model User {
   promptGenerations PromptGeneration[]
   savedPrompts      SavedPrompt[]
   feedbacks         UserFeedback[]
+  planInterests     PlanInterest[]
 
   @@map("users")
 }
@@ -214,6 +215,7 @@ model Space {
   billingAuditEvents BillingAuditEvent[]
   usageCounters      UsageCounter[]
   feedbacks          UserFeedback[]
+  planInterests      PlanInterest[]
 
   @@map("spaces")
 }
@@ -453,4 +455,27 @@ model UserFeedback {
   @@index([spaceId, createdAt(sort: Desc)])
   @@index([userId, createdAt(sort: Desc)])
   @@map("user_feedback")
+}
+
+// ─────────────────────────────── Plan Interest ───────────────────────────────
+
+/// Stores emails of users & visitors who expressed interest in upgrading during MVP.
+model PlanInterest {
+  id        String   @id @default(cuid())
+  spaceId   String?  @map("space_id")
+  userId    String?  @map("user_id")
+  /// SHA-256 of client IP/key for anonymous rate-limiting & RLS isolation
+  clientKey String?  @map("client_key")
+  email     String   @db.VarChar(254)
+  plan      String   @db.VarChar(32)
+  interval  String   @default("yearly") @db.VarChar(16)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  space Space? @relation(fields: [spaceId], references: [id], onDelete: SetNull)
+  user  User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([email, createdAt(sort: Desc)])
+  @@index([plan, createdAt(sort: Desc)])
+  @@index([spaceId, createdAt(sort: Desc)])
+  @@map("plan_interest")
 }

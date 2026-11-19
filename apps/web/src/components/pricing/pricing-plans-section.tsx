@@ -2,25 +2,17 @@ import {
   type BillingInterval,
   DEFAULT_PRICING_PLANS,
   type PricingPlanItem,
+  type UpgradeInterestPlan,
 } from "@open-prompt-os/contracts";
 import { Badge, Button, Tabs, toast } from "@open-prompt-os/ui-web";
 import { useQuery } from "@tanstack/react-query";
 import { Check, ShieldCheck } from "lucide-react";
 import * as React from "react";
-import { useLocation, useNavigate } from "react-router";
 import { useAuthSession } from "../../hooks/use-auth-session.js";
 import { shouldAnimateCard } from "../../hooks/use-card-parallax.js";
 import { orpcClient } from "../../lib/orpc.js";
 import { queryKeys } from "../../lib/query-client.js";
-import { openAuthDialog } from "../../state/auth-dialog-store.js";
-
-function redirectToBillingUrl(url: string, navigate: (to: string) => void): void {
-  if (url.startsWith("http://") || url.startsWith("https://")) {
-    window.location.assign(url);
-    return;
-  }
-  navigate(url);
-}
+import { PlanInterestDialog } from "./plan-interest-dialog.js";
 
 export function formatUsdPrice(amount: number): string {
   return Number.isInteger(amount) ? `$${amount}` : `$${amount.toFixed(2)}`;
@@ -33,17 +25,20 @@ export interface PricingPlansSectionProps {
 
 /**
  * Single pricing section shared across `/pricing` and the landing marketing showcase
- * for both anonymous visitors and signed-in users, backed by live Stripe catalog prices.
+ * for both anonymous visitors and signed-in users.
  */
 export function PricingPlansSection({
   headingAs = "h2",
   showPrivacyBanner = false,
 }: PricingPlansSectionProps) {
-  const { isAuthenticated } = useAuthSession();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [interval, setInterval] = React.useState<BillingInterval>("monthly");
-  const [loadingPlan, setLoadingPlan] = React.useState<"pro" | "team" | "portal" | null>(null);
+  const { isAuthenticated, user } = useAuthSession();
+  const [interval, setInterval] = React.useState<BillingInterval>("yearly");
+  const [loadingPlan, setLoadingPlan] = React.useState<UpgradeInterestPlan | null>(null);
+  const [interestModalPlan, setInterestModalPlan] = React.useState<PricingPlanItem | null>(null);
+  const [interestEmail, setInterestEmail] = React.useState("");
+  const [interestError, setInterestError] = React.useState<string | null>(null);
+  const [isSubmittingEmail, setIsSubmittingEmail] = React.useState(false);
+  const [confirmedEmail, setConfirmedEmail] = React.useState<string | null>(null);
 
   const plansQuery = useQuery({
     queryKey: queryKeys.billing.plans(),
@@ -51,100 +46,93 @@ export function PricingPlansSection({
     placeholderData: () => DEFAULT_PRICING_PLANS.map((p) => ({ ...p, features: [...p.features] })),
   });
 
-  const billingQuery = useQuery({
-    queryKey: queryKeys.billing.status(),
-    queryFn: () => orpcClient.billing.status(),
-    enabled: isAuthenticated,
-  });
-
-  const activePlan = isAuthenticated ? (billingQuery.data?.plan ?? "free") : "free";
   const plans = plansQuery.data ?? DEFAULT_PRICING_PLANS;
-  const isLandingRoute = location.pathname === "/";
 
-  const handleCheckout = async (plan: "pro" | "team") => {
-    if (!isAuthenticated) {
-      openAuthDialog({ reason: "navbar_signin", intendedRoute: "/pricing" });
-      return;
-    }
-    try {
-      setLoadingPlan(plan);
-      const res = await orpcClient.billing.checkout({ plan, interval, seats: 1 });
-      redirectToBillingUrl(res.url, navigate);
-    } catch (err) {
-      toast({
-        title: "Checkout failed",
-        description: err instanceof Error ? err.message : "Could not start checkout session.",
-      });
-    } finally {
-      setLoadingPlan(null);
-    }
+  const closeInterestModal = () => {
+    if (isSubmittingEmail) return;
+    setInterestModalPlan(null);
+    setInterestEmail("");
+    setInterestError(null);
+    setConfirmedEmail(null);
   };
 
-  const handlePortal = async () => {
+  const handlePlanSelect = async (plan: PricingPlanItem) => {
+    if (plan.id === "free") return;
+    const upgradePlan: UpgradeInterestPlan = plan.id;
+
+    setInterestError(null);
+
+    if (isAuthenticated) {
+      try {
+        setLoadingPlan(upgradePlan);
+        const result = await orpcClient.billing.registerInterest({
+          plan: upgradePlan,
+          interval,
+          email: user?.email,
+        });
+        setConfirmedEmail(result.email);
+        setInterestModalPlan(plan);
+      } catch (err) {
+        toast({
+          title: "Could not save your request",
+          description: err instanceof Error ? err.message : "Please try again shortly.",
+        });
+      } finally {
+        setLoadingPlan(null);
+      }
+      return;
+    }
+
+    setConfirmedEmail(null);
+    setInterestModalPlan(plan);
+  };
+
+  const handleGuestEmailSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!interestModalPlan || interestModalPlan.id === "free") return;
+    const trimmedEmail = interestEmail.trim();
+    if (!trimmedEmail) {
+      setInterestError("Please enter your email address.");
+      return;
+    }
+
+    setInterestError(null);
+    setIsSubmittingEmail(true);
     try {
-      setLoadingPlan("portal");
-      const res = await orpcClient.billing.portal();
-      redirectToBillingUrl(res.url, navigate);
-    } catch (err) {
-      toast({
-        title: "Portal unavailable",
-        description: err instanceof Error ? err.message : "Could not open billing portal.",
+      const result = await orpcClient.billing.registerInterest({
+        plan: interestModalPlan.id,
+        interval,
+        email: trimmedEmail,
       });
+      setConfirmedEmail(result.email);
+      setInterestEmail("");
+    } catch (err) {
+      setInterestError(err instanceof Error ? err.message : "Please enter a valid email address.");
     } finally {
-      setLoadingPlan(null);
+      setIsSubmittingEmail(false);
     }
   };
 
   const HeadingTag = headingAs;
 
   const renderPlanAction = (plan: PricingPlanItem) => {
-    if (plan.id === "free") {
-      if (!isAuthenticated && isLandingRoute) {
-        return (
-          <Button
-            variant="solid"
-            size="lg"
-            onClick={() => openAuthDialog({ reason: "navbar_signin" })}
-          >
-            Create Free Account
-          </Button>
-        );
-      }
-      return (
-        <Button variant="solid" size="lg" onClick={() => navigate("/")}>
-          Open Composer
-        </Button>
-      );
-    }
-
-    const paidTier = plan.id;
-    const isCurrentPaidPlan = isAuthenticated && activePlan === paidTier;
-
-    if (isCurrentPaidPlan) {
-      return (
-        <Button
-          variant={plan.highlighted ? "primary-inverse" : "solid"}
-          size="lg"
-          disabled={loadingPlan !== null}
-          onClick={handlePortal}
-        >
-          {loadingPlan === "portal" ? "Opening Portal..." : "Manage Subscription"}
-        </Button>
-      );
-    }
+    const label =
+      plan.id === "pro"
+        ? "Upgrade to Pro"
+        : plan.id === "team"
+          ? "Start Team Space"
+          : plan.id === "byok"
+            ? "Get Started with BYOK"
+            : "Get Started";
 
     return (
       <Button
         variant={plan.highlighted ? "primary-inverse" : "solid"}
         size="lg"
         disabled={loadingPlan !== null}
-        onClick={() => handleCheckout(paidTier)}
+        onClick={() => void handlePlanSelect(plan)}
       >
-        {loadingPlan === paidTier
-          ? "Starting Checkout..."
-          : paidTier === "pro"
-            ? "Upgrade to Pro"
-            : "Start Team Space"}
+        {loadingPlan === plan.id ? "Saving..." : label}
       </Button>
     );
   };
@@ -175,7 +163,7 @@ export function PricingPlansSection({
           onValueChange={setInterval}
           options={[
             { value: "monthly", label: "Monthly" },
-            { value: "yearly", label: "Yearly", badge: "Save 20%" },
+            { value: "yearly", label: "Yearly", badge: "Save 50%" },
           ]}
         />
       </div>
@@ -196,13 +184,15 @@ export function PricingPlansSection({
               <div className="space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[var(--separator-subtle)]">
                   <Badge variant={isHighlighted ? "framework" : "neutral"}>{plan.badge}</Badge>
-                  <span
-                    className={`font-mono text-xs font-normal uppercase tracking-wider ${
-                      isHighlighted ? "text-[var(--accent-text)]" : "text-[var(--text-muted)]"
-                    }`}
-                  >
-                    {plan.audienceLabel}
-                  </span>
+                  {plan.audienceLabel ? (
+                    <span
+                      className={`font-mono text-xs font-normal uppercase tracking-wider ${
+                        isHighlighted ? "text-[var(--accent-text)]" : "text-[var(--text-muted)]"
+                      }`}
+                    >
+                      {plan.audienceLabel}
+                    </span>
+                  ) : null}
                 </div>
 
                 <h3 className="text-xl sm:text-2xl font-bold tracking-[-0.02em]">{plan.name}</h3>
@@ -253,6 +243,21 @@ export function PricingPlansSection({
           <span>Privacy Commitment: We never train on your prompts, regardless of plan tier.</span>
         </div>
       ) : null}
+
+      <PlanInterestDialog
+        open={interestModalPlan !== null}
+        onOpenChange={(open) => {
+          if (!open) closeInterestModal();
+        }}
+        planName={interestModalPlan?.name}
+        interval={interval}
+        confirmedEmail={confirmedEmail}
+        email={interestEmail}
+        onEmailChange={setInterestEmail}
+        error={interestError}
+        isSubmitting={isSubmittingEmail}
+        onSubmit={handleGuestEmailSubmit}
+      />
     </div>
   );
 }

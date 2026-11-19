@@ -96,9 +96,16 @@ function prepareCompose(input: ComposePromptInput): PreparedCompose {
   assertNoClientSystemPrompt(input);
   const draft = sanitizeDraft(input.draft);
   const followUpAnswers = sanitizeAnswers(input.followUpAnswers);
+  const targetModelEntry = lookupModel(draft.modelId);
+  const targetModel =
+    draft.modelId && targetModelEntry.providerId !== "rule-synthesizer"
+      ? targetModelEntry.displayName
+      : (draft.modelId ?? undefined);
   const userPrompt = JSON.stringify({
     rawInput: draft.rawInput,
     mode: draft.mode,
+    modelId: draft.modelId,
+    targetModel,
     goal: draft.goal,
     audience: draft.audience,
     constraints: draft.constraints,
@@ -107,13 +114,17 @@ function prepareCompose(input: ComposePromptInput): PreparedCompose {
     tone: draft.tone,
     guardrails: draft.guardrails,
     framework: draft.framework,
+    advanced: draft.advanced,
     followUpAnswers,
   });
   return {
     input,
     draft,
     followUpAnswers,
-    systemPrompt: buildComposeSystemPrompt(draft.framework),
+    systemPrompt: buildComposeSystemPrompt(draft.framework, {
+      mode: draft.mode,
+      modelId: draft.modelId,
+    }),
     userPrompt,
   };
 }

@@ -130,6 +130,9 @@ export function GuidedParameters({
 
   const clearParameter = (key: ParameterKey, e?: React.MouseEvent) => {
     e?.stopPropagation();
+    if (key === activeKey) {
+      setMultiDraftValue("");
+    }
     if (key === "constraints") {
       onUpdateDraft({ constraints: [] });
     } else if (key === "guardrails") {
@@ -147,6 +150,16 @@ export function GuidedParameters({
       onUpdateDraft({ [key]: [...current, clean] });
     }
     setMultiDraftValue("");
+  };
+
+  const commitPendingMultiDraft = () => {
+    if (
+      activeDescriptor?.isMulti &&
+      (activeDescriptor.key === "constraints" || activeDescriptor.key === "guardrails") &&
+      multiDraftValue.trim().length > 0
+    ) {
+      addMultiItem(activeDescriptor.key, multiDraftValue);
+    }
   };
 
   const removeMultiItem = (key: "constraints" | "guardrails", item: string) => {
@@ -185,6 +198,7 @@ export function GuidedParameters({
                 disabled={disabled}
                 aria-expanded={isOpen}
                 onClick={() => {
+                  commitPendingMultiDraft();
                   setMultiDraftValue("");
                   setActiveKey((prev) => (prev === desc.key ? null : desc.key));
                 }}
@@ -240,7 +254,14 @@ export function GuidedParameters({
               >
                 Clear
               </Button>
-              <Button variant="secondary" size="sm" onClick={() => setActiveKey(null)}>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  commitPendingMultiDraft();
+                  setActiveKey(null);
+                }}
+              >
                 Done
               </Button>
             </div>
@@ -254,6 +275,7 @@ export function GuidedParameters({
                   value={multiDraftValue}
                   placeholder={activeDescriptor.placeholder}
                   onChange={(e) => setMultiDraftValue(e.target.value)}
+                  onBlur={commitPendingMultiDraft}
                   onKeyDown={(e) => {
                     if (shouldSubmitOnEnter(e)) {
                       e.preventDefault();

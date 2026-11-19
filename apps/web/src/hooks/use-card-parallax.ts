@@ -50,11 +50,21 @@ export const CARD_HOVER_ANIMATION = {
 
 export type CardAnimationKey = keyof typeof CARD_HOVER_ANIMATION;
 
+const ALWAYS_DISABLED_CARD_ANIMATION_KEYS: ReadonlySet<CardAnimationKey> = new Set([
+  "outputResult",
+  "improveInput",
+  "improveOutput",
+  "reverseEngineerInput",
+  "reverseEngineerOutput",
+]);
+
 /**
  * Returns whether a card should animate on hover given authentication state.
- * All cards animate for anonymous visitors; logged-in sessions use `CARD_HOVER_ANIMATION`.
+ * Always disabled for keys in `ALWAYS_DISABLED_CARD_ANIMATION_KEYS`; otherwise
+ * all cards animate for anonymous visitors and logged-in sessions use `CARD_HOVER_ANIMATION`.
  */
 export function shouldAnimateCard(key: CardAnimationKey, isAuthenticated: boolean): boolean {
+  if (ALWAYS_DISABLED_CARD_ANIMATION_KEYS.has(key)) return false;
   if (!isAuthenticated) return true;
   return CARD_HOVER_ANIMATION[key];
 }

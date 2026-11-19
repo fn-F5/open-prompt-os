@@ -51,6 +51,25 @@ describe("Modern Web Guidance fixes", () => {
       fireEvent.keyDown(input, { key: "Enter", isComposing: false });
       expect(onUpdateDraft).toHaveBeenCalledWith({ constraints: ["日本語テスト"] });
     });
+
+    it("commits typed multi-value building blocks on Done and on input blur", () => {
+      const onUpdateDraft = vi.fn();
+      const draft = composerActions.getActiveDraft();
+
+      render(<GuidedParameters draft={draft} onUpdateDraft={onUpdateDraft} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /Constraints/i }));
+      const constraintInput = screen.getByLabelText("Constraints");
+      fireEvent.change(constraintInput, { target: { value: "Keep under 500 words" } });
+      fireEvent.click(screen.getByRole("button", { name: "Done" }));
+      expect(onUpdateDraft).toHaveBeenCalledWith({ constraints: ["Keep under 500 words"] });
+
+      fireEvent.click(screen.getByRole("button", { name: /Guardrails/i }));
+      const guardrailInput = screen.getByLabelText("Guardrails");
+      fireEvent.change(guardrailInput, { target: { value: "Never invent citations" } });
+      fireEvent.blur(guardrailInput);
+      expect(onUpdateDraft).toHaveBeenCalledWith({ guardrails: ["Never invent citations"] });
+    });
   });
 
   describe("2. Native <dialog> in Dialog component", () => {
@@ -396,10 +415,18 @@ describe("Modern Web Guidance fixes", () => {
       expect(card.style.getPropertyValue("--ry")).toBe("0deg");
     });
 
-    it("animates all cards when anonymous, only Templates cards when logged in, and skips parallax when data-animate is false", () => {
+    it("disables workspace result/tool card animations in all states, animates remaining cards when anonymous, and skips parallax when data-animate is false", () => {
+      const alwaysDisabledKeys = new Set<CardAnimationKey>([
+        "outputResult",
+        "improveInput",
+        "improveOutput",
+        "reverseEngineerInput",
+        "reverseEngineerOutput",
+      ]);
+
       const allKeys = Object.keys(CARD_HOVER_ANIMATION) as CardAnimationKey[];
       for (const key of allKeys) {
-        expect(shouldAnimateCard(key, false)).toBe(true);
+        expect(shouldAnimateCard(key, false)).toBe(!alwaysDisabledKeys.has(key));
       }
 
       const templateKeys: CardAnimationKey[] = [

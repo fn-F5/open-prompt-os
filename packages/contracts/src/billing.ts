@@ -3,6 +3,9 @@ import { z } from "zod";
 export const PlanTierSchema = z.enum(["free", "pro", "team"]);
 export type PlanTier = z.infer<typeof PlanTierSchema>;
 
+export const PricingPlanIdSchema = z.enum(["free", "pro", "team", "byok"]);
+export type PricingPlanId = z.infer<typeof PricingPlanIdSchema>;
+
 export const BillingIntervalSchema = z.enum(["monthly", "yearly"]);
 export type BillingInterval = z.infer<typeof BillingIntervalSchema>;
 
@@ -24,6 +27,25 @@ export const CheckoutInputSchema = z.object({
 });
 export type CheckoutInput = z.infer<typeof CheckoutInputSchema>;
 
+export const UpgradeInterestPlanSchema = z.enum(["pro", "team", "byok"]);
+export type UpgradeInterestPlan = z.infer<typeof UpgradeInterestPlanSchema>;
+
+export const RegisterPlanInterestInputSchema = z.object({
+  plan: UpgradeInterestPlanSchema,
+  interval: BillingIntervalSchema.default("yearly"),
+  email: z.string().trim().email("Please enter a valid email address.").max(254).optional(),
+});
+export type RegisterPlanInterestInput = z.infer<typeof RegisterPlanInterestInputSchema>;
+
+export const PlanInterestItemSchema = z.object({
+  id: z.string(),
+  email: z.string().email(),
+  plan: UpgradeInterestPlanSchema,
+  interval: BillingIntervalSchema,
+  createdAt: z.string(),
+});
+export type PlanInterestItem = z.infer<typeof PlanInterestItemSchema>;
+
 export const EmulatePlanSwitchInputSchema = z.object({
   plan: PlanTierSchema,
   interval: BillingIntervalSchema.default("monthly"),
@@ -31,7 +53,7 @@ export const EmulatePlanSwitchInputSchema = z.object({
 export type EmulatePlanSwitchInput = z.infer<typeof EmulatePlanSwitchInputSchema>;
 
 export const PricingPlanItemSchema = z.object({
-  id: PlanTierSchema,
+  id: PricingPlanIdSchema,
   name: z.string(),
   badge: z.string(),
   audienceLabel: z.string(),
@@ -48,31 +70,13 @@ export type PricingPlanItem = z.infer<typeof PricingPlanItemSchema>;
 
 export const DEFAULT_PRICING_PLANS: readonly PricingPlanItem[] = [
   {
-    id: "free",
-    name: "Starter Workspace",
-    badge: "Free Forever",
-    audienceLabel: "Starter",
-    description: "Everything you need to start writing better prompts right away.",
-    monthlyPriceUsd: 0,
-    yearlyPriceUsd: 0,
-    priceSuffix: "/ forever",
-    dailyPromptLimit: 20,
-    guestDailyPromptLimit: 5,
-    features: [
-      "5 daily guest prompts · 20 daily with free account",
-      "Guided builder across Text, Image & Video",
-      "Personal prompt library & guest sync",
-    ],
-    highlighted: false,
-  },
-  {
     id: "pro",
     name: "Pro Studio",
     badge: "Recommended · Most Popular",
-    audienceLabel: "Power Users",
+    audienceLabel: "",
     description: "For builders, writers, and engineers who rely on AI every day.",
-    monthlyPriceUsd: 19,
-    yearlyPriceUsd: 15,
+    monthlyPriceUsd: 8,
+    yearlyPriceUsd: 4,
     priceSuffix: "/ month",
     dailyPromptLimit: 500,
     guestDailyPromptLimit: null,
@@ -89,8 +93,8 @@ export const DEFAULT_PRICING_PLANS: readonly PricingPlanItem[] = [
     badge: "Multi-Seat RLS",
     audienceLabel: "Enterprise",
     description: "Standardize prompts and guardrails across your entire team.",
-    monthlyPriceUsd: 49,
-    yearlyPriceUsd: 39,
+    monthlyPriceUsd: 16,
+    yearlyPriceUsd: 8,
     priceSuffix: "/ seat / mo",
     dailyPromptLimit: 2000,
     guestDailyPromptLimit: null,
@@ -98,6 +102,24 @@ export const DEFAULT_PRICING_PLANS: readonly PricingPlanItem[] = [
       "2,000 daily AI-compiled prompts & autopsies",
       "Shared team prompt library & templates",
       "PostgreSQL Row-Level Security tenant isolation",
+    ],
+    highlighted: false,
+  },
+  {
+    id: "byok",
+    name: "BYOK",
+    badge: "Bring Your Own Key",
+    audienceLabel: "Self-Managed",
+    description: "Connect your own OpenAI, Anthropic, or Gemini API keys with zero markup.",
+    monthlyPriceUsd: 2,
+    yearlyPriceUsd: 1,
+    priceSuffix: "/ month",
+    dailyPromptLimit: 5000,
+    guestDailyPromptLimit: null,
+    features: [
+      "Use your own OpenAI, Anthropic & Gemini API keys",
+      "Zero platform token markup — pay providers directly",
+      "Encrypted server-side key vaulting",
     ],
     highlighted: false,
   },

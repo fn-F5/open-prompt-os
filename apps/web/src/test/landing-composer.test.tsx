@@ -91,6 +91,40 @@ describe("Open Prompt OS Landing Page & Frontend Plan Verification", () => {
       const current = getGuestInteraction();
       expect(current?.prompt.rawInput).toBe("Newer prompt");
     });
+
+    it("does not pre-fill the home page composer textarea from localStorage while retaining guest storage", () => {
+      const draft = composerActions.getActiveDraft();
+      saveGuestInteraction(
+        { ...draft, mode: "image", modelId: "openai-image", rawInput: "Persisted guest prompt" },
+        {
+          compiledPrompt: "Compiled guest output",
+          detectedVariables: ["Subject"],
+          providerId: "openai",
+          modelId: "openai-image",
+        },
+      );
+
+      composerActions.rehydrateFromStorage();
+
+      expect(composerActions.getActiveDraft().rawInput).toBe("");
+      expect(composerActions.getState().completedOutput).toBeNull();
+      expect(getGuestInteraction()?.prompt.rawInput).toBe("Persisted guest prompt");
+
+      const qc = createAppQueryClient();
+      render(
+        <QueryClientProvider client={qc}>
+          <MemoryRouter initialEntries={["/"]}>
+            <AppRoutes />
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+
+      const textarea = screen.getByLabelText<HTMLTextAreaElement>(
+        /Prompt intent and instructions/i,
+      );
+      expect(textarea.value).toBe("");
+      expect(getGuestInteraction()?.prompt.rawInput).toBe("Persisted guest prompt");
+    });
   });
 
   describe("2. Keyboard submission & IME composition rules", () => {
