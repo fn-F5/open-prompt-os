@@ -45,6 +45,7 @@ export function buildOrganizationSchema(origin = getSiteOrigin()): Record<string
     name: SITE_NAME,
     url: `${origin}/`,
     logo: `${origin}/favicon.svg`,
+    sameAs: ["https://github.com/fn-F5/open-prompt-os"],
     description:
       "The Operating System for Prompts — create, diagnose, reverse-engineer, organize, and operationalize structured AI prompts across ChatGPT, Claude, Gemini, Imagen, FLUX, and Veo.",
   };
@@ -77,6 +78,8 @@ export function buildSoftwareApplicationSchema(
     name: options?.name ?? SITE_NAME,
     applicationCategory: "DeveloperApplication",
     operatingSystem: "Web",
+    datePublished: "2026-01-01",
+    dateModified: "2026-11-19",
     url: buildCanonicalUrl(options?.path ?? "/", origin),
     description:
       options?.description ??
@@ -345,7 +348,7 @@ export const STATIC_ROUTE_SEO = {
   home: (faqs: readonly DocFaqItem[], origin = getSiteOrigin()): SeoMetadata => ({
     title: "Open Prompt OS — Write AI Prompts That Work on the First Try",
     description:
-      "Turn rough ideas into structured, high-performing prompts for ChatGPT, Claude, Gemini, Imagen, FLUX, and Veo. Includes Prompt Autopsy and Image Reverse Engineering.",
+      "Turn rough ideas into structured AI prompts for ChatGPT, Claude, Gemini, Imagen, FLUX, and Veo with Prompt Autopsy and Image Reverse Engineering.",
     canonicalPath: "/",
     ogType: "website",
     keywords: [

@@ -105,7 +105,7 @@ export function HybridLayout() {
       {/* 2. Navbar */}
       {isAuthenticated ? <AppNavbar /> : <MarketingNavbar />}
 
-      {/* 3. Main Product Workspace */}
+      {/* 3. Main Product Workspace + Anonymous Marketing Content */}
       <main
         id="main-workspace"
         className={`flex-1 mx-auto w-full max-w-[1360px] px-4 sm:px-8 ${
@@ -115,10 +115,8 @@ export function HybridLayout() {
         }`}
       >
         <Outlet />
+        {!isAuthenticated && isIndexRoute ? <MarketingScrollContent /> : null}
       </main>
-
-      {/* 4. Anonymous-only marketing content below the fold on index route */}
-      {!isAuthenticated && isIndexRoute ? <MarketingScrollContent /> : null}
 
       {/* 5. Footer: Structured multi-column footer for anonymous; compact bar for authenticated */}
       {isAuthenticated ? (

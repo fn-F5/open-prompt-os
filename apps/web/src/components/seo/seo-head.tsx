@@ -71,6 +71,10 @@ export function SeoHead({ meta }: { readonly meta: SeoMetadata }) {
     upsertMetaTag("property", "og:description", meta.description);
     upsertMetaTag("property", "og:url", canonicalUrl);
     upsertMetaTag("property", "og:image", ogImageUrl);
+    if (!meta.noindex) {
+      upsertMetaTag("property", "article:published_time", "2026-01-01T00:00:00Z");
+      upsertMetaTag("property", "article:modified_time", "2026-11-19T00:00:00Z");
+    }
 
     // Twitter / X Card
     upsertMetaTag("name", "twitter:card", "summary_large_image");
