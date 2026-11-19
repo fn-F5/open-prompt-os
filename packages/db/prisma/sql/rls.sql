@@ -80,3 +80,19 @@ CREATE POLICY feedback_access ON user_feedback
     OR (space_id IS NOT NULL AND space_id = current_setting('app.space_id', true))
     OR (space_id IS NULL AND client_key = current_setting('app.client_key', true))
   );
+
+-- plan_interest: tenant rows by space, guest rows by client key, or system mode
+ALTER TABLE plan_interest ENABLE ROW LEVEL SECURITY;
+ALTER TABLE plan_interest FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS plan_interest_access ON plan_interest;
+CREATE POLICY plan_interest_access ON plan_interest
+  USING (
+    current_setting('app.is_system', true) = 'true'
+    OR (space_id IS NOT NULL AND space_id = current_setting('app.space_id', true))
+    OR (space_id IS NULL AND client_key = current_setting('app.client_key', true))
+  )
+  WITH CHECK (
+    current_setting('app.is_system', true) = 'true'
+    OR (space_id IS NOT NULL AND space_id = current_setting('app.space_id', true))
+    OR (space_id IS NULL AND client_key = current_setting('app.client_key', true))
+  );

@@ -14,6 +14,7 @@ import {
   type ImportGuestInteractionOutput,
   type ModelOption,
   type OnboardingPreferences,
+  type PlanInterestItem,
   type PricingPlanItem,
   type PromptFramework,
   type PromptGenerationItem,
@@ -24,6 +25,8 @@ import {
   type ReferralSource,
   type RefinePromptInput,
   type RefinePromptOutput,
+  type RegisterPlanInterestInput,
+  RegisterPlanInterestInputSchema,
   type ReverseEngineerInput,
   type ReverseEngineerOutput,
   type SavePromptInput,
@@ -1245,6 +1248,33 @@ export const orpcClient = {
       }
       emulatedPlanOverride = input.plan;
       return orpcClient.billing.status();
+    },
+
+    async registerInterest(input: RegisterPlanInterestInput): Promise<PlanInterestItem> {
+      const headers = createCorrelationHeaders();
+      const parsed = RegisterPlanInterestInputSchema.parse(input);
+      if (remoteApiUrl() !== undefined) {
+        return postRpc<PlanInterestItem>(
+          "/rpc/billing/registerInterest",
+          parsed,
+          undefined,
+          headers,
+        );
+      }
+      const session = authClient.getSession();
+      const resolvedEmail = session.isAuthenticated
+        ? (session.user?.email ?? parsed.email)
+        : parsed.email;
+      if (!resolvedEmail) {
+        throw new Error("Please enter your email address so we can notify you.");
+      }
+      return {
+        id: `int_local_${Date.now().toString(36)}`,
+        email: resolvedEmail,
+        plan: parsed.plan,
+        interval: parsed.interval,
+        createdAt: new Date().toISOString(),
+      };
     },
   },
 };

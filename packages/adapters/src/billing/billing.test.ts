@@ -232,11 +232,7 @@ describe("createStripeBillingProvider", () => {
     });
 
     const plans = await provider.listPlans();
-    expect(plans.find((p) => p.id === "free")).toMatchObject({
-      monthlyPriceUsd: 0,
-      yearlyPriceUsd: 0,
-      dailyPromptLimit: 20,
-    });
+    expect(plans.map((p) => p.id)).toEqual(["pro", "team", "byok"]);
     expect(plans.find((p) => p.id === "pro")).toMatchObject({
       monthlyPriceUsd: 24,
       yearlyPriceUsd: 18,
@@ -246,6 +242,10 @@ describe("createStripeBillingProvider", () => {
       monthlyPriceUsd: 59,
       yearlyPriceUsd: 45,
       dailyPromptLimit: 2000,
+    });
+    expect(plans.find((p) => p.id === "byok")).toMatchObject({
+      monthlyPriceUsd: 2,
+      yearlyPriceUsd: 1,
     });
   });
 });

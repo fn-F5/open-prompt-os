@@ -9,7 +9,11 @@ import {
 import { InputGuardError } from "@open-prompt-os/core";
 import { describe, expect, it } from "vitest";
 import { createOrchestrator } from "./gateway.js";
-import { COMPOSE_SYSTEM_PREAMBLE } from "./instructions.js";
+import {
+  COMPOSE_MODE_PROMPTS,
+  COMPOSE_SYSTEM_PREAMBLE,
+  TARGET_MODEL_GUIDANCE,
+} from "./instructions.js";
 import { createRegistry } from "./registry.js";
 import { createSynthesizerAdapter } from "./synthesizer.js";
 
@@ -350,5 +354,145 @@ describe("createOrchestrator", () => {
     );
     expect(composed.providerId).toBe("openai");
     expect(openai.lastRequest?.modelId).toBe("gpt-4.1");
+  });
+
+  it("injects mode-specific prompts, target model guidance, and advanced controls per mode", async () => {
+    const gemini = createFakeAdapter({ id: "gemini", text: "Role: specialist" });
+    const orchestrator = createOrchestrator({
+      registry: createRegistry([createSynthesizerAdapter(), gemini]),
+      timeoutMs: 1000,
+    });
+
+    await orchestrator.compose(
+      {
+        interactionId: "int_text",
+        draft: {
+          rawInput: "Help me write an essay about Moon",
+          mode: "text",
+          modelId: "openai-text",
+          framework: "costar",
+          constraints: [],
+          guardrails: [],
+          advanced: { length: "balanced", creativity: 0.3 },
+        },
+      },
+      { requestId: "req_mode_text" },
+    );
+
+    expect(gemini.lastRequest?.systemPrompt).toContain(COMPOSE_MODE_PROMPTS.text);
+    expect(gemini.lastRequest?.systemPrompt).toContain(
+      "OpenAI (ChatGPT, GPT models) (openai-text)",
+    );
+    expect(gemini.lastRequest?.systemPrompt).toContain(TARGET_MODEL_GUIDANCE["openai-text"]);
+    expect(JSON.parse(gemini.lastRequest?.userPrompt ?? "{}")).toMatchObject({
+      mode: "text",
+      modelId: "openai-text",
+      targetModel: "OpenAI (ChatGPT, GPT models)",
+      framework: "costar",
+      advanced: { length: "balanced", creativity: 0.3 },
+    });
+
+    await orchestrator.compose(
+      {
+        interactionId: "int_image",
+        draft: {
+          rawInput: "Macro photo of a titanium watch",
+          mode: "image",
+          modelId: "midjourney-image",
+          framework: "costar",
+          constraints: [],
+          guardrails: [],
+          advanced: { length: "detailed", creativity: 0.6 },
+        },
+      },
+      { requestId: "req_mode_image" },
+    );
+
+    expect(gemini.lastRequest?.systemPrompt).toContain(COMPOSE_MODE_PROMPTS.image);
+    expect(gemini.lastRequest?.systemPrompt).toContain(
+      "Midjourney (Midjourney models) (midjourney-image)",
+    );
+    expect(gemini.lastRequest?.systemPrompt).toContain(TARGET_MODEL_GUIDANCE["midjourney-image"]);
+    expect(JSON.parse(gemini.lastRequest?.userPrompt ?? "{}")).toMatchObject({
+      mode: "image",
+      modelId: "midjourney-image",
+      targetModel: "Midjourney (Midjourney models)",
+      advanced: { length: "detailed", creativity: 0.6 },
+    });
+
+    await orchestrator.compose(
+      {
+        interactionId: "int_video",
+        draft: {
+          rawInput: "Slow orbital shot around a lunar rover",
+          mode: "video",
+          modelId: "runway-video",
+          framework: "cot",
+          constraints: [],
+          guardrails: [],
+          advanced: { length: "short", creativity: 0.2 },
+        },
+      },
+      { requestId: "req_mode_video" },
+    );
+
+    expect(gemini.lastRequest?.systemPrompt).toContain(COMPOSE_MODE_PROMPTS.video);
+    expect(gemini.lastRequest?.systemPrompt).toContain("Runway (Gen models) (runway-video)");
+    expect(gemini.lastRequest?.systemPrompt).toContain(TARGET_MODEL_GUIDANCE["runway-video"]);
+    expect(JSON.parse(gemini.lastRequest?.userPrompt ?? "{}")).toMatchObject({
+      mode: "video",
+      modelId: "runway-video",
+      targetModel: "Runway (Gen models)",
+      framework: "cot",
+      advanced: { length: "short", creativity: 0.2 },
+    });
+  });
+
+  it("sends all seven user-supplied building blocks in compose and composeStream", async () => {
+    const gemini = createFakeAdapter({ id: "gemini", text: "Role: Planetary Scientist" });
+    const orchestrator = createOrchestrator({
+      registry: createRegistry([createSynthesizerAdapter(), gemini]),
+      timeoutMs: 1000,
+    });
+
+    const input: ComposePromptInput = {
+      interactionId: "int_blocks",
+      draft: {
+        rawInput: "Help me write an essay about Moon",
+        mode: "text",
+        modelId: "openai-text",
+        goal: "Explain the Moon's formation and tidal influence on Earth",
+        audience: "Curious high-school STEM students",
+        constraints: ["Keep under 1,200 words", "Use SI units throughout"],
+        format: "Markdown essay with 4 titled sections and summary bullets",
+        persona: "Planetary Geologist & Science Communicator",
+        tone: "Clear, authoritative, and engaging",
+        guardrails: ["Never invent mission dates", "Flag unverified hypotheses explicitly"],
+        framework: "costar",
+        advanced: { length: "balanced", creativity: 0.3 },
+      },
+    };
+
+    const expectedBlocks = {
+      goal: "Explain the Moon's formation and tidal influence on Earth",
+      audience: "Curious high-school STEM students",
+      constraints: ["Keep under 1,200 words", "Use SI units throughout"],
+      format: "Markdown essay with 4 titled sections and summary bullets",
+      persona: "Planetary Geologist & Science Communicator",
+      tone: "Clear, authoritative, and engaging",
+      guardrails: ["Never invent mission dates", "Flag unverified hypotheses explicitly"],
+    };
+
+    await orchestrator.compose(input, { requestId: "req_blocks_compose" });
+    expect(gemini.lastRequest?.systemPrompt).toContain("User-Supplied Building Blocks");
+    expect(JSON.parse(gemini.lastRequest?.userPrompt ?? "{}")).toMatchObject(expectedBlocks);
+
+    for await (const _event of orchestrator.composeStream(input, {
+      requestId: "req_blocks_stream",
+    })) {
+      // consume stream
+    }
+    expect(gemini.lastRequest?.systemPrompt).toContain("User-Supplied Building Blocks");
+    expect(JSON.parse(gemini.lastRequest?.userPrompt ?? "{}")).toMatchObject(expectedBlocks);
   });
 });

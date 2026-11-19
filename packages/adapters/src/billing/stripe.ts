@@ -181,15 +181,15 @@ export function createStripeBillingProvider(options: StripeBillingOptions): Bill
       }
 
       const defaultPro =
-        DEFAULT_PRICING_PLANS.find((p) => p.id === "pro") ?? DEFAULT_PRICING_PLANS[1];
+        DEFAULT_PRICING_PLANS.find((p) => p.id === "pro") ?? DEFAULT_PRICING_PLANS[0];
       const defaultTeam =
-        DEFAULT_PRICING_PLANS.find((p) => p.id === "team") ?? DEFAULT_PRICING_PLANS[2];
+        DEFAULT_PRICING_PLANS.find((p) => p.id === "team") ?? DEFAULT_PRICING_PLANS[1];
 
       const [proMonthlyUsd, proYearlyUsd, teamMonthlyUsd, teamYearlyUsd] = await Promise.all([
-        fetchMonthlyUsdForPrice(options.prices.proMonthly, defaultPro?.monthlyPriceUsd ?? 19),
-        fetchMonthlyUsdForPrice(options.prices.proYearly, defaultPro?.yearlyPriceUsd ?? 15),
-        fetchMonthlyUsdForPrice(options.prices.teamMonthly, defaultTeam?.monthlyPriceUsd ?? 49),
-        fetchMonthlyUsdForPrice(options.prices.teamYearly, defaultTeam?.yearlyPriceUsd ?? 39),
+        fetchMonthlyUsdForPrice(options.prices.proMonthly, defaultPro?.monthlyPriceUsd ?? 8),
+        fetchMonthlyUsdForPrice(options.prices.proYearly, defaultPro?.yearlyPriceUsd ?? 4),
+        fetchMonthlyUsdForPrice(options.prices.teamMonthly, defaultTeam?.monthlyPriceUsd ?? 16),
+        fetchMonthlyUsdForPrice(options.prices.teamYearly, defaultTeam?.yearlyPriceUsd ?? 8),
       ]);
 
       const plans = DEFAULT_PRICING_PLANS.map((plan) => {

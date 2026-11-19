@@ -1,37 +1,20 @@
-import {
-  type BillingInterval,
-  DEFAULT_PRICING_PLANS,
-  type PlanTier,
-} from "@open-prompt-os/contracts";
-import { Badge, Button, Dialog, Tabs, toast } from "@open-prompt-os/ui-web";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, CreditCard, ExternalLink, LogOut } from "lucide-react";
+import { Badge, Button, toast } from "@open-prompt-os/ui-web";
+import { useQuery } from "@tanstack/react-query";
+import { CreditCard, LogOut } from "lucide-react";
 import * as React from "react";
-import { useNavigate, useSearchParams } from "react-router";
-import { formatUsdPrice } from "../../components/pricing/pricing-plans-section.js";
+import { useNavigate } from "react-router";
+import { PlanInterestDialog } from "../../components/pricing/plan-interest-dialog.js";
 import { SeoHead } from "../../components/seo/seo-head.js";
 import { useAuthSession } from "../../hooks/use-auth-session.js";
 import { CARD_HOVER_ANIMATION } from "../../hooks/use-card-parallax.js";
-import { authClient } from "../../lib/auth-client.js";
 import { orpcClient } from "../../lib/orpc.js";
 import { queryKeys } from "../../lib/query-client.js";
 
 export function ProfileSettingsPage() {
   const { user, signOut } = useAuthSession();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [openingPortal, setOpeningPortal] = React.useState(false);
-  const [emulatedInterval, setEmulatedInterval] = React.useState<BillingInterval>("monthly");
-  const [switchingPlan, setSwitchingPlan] = React.useState<PlanTier | null>(null);
-
-  const isEmulatedPortalOpen = searchParams.get("portal") === "emulated";
-
-  const plansQuery = useQuery({
-    queryKey: queryKeys.billing.plans(),
-    queryFn: () => orpcClient.billing.plans(),
-    placeholderData: () => DEFAULT_PRICING_PLANS.map((p) => ({ ...p, features: [...p.features] })),
-  });
+  const [submittingInterest, setSubmittingInterest] = React.useState(false);
+  const [confirmedEmail, setConfirmedEmail] = React.useState<string | null>(null);
 
   const billingQuery = useQuery({
     queryKey: queryKeys.billing.status(),
@@ -41,60 +24,22 @@ export function ProfileSettingsPage() {
   const billing = billingQuery.data;
   const activePlan = billing?.plan ?? user?.plan ?? "free";
 
-  const closeEmulatedPortal = () => {
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.delete("portal");
-        return next;
-      },
-      { replace: true },
-    );
-  };
-
-  const handleOpenPortal = async () => {
+  const handleRegisterUpgradeInterest = async () => {
     try {
-      setOpeningPortal(true);
-      const res = await orpcClient.billing.portal();
-      if (res.url.startsWith("http://") || res.url.startsWith("https://")) {
-        window.location.assign(res.url);
-      } else {
-        navigate(res.url);
-      }
+      setSubmittingInterest(true);
+      const result = await orpcClient.billing.registerInterest({
+        plan: activePlan === "team" ? "team" : "pro",
+        interval: "yearly",
+        email: user?.email,
+      });
+      setConfirmedEmail(result.email);
     } catch (err) {
       toast({
-        title: "Billing portal unavailable",
-        description: err instanceof Error ? err.message : "Could not open billing portal.",
+        title: "Could not save your request",
+        description: err instanceof Error ? err.message : "Please try again shortly.",
       });
     } finally {
-      setOpeningPortal(false);
-    }
-  };
-
-  const handleSwitchEmulatedPlan = async (targetPlan: PlanTier) => {
-    try {
-      setSwitchingPlan(targetPlan);
-      const updated = await orpcClient.billing.emulatePlan({
-        plan: targetPlan,
-        interval: emulatedInterval,
-      });
-      queryClient.setQueryData(queryKeys.billing.status(), updated);
-      await queryClient.invalidateQueries({ queryKey: queryKeys.billing.status() });
-      void authClient.refresh().catch(() => {
-        // Ignore session refresh errors in test/offline mode
-      });
-      toast({
-        title: "Plan updated (Local Emulator)",
-        description: `Workspace switched to ${updated.plan.toUpperCase()}.`,
-      });
-      closeEmulatedPortal();
-    } catch (err) {
-      toast({
-        title: "Could not switch plan",
-        description: err instanceof Error ? err.message : "Emulated plan switch failed.",
-      });
-    } finally {
-      setSwitchingPlan(null);
+      setSubmittingInterest(false);
     }
   };
 
@@ -160,21 +105,14 @@ export function ProfileSettingsPage() {
             </h2>
           </div>
 
-          {activePlan === "free" ? (
-            <Button variant="primary-inverse" size="sm" onClick={() => navigate("/pricing")}>
-              Upgrade Plan
-            </Button>
-          ) : (
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={openingPortal}
-              onClick={handleOpenPortal}
-            >
-              <span>{openingPortal ? "Opening Portal..." : "Manage Billing Portal"}</span>
-              <ExternalLink className="w-3.5 h-3.5" />
-            </Button>
-          )}
+          <Button
+            variant="primary-inverse"
+            size="sm"
+            disabled={submittingInterest}
+            onClick={() => void handleRegisterUpgradeInterest()}
+          >
+            {submittingInterest ? "Saving..." : "Upgrade Plan"}
+          </Button>
         </div>
 
         <dl className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
@@ -199,76 +137,20 @@ export function ProfileSettingsPage() {
         </dl>
       </section>
 
-      <Dialog
-        open={isEmulatedPortalOpen}
+      <PlanInterestDialog
+        open={confirmedEmail !== null}
         onOpenChange={(open) => {
-          if (!open) closeEmulatedPortal();
+          if (!open) setConfirmedEmail(null);
         }}
-        title="Emulated Billing Portal"
-        description="Local development emulator active (no Stripe keys configured). Switch workspace tiers immediately for testing."
-        variant="solid"
-      >
-        <div className="space-y-4">
-          <div className="flex items-center justify-between gap-2">
-            <Badge variant="neutral">Local Emulator</Badge>
-            <Tabs
-              ariaLabel="Emulated billing interval"
-              value={emulatedInterval}
-              onValueChange={setEmulatedInterval}
-              options={[
-                { value: "monthly", label: "Monthly" },
-                { value: "yearly", label: "Yearly" },
-              ]}
-            />
-          </div>
-
-          <div className="space-y-2.5">
-            {(plansQuery.data ?? DEFAULT_PRICING_PLANS).map((planOption) => {
-              const isCurrent = activePlan === planOption.id;
-              const price =
-                emulatedInterval === "yearly"
-                  ? planOption.yearlyPriceUsd
-                  : planOption.monthlyPriceUsd;
-              const priceLabel = `${formatUsdPrice(price)} ${planOption.priceSuffix}`;
-              return (
-                <div
-                  key={planOption.id}
-                  className="flex items-center justify-between gap-3 rounded-lg p-3 bg-[var(--surface-2)]"
-                >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold">{planOption.name}</span>
-                      {isCurrent ? <Badge variant="framework">Current</Badge> : null}
-                    </div>
-                    <p className="text-xs text-[var(--text-secondary)]">
-                      {priceLabel} · {planOption.dailyPromptLimit.toLocaleString()} daily prompts
-                    </p>
-                  </div>
-                  <Button
-                    variant={planOption.id === "free" ? "secondary" : "primary-inverse"}
-                    size="sm"
-                    disabled={isCurrent || switchingPlan !== null}
-                    onClick={() => handleSwitchEmulatedPlan(planOption.id)}
-                  >
-                    {isCurrent ? (
-                      <>
-                        <Check className="w-3.5 h-3.5" />
-                        <span>Active</span>
-                      </>
-                    ) : switchingPlan === planOption.id ? (
-                      "Switching..."
-                    ) : planOption.id === "free" ? (
-                      "Downgrade to Free"
-                    ) : (
-                      `Switch to ${planOption.id.toUpperCase()}`
-                    )}
-                  </Button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </Dialog>
+        planName={activePlan === "team" ? "Team Space" : "Pro Studio"}
+        interval="yearly"
+        confirmedEmail={confirmedEmail}
+        email={confirmedEmail ?? ""}
+        onEmailChange={() => {}}
+        error={null}
+        isSubmitting={submittingInterest}
+        onSubmit={(e) => e.preventDefault()}
+      />
     </div>
   );
 }

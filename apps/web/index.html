@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#0F0F11" />
     <meta
       name="description"
-      content="Turn rough ideas into structured, high-performing prompts for ChatGPT, Claude, Gemini, Imagen, FLUX, and Veo. Includes Prompt Autopsy and Image Reverse Engineering."
+      content="Turn rough ideas into structured AI prompts for ChatGPT, Claude, Gemini, Imagen, FLUX, and Veo with Prompt Autopsy and Image Reverse Engineering."
     />
     <meta
       name="robots"
@@ -18,15 +18,17 @@
     <meta property="og:title" content="Open Prompt OS — Write AI Prompts That Work on the First Try" />
     <meta
       property="og:description"
-      content="Compile, diagnose, reverse-engineer, and organize structured AI prompts across ChatGPT, Claude, Gemini, Imagen, FLUX, and Veo."
+      content="Turn rough ideas into structured AI prompts for ChatGPT, Claude, Gemini, Imagen, FLUX, and Veo with Prompt Autopsy and Image Reverse Engineering."
     />
     <meta property="og:url" content="https://openpromptos.com/" />
     <meta property="og:image" content="https://openpromptos.com/og-default.svg" />
+    <meta property="article:published_time" content="2026-01-01T00:00:00Z" />
+    <meta property="article:modified_time" content="2026-11-19T00:00:00Z" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Open Prompt OS — Write AI Prompts That Work on the First Try" />
     <meta
       name="twitter:description"
-      content="Compile, diagnose, reverse-engineer, and organize structured AI prompts across ChatGPT, Claude, Gemini, Imagen, FLUX, and Veo."
+      content="Turn rough ideas into structured AI prompts for ChatGPT, Claude, Gemini, Imagen, FLUX, and Veo with Prompt Autopsy and Image Reverse Engineering."
     />
     <meta name="twitter:image" content="https://openpromptos.com/og-default.svg" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -46,10 +48,214 @@
         href="https://fonts.googleapis.com/css2?family=Instrument+Serif&display=swap"
       />
     </noscript>
+    <script type="application/ld+json" data-seo-jsonld="true">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "Open Prompt OS",
+        "url": "https://openpromptos.com/",
+        "logo": "https://openpromptos.com/favicon.svg",
+        "sameAs": ["https://github.com/fn-F5/open-prompt-os"],
+        "description": "The Operating System for Prompts — create, diagnose, reverse-engineer, organize, and operationalize structured AI prompts across ChatGPT, Claude, Gemini, Imagen, FLUX, and Veo."
+      }
+    </script>
+    <script type="application/ld+json" data-seo-jsonld="true">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "Open Prompt OS",
+        "url": "https://openpromptos.com/",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": {
+            "@type": "EntryPoint",
+            "urlTemplate": "https://openpromptos.com/templates?q={search_term_string}"
+          },
+          "query-input": "required name=search_term_string"
+        }
+      }
+    </script>
+    <script type="application/ld+json" data-seo-jsonld="true">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Open Prompt OS",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Web",
+        "datePublished": "2026-01-01",
+        "dateModified": "2026-11-19",
+        "url": "https://openpromptos.com/",
+        "description": "Freemium prompt engineering workbench for compiling structured CO-STAR, RISE, CARE, and Chain-of-Thought prompts, running Prompt Autopsy diagnostics, and reverse-engineering images into prompts.",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD",
+          "description": "Instant free access with no sign-up required"
+        },
+        "featureList": [
+          "Guided Multi-Modal Prompt Compiler (Text, Image, Video)",
+          "CO-STAR, RISE, CARE, and Chain-of-Thought Frameworks",
+          "Prompt Autopsy 8-Category Root-Cause Diagnostics",
+          "6-Axis Image-to-Prompt Reverse Engineering",
+          "One-Click Send to ChatGPT, Claude, and Gemini",
+          "Zero Model Training Privacy Guarantee"
+        ]
+      }
+    </script>
+    <script type="application/ld+json" data-seo-jsonld="true">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What is Open Prompt OS and how is it different from a basic prompt generator?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Open Prompt OS is a full-lifecycle prompt engineering workbench rather than a one-shot generator. It combines a guided multi-modal Prompt Compiler (Text, Image, Video), a root-cause Prompt Autopsy debugger across 8 failure categories, an image-to-prompt Reverse Engineer tool, a reusable [Variable] library, and one-click dispatch to ChatGPT, Claude, and Gemini."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Which prompt framework should I choose: CO-STAR, RISE, CARE, or Chain-of-Thought?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Use CO-STAR for technical specs and audience-calibrated writing, RISE for step-by-step executive memos and operational workflows, CARE when visual constraints or strict examples drive output accuracy, and Chain-of-Thought for multi-step reasoning, SQL tuning, or continuous 24fps video sequences."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What is Prompt Autopsy and how does it stop AI hallucinations?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Prompt Autopsy on /improve compares your original prompt against an actual failed or hallucinated AI response. It classifies defects across 8 categories—such as missing_context, conflicting_constraints, weak_output_format, and unsafe_guardrail—and produces a repaired prompt with explicit boundaries and reusable [Variables]."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Does Open Prompt OS train AI models on my prompts or uploaded images?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. Open Prompt OS operates under a strict Privacy by Default guarantee: your prompt drafts, failed outputs, reference images, and compiled outputs are never used to train or fine-tune any AI model. Analytics strip all prompt text and secrets, and saved workspace data is isolated by PostgreSQL Row-Level Security."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I use Open Prompt OS for free without creating an account?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Visitors can immediately compose, optimize, diagnose, and reverse-engineer prompts on the site with zero sign-up required under daily anonymous limits. Browser storage keeps your latest work locally for 30 days and migrates it seamlessly if you sign in later."
+            }
+          }
+        ]
+      }
+    </script>
     <title>Open Prompt OS — Write AI Prompts That Work on the First Try</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <main>
+        <h1>Stop overthinking your prompts.</h1>
+        <p>
+          Open Prompt OS is the full-lifecycle prompt engineering workbench for compiling,
+          diagnosing, reverse-engineering, organizing, and sending structured AI prompts across
+          ChatGPT, Claude, Gemini, Imagen, FLUX, and Veo.
+        </p>
+
+        <section>
+          <h2>Why one-line prompts fail—and how Open Prompt OS fixes them</h2>
+          <p>
+            When you type a vague sentence into an AI model, it guesses your tone, audience,
+            constraints, and output format. Open Prompt OS turns rough ideas into four clear
+            building blocks—Intent, Context, Constraints, and Output Format—before your prompt ever
+            reaches the model.
+          </p>
+          <p>
+            Instead of rewriting prompts through trial and error, you can select proven frameworks
+            including CO-STAR, RISE, CARE, and Chain-of-Thought, insert reusable [Variables], and
+            dispatch directly to ChatGPT, Claude, or Gemini in one click.
+          </p>
+        </section>
+
+        <section>
+          <h2>Everything you need to write better prompts, faster</h2>
+          <p>
+            Open Prompt OS brings together a guided Multi-Modal Prompt Compiler for Text, Image,
+            and Video, an 8-category Prompt Autopsy debugger for fixing hallucinations, and a
+            6-axis Image Reverse Engineer that extracts lighting, lens, camera, and style tokens
+            from any reference image.
+          </p>
+          <p>
+            Your drafts, failed outputs, and uploaded reference images are never used to train or
+            fine-tune any AI model. Start immediately with zero sign-up required, or explore
+            curated blueprints in the <a href="/templates">Template Gallery</a>,
+            <a href="/improve">Improve &amp; Prompt Autopsy</a>,
+            <a href="/reverse-engineer">Reverse Engineer</a>,
+            <a href="/docs">Documentation Hub</a>, and <a href="/pricing">Pricing Plans</a>.
+          </p>
+        </section>
+
+        <section>
+          <h2>Guided building blocks instead of blank-page guesswork</h2>
+          <p>
+            Every prompt specification is calibrated to your target model, whether you are writing
+            technical architecture RFCs, SQL optimizations, executive summaries, photorealistic
+            studio keyframes, or continuous 24fps cinema video sequences.
+          </p>
+        </section>
+
+        <section>
+          <h2>Frequently Asked Questions</h2>
+          <article>
+            <h3>What is Open Prompt OS and how is it different from a basic prompt generator?</h3>
+            <p>
+              Open Prompt OS is a full-lifecycle prompt engineering workbench rather than a one-shot
+              generator. It combines a guided multi-modal Prompt Compiler (Text, Image, Video), a
+              root-cause Prompt Autopsy debugger across 8 failure categories, an image-to-prompt
+              Reverse Engineer tool, a reusable [Variable] library, and one-click dispatch to
+              ChatGPT, Claude, and Gemini.
+            </p>
+          </article>
+          <article>
+            <h3>Which prompt framework should I choose: CO-STAR, RISE, CARE, or Chain-of-Thought?</h3>
+            <p>
+              Use CO-STAR for technical specs and audience-calibrated writing, RISE for step-by-step
+              executive memos and operational workflows, CARE when visual constraints or strict
+              examples drive output accuracy, and Chain-of-Thought for multi-step reasoning, SQL
+              tuning, or continuous 24fps video sequences.
+            </p>
+          </article>
+          <article>
+            <h3>What is Prompt Autopsy and how does it stop AI hallucinations?</h3>
+            <p>
+              Prompt Autopsy on /improve compares your original prompt against an actual failed or
+              hallucinated AI response. It classifies defects across 8 categories—such as
+              missing_context, conflicting_constraints, weak_output_format, and
+              unsafe_guardrail—and produces a repaired prompt with explicit boundaries and reusable
+              [Variables].
+            </p>
+          </article>
+          <article>
+            <h3>Does Open Prompt OS train AI models on my prompts or uploaded images?</h3>
+            <p>
+              No. Open Prompt OS operates under a strict Privacy by Default guarantee: your prompt
+              drafts, failed outputs, reference images, and compiled outputs are never used to train
+              or fine-tune any AI model. Analytics strip all prompt text and secrets, and saved
+              workspace data is isolated by PostgreSQL Row-Level Security.
+            </p>
+          </article>
+          <article>
+            <h3>Can I use Open Prompt OS for free without creating an account?</h3>
+            <p>
+              Yes. Visitors can immediately compose, optimize, diagnose, and reverse-engineer
+              prompts on the site with zero sign-up required under daily anonymous limits. Browser
+              storage keeps your latest work locally for 30 days and migrates it seamlessly if you
+              sign in later.
+            </p>
+          </article>
+        </section>
+      </main>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -122,22 +122,39 @@ describe("Web Route Pages & AuthGate", () => {
   });
 
   describe("PricingPage & BillingReturnPage", () => {
-    it("toggles billing interval and routes unauthenticated vs authenticated checkout", async () => {
-      const checkoutSpy = vi.spyOn(orpcClient.billing, "checkout");
+    it("toggles billing interval and captures upgrade interest for unauthenticated vs authenticated users", async () => {
+      const registerInterestSpy = vi.spyOn(orpcClient.billing, "registerInterest");
       const unauthView = renderRoute(<PricingPage />, ["/pricing"], "/pricing");
 
       expect(screen.getByText(/Plans for individuals and teams/i)).toBeInTheDocument();
 
-      const yearlyBtn = screen.getByRole("tab", { name: /Yearly/i });
-      fireEvent.click(yearlyBtn);
-      expect(yearlyBtn).toHaveAttribute("aria-selected", "true");
+      const monthlyBtn = screen.getByRole("tab", { name: /Monthly/i });
+      fireEvent.click(monthlyBtn);
+      expect(monthlyBtn).toHaveAttribute("aria-selected", "true");
 
-      const upgradeBtn = screen.getByRole("button", { name: /Upgrade to Pro/i });
-      fireEvent.click(upgradeBtn);
-      expect(getAuthDialogState().isOpen).toBe(true);
-      expect(checkoutSpy).not.toHaveBeenCalled();
+      // Unauthenticated: clicking Upgrade to Pro opens 'Thanks for the interest' card & collects email
+      fireEvent.click(screen.getByRole("button", { name: /Upgrade to Pro/i }));
+      expect(await screen.findByText("Thanks for the interest")).toBeInTheDocument();
+      expect(registerInterestSpy).not.toHaveBeenCalled();
+
+      fireEvent.change(screen.getByLabelText(/Email address/i), {
+        target: { value: "guest@example.com" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: /Notify Me/i }));
+
+      await waitFor(() => {
+        expect(registerInterestSpy).toHaveBeenCalledWith({
+          plan: "pro",
+          interval: "monthly",
+          email: "guest@example.com",
+        });
+      });
+      expect(await screen.findByText(/We will notify you soon!/i)).toBeInTheDocument();
+      expect(screen.getByText("guest@example.com")).toBeInTheDocument();
       unauthView.unmount();
 
+      // Authenticated: clicking Upgrade to Pro saves user email immediately & shows 'Thanks for the interest'
+      registerInterestSpy.mockClear();
       act(() => {
         setAuthSessionForTest({
           id: "u_price",
@@ -151,27 +168,27 @@ describe("Web Route Pages & AuthGate", () => {
       });
 
       renderRoute(<PricingPage />, ["/pricing"], "/pricing");
-      fireEvent.click(screen.getByRole("tab", { name: /Yearly/i }));
       fireEvent.click(screen.getByRole("button", { name: /Upgrade to Pro/i }));
       await waitFor(() => {
-        expect(checkoutSpy).toHaveBeenCalledWith({ plan: "pro", interval: "yearly", seats: 1 });
+        expect(registerInterestSpy).toHaveBeenCalledWith({
+          plan: "pro",
+          interval: "yearly",
+          email: "price@example.com",
+        });
       });
-
-      const returnBtn = await screen.findByRole("button", { name: /Return to Composer/i });
-      expect(screen.getByText("Local Emulator")).toBeInTheDocument();
-      fireEvent.click(returnBtn);
-      expect(screen.getByTestId("composer-dest")).toBeInTheDocument();
+      expect(await screen.findByText("Thanks for the interest")).toBeInTheDocument();
+      expect(await screen.findByText(/We will notify you soon!/i)).toBeInTheDocument();
+      expect(screen.getByText("price@example.com")).toBeInTheDocument();
     });
 
-    it("shows Manage Billing Portal button on ProfileSettingsPage for paid workspaces and opens emulated portal modal", async () => {
-      const portalSpy = vi.spyOn(orpcClient.billing, "portal");
-      const emulatePlanSpy = vi.spyOn(orpcClient.billing, "emulatePlan");
+    it("shows Upgrade Plan button on ProfileSettingsPage and opens Thanks for the interest card without emulated portal", async () => {
+      const registerInterestSpy = vi.spyOn(orpcClient.billing, "registerInterest");
       act(() => {
         setAuthSessionForTest({
           id: "u_pro",
           email: "pro@example.com",
           name: "Pro User",
-          plan: "pro",
+          plan: "free",
           spaceId: "sp_pro",
           spaceName: "Pro Space",
           hasPasskey: false,
@@ -180,23 +197,20 @@ describe("Web Route Pages & AuthGate", () => {
 
       renderRoute(<ProfileSettingsPage />, ["/settings/profile"], "/settings/profile");
 
-      const portalBtn = await screen.findByRole("button", { name: /Manage Billing Portal/i });
-      fireEvent.click(portalBtn);
-      await waitFor(() => {
-        expect(portalSpy).toHaveBeenCalledTimes(1);
-      });
-
-      expect(await screen.findByText("Emulated Billing Portal")).toBeInTheDocument();
-      const downgradeBtn = screen.getByRole("button", { name: /Downgrade to Free/i });
-      fireEvent.click(downgradeBtn);
+      const upgradeBtn = await screen.findByRole("button", { name: /Upgrade Plan/i });
+      fireEvent.click(upgradeBtn);
 
       await waitFor(() => {
-        expect(emulatePlanSpy).toHaveBeenCalledWith({ plan: "free", interval: "monthly" });
+        expect(registerInterestSpy).toHaveBeenCalledWith({
+          plan: "pro",
+          interval: "yearly",
+          email: "pro@example.com",
+        });
       });
 
-      await waitFor(() => {
-        expect(screen.getByRole("button", { name: /Upgrade Plan/i })).toBeInTheDocument();
-      });
+      expect(screen.queryByText("Emulated Billing Portal")).toBeNull();
+      expect(await screen.findByText("Thanks for the interest")).toBeInTheDocument();
+      expect(await screen.findByText(/We will notify you soon!/i)).toBeInTheDocument();
     });
 
     it("signs out from ProfileSettingsPage and navigates to /", async () => {
@@ -235,19 +249,48 @@ describe("Web Route Pages & AuthGate", () => {
 
       const landingView = renderRoute(<MarketingScrollContent />, ["/"], "/");
       await waitFor(() => {
-        expect(screen.getByText("$24")).toBeInTheDocument();
+        expect(screen.getByText("$18")).toBeInTheDocument();
       });
       landingView.unmount();
 
       renderRoute(<PricingPage />, ["/pricing"], "/pricing");
       await waitFor(() => {
-        expect(screen.getByText("$24")).toBeInTheDocument();
-      });
-      fireEvent.click(screen.getByRole("tab", { name: /Yearly/i }));
-      await waitFor(() => {
         expect(screen.getByText("$18")).toBeInTheDocument();
       });
+      fireEvent.click(screen.getByRole("tab", { name: /Monthly/i }));
+      await waitFor(() => {
+        expect(screen.getByText("$24")).toBeInTheDocument();
+      });
       expect(plansSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it("defaults to annual 50% savings with Pro Studio ($8/mo), Team Space ($16/mo), and BYOK as the final card", async () => {
+      renderRoute(<PricingPage />, ["/pricing"], "/pricing");
+
+      expect(screen.queryByText("Starter Workspace")).toBeNull();
+      expect(screen.queryByText("Power Users")).toBeNull();
+
+      const yearlyTab = screen.getByRole("tab", { name: /Yearly/i });
+      expect(yearlyTab).toHaveAttribute("aria-selected", "true");
+      expect(yearlyTab).toHaveTextContent("Save 50%");
+
+      // Yearly prices by default (50% off $8, $16, and $2)
+      await waitFor(() => {
+        expect(screen.getByText("$4")).toBeInTheDocument();
+        expect(screen.getByText("$8")).toBeInTheDocument();
+        expect(screen.getByText("$1")).toBeInTheDocument();
+      });
+
+      const headings = screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
+      expect(headings).toEqual(["Pro Studio", "Team Space", "BYOK"]);
+
+      // Monthly prices when switched to Monthly
+      fireEvent.click(screen.getByRole("tab", { name: /Monthly/i }));
+      await waitFor(() => {
+        expect(screen.getByText("$8")).toBeInTheDocument();
+        expect(screen.getByText("$16")).toBeInTheDocument();
+        expect(screen.getByText("$2")).toBeInTheDocument();
+      });
     });
   });
 

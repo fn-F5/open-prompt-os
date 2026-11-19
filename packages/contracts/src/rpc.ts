@@ -10,7 +10,9 @@ import {
   BillingStatusSchema,
   CheckoutInputSchema,
   EmulatePlanSwitchInputSchema,
+  PlanInterestItemSchema,
   PricingPlanItemSchema,
+  RegisterPlanInterestInputSchema,
 } from "./billing.js";
 import { FeedbackItemSchema, SubmitFeedbackInputSchema } from "./feedback.js";
 import { ModelOptionSchema, ProviderHealthSchema } from "./models.js";
@@ -127,5 +129,6 @@ export const appContract = {
     checkout: oc.input(CheckoutInputSchema).output(z.object({ url: z.string() })),
     portal: oc.output(z.object({ url: z.string() })),
     emulatePlan: oc.input(EmulatePlanSwitchInputSchema).output(BillingStatusSchema),
+    registerInterest: oc.input(RegisterPlanInterestInputSchema).output(PlanInterestItemSchema),
   },
 } as const;

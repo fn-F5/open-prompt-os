@@ -13,6 +13,7 @@ import {
   switchEmulatedPlan,
 } from "./services/billing-service.js";
 import { listMyFeedback, submitFeedback } from "./services/feedback-service.js";
+import { registerPlanInterest } from "./services/plan-interest-service.js";
 import {
   deletePrompt,
   getSharedPrompt,
@@ -213,6 +214,9 @@ export function createRouter(deps: RouterDeps) {
       }),
       emulatePlan: os.billing.emulatePlan.handler(async ({ input, context }) => {
         return switchEmulatedPlan(context.actor, input, deps.billingProvider);
+      }),
+      registerInterest: os.billing.registerInterest.handler(async ({ input, context }) => {
+        return registerPlanInterest(context.actor, input);
       }),
     },
   });
