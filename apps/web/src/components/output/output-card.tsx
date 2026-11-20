@@ -37,7 +37,13 @@ export interface OutputCardProps {
  * Renders structured prompt text with raw HTML disabled (React text nodes only)
  * and semantic theme-aware badges for [Variables], headers, and constraints.
  */
-export function SanitizedPromptRenderer({ content }: { readonly content: string }) {
+export function SanitizedPromptRenderer({
+  content,
+  isStreaming = false,
+}: {
+  readonly content: string;
+  readonly isStreaming?: boolean;
+}) {
   const tokens = React.useMemo(() => tokenizePromptSyntax(content), [content]);
 
   return (
@@ -80,6 +86,12 @@ export function SanitizedPromptRenderer({ content }: { readonly content: string 
         }
         return <React.Fragment key={key}>{tok.value}</React.Fragment>;
       })}
+      {isStreaming ? (
+        <span
+          aria-hidden="true"
+          className="inline-block w-2 h-4 ml-1 align-middle rounded-xs bg-[var(--accent-primary)] animate-pulse"
+        />
+      ) : null}
     </pre>
   );
 }
@@ -186,26 +198,29 @@ export function OutputCard({
 
   // Submitting / Streaming State
   if (isPending) {
+    const hasStreamedText = Boolean(streamingBuffer && streamingBuffer.length > 0);
     return (
       <section
         aria-label="Compiling prompt specification"
         aria-busy="true"
         data-animate={animateCard("outputLoading")}
-        className="mt-6 rounded-2xl p-6 flat-surface space-y-4 min-h-[220px]"
+        className="mt-6 rounded-3xl p-6 sm:p-8 flat-surface space-y-5 min-h-[220px]"
       >
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2 pb-4 border-b border-[var(--separator-subtle)]">
           <div className="flex items-center gap-2.5">
             <span className="h-2.5 w-2.5 rounded-full bg-[var(--accent-primary)] animate-ping" />
             <span className="text-sm font-medium text-[var(--text-secondary)]">
-              Structuring your prompt for {draft.modelId ?? "target model"}...
+              {hasStreamedText
+                ? `Streaming prompt for ${draft.modelId ?? "target model"}...`
+                : `Structuring your prompt for ${draft.modelId ?? "target model"}...`}
             </span>
           </div>
           <Badge variant="framework">{(draft.framework ?? "costar").toUpperCase()}</Badge>
         </div>
 
-        {streamingBuffer ? (
-          <div className="p-5 rounded-xl bg-[var(--surface-2)] border border-[var(--separator-subtle)]">
-            <SanitizedPromptRenderer content={streamingBuffer} />
+        {hasStreamedText && streamingBuffer ? (
+          <div className="p-5 sm:p-6 rounded-2xl bg-[var(--surface-2)] border border-[var(--separator-subtle)] overflow-x-auto">
+            <SanitizedPromptRenderer content={streamingBuffer} isStreaming />
           </div>
         ) : (
           <div className="space-y-3 animate-pulse">

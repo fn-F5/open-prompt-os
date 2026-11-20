@@ -54,55 +54,24 @@ export async function checkQuota(
   const today = getTodayUtcDate();
   const isGuest = !actor.spaceId;
 
-  let plan: PlanTier = "free";
-  if (actor.spaceId) {
-    const space = await prisma.space.findUnique({
-      where: { id: actor.spaceId },
-      select: { plan: true },
-    });
-    if (space?.plan) {
-      plan = space.plan;
-    }
-  }
-
-  // Lookup configurable limit from DB, falling back to static defaults
-  let dailyLimit: number;
-  try {
-    const limitRow = await prisma.planLimit.findUnique({
-      where: {
-        plan_action_isGuest: {
-          plan,
-          action,
-          isGuest,
-        },
-      },
-    });
-    dailyLimit =
-      limitRow?.dailyLimit ??
-      (isGuest ? GUEST_DEFAULT_LIMITS[action] : DEFAULT_LIMITS[plan][action]);
-  } catch {
-    dailyLimit = isGuest ? GUEST_DEFAULT_LIMITS[action] : DEFAULT_LIMITS[plan][action];
-  }
-
-  // Lookup current usage today
-  let currentUsage = 0;
-  try {
-    if (actor.spaceId) {
-      const spaceId = actor.spaceId;
-      const counter = await runAsTenant({ spaceId, userId: actor.userId }, async (tx) =>
-        tx.usageCounter.findUnique({
-          where: {
-            spaceId_usageDate_action: {
-              spaceId,
-              usageDate: today,
-              action,
+  const lookupCurrentUsage = async (): Promise<number> => {
+    try {
+      if (actor.spaceId) {
+        const spaceId = actor.spaceId;
+        const counter = await runAsTenant({ spaceId, userId: actor.userId }, async (tx) =>
+          tx.usageCounter.findUnique({
+            where: {
+              spaceId_usageDate_action: {
+                spaceId,
+                usageDate: today,
+                action,
+              },
             },
-          },
-          select: { count: true },
-        }),
-      );
-      currentUsage = counter?.count ?? 0;
-    } else {
+            select: { count: true },
+          }),
+        );
+        return counter?.count ?? 0;
+      }
       const counter = await runAsTenant({ clientKey: actor.hashedClientKey }, async (tx) =>
         tx.usageCounter.findUnique({
           where: {
@@ -115,11 +84,51 @@ export async function checkQuota(
           select: { count: true },
         }),
       );
-      currentUsage = counter?.count ?? 0;
+      return counter?.count ?? 0;
+    } catch {
+      // If DB is unreachable, fail open or default to 0
+      return 0;
     }
-  } catch {
-    // If DB is unreachable, fail open or default to 0
-    currentUsage = 0;
+  };
+
+  const lookupDailyLimit = async (plan: PlanTier): Promise<number> => {
+    try {
+      const limitRow = await prisma.planLimit.findUnique({
+        where: {
+          plan_action_isGuest: {
+            plan,
+            action,
+            isGuest,
+          },
+        },
+      });
+      return (
+        limitRow?.dailyLimit ??
+        (isGuest ? GUEST_DEFAULT_LIMITS[action] : DEFAULT_LIMITS[plan][action])
+      );
+    } catch {
+      return isGuest ? GUEST_DEFAULT_LIMITS[action] : DEFAULT_LIMITS[plan][action];
+    }
+  };
+
+  let dailyLimit: number;
+  let currentUsage: number;
+
+  if (actor.spaceId) {
+    const [space, usage] = await Promise.all([
+      prisma.space.findUnique({
+        where: { id: actor.spaceId },
+        select: { plan: true },
+      }),
+      lookupCurrentUsage(),
+    ]);
+    currentUsage = usage;
+    dailyLimit = await lookupDailyLimit(space?.plan ?? "free");
+  } else {
+    [dailyLimit, currentUsage] = await Promise.all([
+      lookupDailyLimit("free"),
+      lookupCurrentUsage(),
+    ]);
   }
 
   const remainingDaily = Math.max(0, dailyLimit - currentUsage);

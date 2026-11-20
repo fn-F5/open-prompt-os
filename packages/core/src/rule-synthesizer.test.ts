@@ -84,6 +84,8 @@ describe("synthesizeCompiledPrompt", () => {
     );
     expect(img.providerId).toBe("gemini");
     expect(img.modelId).toBe("imagen-3-pro");
+    expect(img.compiledPrompt).toContain("Generate image following the specification.");
+    expect(img.compiledPrompt).toContain("Generate an image of");
     expect(img.compiledPrompt).toContain("VISUAL GENERATION SPECIFICATION");
     expect(img.detectedVariables).toEqual(["Primary_Subject", "Key_Detail_Focus", "Variable"]);
 
@@ -96,6 +98,8 @@ describe("synthesizeCompiledPrompt", () => {
       "int_vid",
     );
     expect(vid.providerId).toBe("rule-synthesizer");
+    expect(vid.compiledPrompt).toContain("Generate video following the specification.");
+    expect(vid.compiledPrompt).toContain("Generate a continuous 24fps video");
     expect(vid.compiledPrompt).toContain("MOTION & TEMPORAL PROMPT SPECIFICATION");
     expect(vid.detectedVariables).toEqual(["Opening_Frame", "Closing_Beat", "Variable"]);
   });

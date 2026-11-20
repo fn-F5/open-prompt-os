@@ -56,10 +56,19 @@ export function registerComposeStream(app: Hono<ApiEnv>, deps: ComposeStreamDeps
     const iterator = deps.orchestrator
       .composeStream(parsed.data, { requestId, signal })
       [Symbol.asyncIterator]();
+    let iteratorClosed = false;
+    const closeIterator = async () => {
+      if (iteratorClosed) return;
+      iteratorClosed = true;
+      await iterator.return?.(undefined);
+    };
 
     const stream = new ReadableStream<Uint8Array>({
       async start(controller) {
         try {
+          // Flush SSE headers immediately through dev/reverse proxies before awaiting the first token.
+          controller.enqueue(encoder.encode(": stream-open\n\n"));
+
           while (!signal.aborted) {
             const next = await iterator.next();
             if (next.done) break;
@@ -73,21 +82,20 @@ export function registerComposeStream(app: Hono<ApiEnv>, deps: ComposeStreamDeps
             } else {
               const latencyMs = event.output.latencyMs || Date.now() - started;
 
-              // Atomically increment daily usage counter
-              await recordUsage(actor, "compose");
-
-              // Persist to prompt_generations
-              await recordPromptGeneration(actor, {
-                kind: "compose",
-                rawInput: parsed.data.draft.rawInput,
-                compiledPrompt: event.output.compiledPrompt,
-                draft: parsed.data.draft,
-                mode: parsed.data.draft.mode,
-                framework: parsed.data.draft.framework ?? "costar",
-                modelId: parsed.data.draft.modelId,
-                providerId: event.output.providerId,
-                latencyMs,
-              });
+              await Promise.all([
+                recordUsage(actor, "compose"),
+                recordPromptGeneration(actor, {
+                  kind: "compose",
+                  rawInput: parsed.data.draft.rawInput,
+                  compiledPrompt: event.output.compiledPrompt,
+                  draft: parsed.data.draft,
+                  mode: parsed.data.draft.mode,
+                  framework: parsed.data.draft.framework ?? "costar",
+                  modelId: parsed.data.draft.modelId,
+                  providerId: event.output.providerId,
+                  latencyMs,
+                }),
+              ]);
 
               event.output.remainingDailyPrompts = Math.max(0, quota.remainingDaily - 1);
 
@@ -103,22 +111,35 @@ export function registerComposeStream(app: Hono<ApiEnv>, deps: ComposeStreamDeps
             err: error,
           });
           const message = redactSecrets(error instanceof Error ? error.message : "Internal error");
-          controller.enqueue(
-            encoder.encode(
-              `event: error\ndata: ${JSON.stringify({ code: "INTERNAL_ERROR", message, requestId })}\n\n`,
-            ),
-          );
+          try {
+            controller.enqueue(
+              encoder.encode(
+                `event: error\ndata: ${JSON.stringify({ code: "INTERNAL_ERROR", message, requestId })}\n\n`,
+              ),
+            );
+          } catch {
+            // Stream controller may already be closed if client disconnected.
+          }
         } finally {
-          await iterator.return?.(undefined);
-          controller.close();
+          await closeIterator();
+          try {
+            controller.close();
+          } catch {
+            // Controller may already be closed after cancellation.
+          }
         }
+      },
+      async cancel() {
+        await closeIterator();
       },
     });
 
     return new Response(stream, {
       headers: {
-        "content-type": "text/event-stream",
-        "cache-control": "no-cache",
+        "content-type": "text/event-stream; charset=utf-8",
+        "cache-control": "no-cache, no-transform",
+        connection: "keep-alive",
+        "x-accel-buffering": "no",
         "x-request-id": requestId,
       },
     });

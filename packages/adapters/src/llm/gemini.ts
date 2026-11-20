@@ -35,9 +35,15 @@ export interface GeminiContentResponse {
   readonly outputTokens: number;
 }
 
+export interface GeminiStreamChunk {
+  readonly text: string;
+  readonly inputTokens?: number;
+  readonly outputTokens?: number;
+}
+
 export interface GeminiClient {
   generateContent(request: GeminiContentRequest): Promise<GeminiContentResponse>;
-  generateContentStream(request: GeminiContentRequest): AsyncIterable<{ text: string }>;
+  generateContentStream(request: GeminiContentRequest): AsyncIterable<GeminiStreamChunk>;
 }
 
 export interface GeminiAdapterOptions {
@@ -48,25 +54,28 @@ export interface GeminiAdapterOptions {
   readonly clients?: readonly GeminiClient[];
 }
 
+function buildContents(request: GeminiContentRequest) {
+  return request.image
+    ? [
+        {
+          inlineData: {
+            data: request.image.base64,
+            mimeType: request.image.mimeType,
+          },
+        },
+        { text: request.userPrompt },
+      ]
+    : request.userPrompt;
+}
+
 async function createDefaultGeminiClient(apiKey: string): Promise<GeminiClient> {
   const { GoogleGenAI } = await import("@google/genai");
   const ai = new GoogleGenAI({ apiKey });
-  const client: GeminiClient = {
+  return {
     async generateContent(request) {
-      const contents = request.image
-        ? [
-            {
-              inlineData: {
-                data: request.image.base64,
-                mimeType: request.image.mimeType,
-              },
-            },
-            { text: request.userPrompt },
-          ]
-        : request.userPrompt;
       const response = await ai.models.generateContent({
         model: request.model,
-        contents,
+        contents: buildContents(request),
         config: {
           systemInstruction: request.systemPrompt,
           temperature: request.temperature,
@@ -81,13 +90,26 @@ async function createDefaultGeminiClient(apiKey: string): Promise<GeminiClient> 
       };
     },
     async *generateContentStream(request) {
-      // generateContentStream does not resolve for current Gemini 3 models.
-      // The unary call does, so the SSE route still delivers the provider text.
-      const response = await client.generateContent(request);
-      if (response.text) yield { text: response.text };
+      const responseStream = await ai.models.generateContentStream({
+        model: request.model,
+        contents: buildContents(request),
+        config: {
+          systemInstruction: request.systemPrompt,
+          temperature: request.temperature,
+          maxOutputTokens: request.maxOutputTokens,
+          abortSignal: request.signal,
+        },
+      });
+      for await (const chunk of responseStream) {
+        const text = chunk.text ?? "";
+        const inputTokens = chunk.usageMetadata?.promptTokenCount;
+        const outputTokens = chunk.usageMetadata?.candidatesTokenCount;
+        if (text || inputTokens !== undefined || outputTokens !== undefined) {
+          yield { text, inputTokens, outputTokens };
+        }
+      }
     },
   };
-  return client;
 }
 
 function toResult(
@@ -200,29 +222,56 @@ export function createGeminiAdapter(options: GeminiAdapterOptions): LlmProviderA
     async *stream(request): AsyncIterable<LlmStreamEvent> {
       assertConfigured();
       const started = Date.now();
-      const { model, value } = await firstSuccess(request, async (client, modelId, signal) => {
-        const chunks: string[] = [];
-        for await (const chunk of client.generateContentStream({
-          model: modelId,
-          systemPrompt: request.systemPrompt,
-          userPrompt: request.userPrompt,
-          temperature: request.temperature,
-          maxOutputTokens: request.maxOutputTokens,
-          signal,
-        })) {
-          if (chunk.text) chunks.push(chunk.text);
+      const models = geminiModelChain(request.modelId ?? defaultModel);
+      const configured = accounts();
+      let lastError: unknown;
+
+      for (const model of models) {
+        for (const index of accountOrder(configured.length)) {
+          const account = configured[index];
+          if (!account) continue;
+          const key = quotaKey(account.index, model);
+          if (isModelQuotaExhausted(key)) continue;
+          if (request.signal?.aborted) throw asProviderError(abortError());
+          const signal = combineSignals(request.signal, request.timeoutMs);
+          let yielded = false;
+          let text = "";
+          let inputTokens = 0;
+          let outputTokens = 0;
+          try {
+            const client = await account.client();
+            for await (const chunk of client.generateContentStream({
+              model,
+              systemPrompt: request.systemPrompt,
+              userPrompt: request.userPrompt,
+              image: request.image,
+              temperature: request.temperature,
+              maxOutputTokens: request.maxOutputTokens,
+              signal,
+            })) {
+              if (chunk.inputTokens !== undefined) inputTokens = chunk.inputTokens;
+              if (chunk.outputTokens !== undefined) outputTokens = chunk.outputTokens;
+              if (chunk.text) {
+                yielded = true;
+                text += chunk.text;
+                yield { type: "text-delta", text: chunk.text };
+              }
+            }
+            yield {
+              type: "done",
+              result: toResult(request, { text, inputTokens, outputTokens }, model, started),
+            };
+            return;
+          } catch (error) {
+            lastError = error;
+            if (request.signal?.aborted) throw asProviderError(error);
+            if (yielded) throw asProviderError(error);
+            if (isDailyQuotaExhaustionError(error)) markModelQuotaExhausted(key, error);
+            if (!isRecoverableModelError(error)) throw asProviderError(error);
+          }
         }
-        return chunks;
-      });
-      let text = "";
-      for (const chunk of value) {
-        text += chunk;
-        yield { type: "text-delta", text: chunk };
       }
-      yield {
-        type: "done",
-        result: toResult(request, { text, inputTokens: 0, outputTokens: 0 }, model, started),
-      };
+      throw asProviderError(lastError ?? new Error("No Gemini model available."));
     },
   };
 }
