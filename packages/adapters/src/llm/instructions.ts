@@ -4,6 +4,7 @@ import {
   COMPOSE_MODE_PROMPTS,
   COMPOSE_SYSTEM_PREAMBLE,
   REFINE_SYSTEM_PREAMBLE,
+  REVERSE_ENGINEER_MODE_PROMPTS,
   REVERSE_ENGINEER_SYSTEM_PREAMBLE,
   TARGET_MODEL_GUIDANCE,
   describeTargetModel,
@@ -13,6 +14,7 @@ export {
   COMPOSE_MODE_PROMPTS,
   COMPOSE_SYSTEM_PREAMBLE,
   REFINE_SYSTEM_PREAMBLE,
+  REVERSE_ENGINEER_MODE_PROMPTS,
   REVERSE_ENGINEER_SYSTEM_PREAMBLE,
   TARGET_MODEL_GUIDANCE,
   describeTargetModel,
@@ -44,5 +46,10 @@ export function buildRefineSystemPrompt(): string {
 }
 
 export function buildReverseEngineerSystemPrompt(targetMode: "image" | "video"): string {
-  return `${REVERSE_ENGINEER_SYSTEM_PREAMBLE}\nTarget modality: ${targetMode}. Do not wrap in markdown code fences.`;
+  const modePrompt = REVERSE_ENGINEER_MODE_PROMPTS[targetMode];
+  return [
+    REVERSE_ENGINEER_SYSTEM_PREAMBLE,
+    modePrompt,
+    `Target modality: ${targetMode}. Return ONLY raw valid JSON without markdown code fences.`,
+  ].join("\n\n");
 }

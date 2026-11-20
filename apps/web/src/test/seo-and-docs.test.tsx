@@ -190,6 +190,52 @@ describe("Navigation Placement, Docs Hub, SEO Metadata & AEO Assets", () => {
         expect(screen.getByText("Open Prompt OS Documentation")).toBeInTheDocument();
       });
     });
+
+    it("renders the full bottom footer menus for authenticated users with workspace links", async () => {
+      await act(async () => {
+        setAuthSessionForTest({
+          id: "u_footer_auth",
+          email: "footer@example.com",
+          name: "Footer User",
+          plan: "free",
+          spaceId: "sp_footer",
+          spaceName: "Footer Space",
+          hasPasskey: false,
+        });
+      });
+
+      const qc = createAppQueryClient();
+      render(
+        <QueryClientProvider client={qc}>
+          <MemoryRouter initialEntries={["/"]}>
+            <AppRoutes />
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+
+      const footer = screen.getByRole("contentinfo", { name: "Site footer" });
+      expect(within(footer).getByText("Product")).toBeInTheDocument();
+      expect(within(footer).getByText("Docs & Guides")).toBeInTheDocument();
+      expect(within(footer).getByText("Workspace")).toBeInTheDocument();
+
+      expect(within(footer).getByRole("link", { name: "Documentation Hub" })).toHaveAttribute(
+        "href",
+        "/docs",
+      );
+      expect(within(footer).getByRole("link", { name: "Prompt Library" })).toHaveAttribute(
+        "href",
+        "/library",
+      );
+      expect(within(footer).getByRole("link", { name: "Prompt History" })).toHaveAttribute(
+        "href",
+        "/history",
+      );
+      expect(within(footer).getByRole("link", { name: "Account & Settings" })).toHaveAttribute(
+        "href",
+        "/settings/profile",
+      );
+      expect(within(footer).queryByRole("button", { name: "Sign in / Create Account" })).toBeNull();
+    });
   });
 
   describe("2. SeoHead & Per-Route Metadata + JSON-LD Schemas", () => {

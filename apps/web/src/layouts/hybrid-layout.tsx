@@ -1,5 +1,5 @@
 import { Button, ToastViewport } from "@open-prompt-os/ui-web";
-import { MessageSquarePlus, ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import * as React from "react";
 import { Link, Outlet, useLocation } from "react-router";
 import { AuthDialog } from "../components/auth/auth-dialog.js";
@@ -109,8 +109,10 @@ export function HybridLayout() {
       <main
         id="main-workspace"
         className={`flex-1 mx-auto w-full max-w-[1360px] px-4 sm:px-8 ${
+          isIndexRoute ? "min-h-[calc(100dvh-3.5rem)] sm:min-h-[calc(100dvh-4rem)] " : ""
+        }${
           !isAuthenticated && isIndexRoute
-            ? "min-h-[calc(100dvh-3.5rem)] sm:min-h-[calc(100dvh-4rem)] pt-4 pb-8 sm:pt-7 sm:pb-12"
+            ? "pt-4 pb-8 sm:pt-7 sm:pb-12"
             : "pt-3 sm:pt-6 pb-8 sm:pb-12"
         }`}
       >
@@ -118,204 +120,187 @@ export function HybridLayout() {
         {!isAuthenticated && isIndexRoute ? <MarketingScrollContent /> : null}
       </main>
 
-      {/* 5. Footer: Structured multi-column footer for anonymous; compact bar for authenticated */}
-      {isAuthenticated ? (
-        <footer
-          aria-label="Workspace status footer"
-          className="border-t border-[var(--separator-subtle)] py-4 px-4 sm:px-8 text-sm text-[var(--text-secondary)]"
-        >
-          <div className="mx-auto max-w-[1360px] flex flex-wrap items-center justify-between gap-3">
-            <span className="inline-flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full bg-[var(--success-text)]" />
-              <span>Open Prompt OS · Authenticated Workspace</span>
-            </span>
-            <div className="flex flex-wrap items-center gap-4">
-              <button
-                type="button"
-                onClick={() =>
-                  openFeedbackDialog({ defaultKind: "feature_request", source: "footer" })
-                }
-                className="inline-flex items-center gap-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-ring rounded cursor-pointer"
-              >
-                <MessageSquarePlus
-                  className="w-4 h-4 text-[var(--accent-text)]"
-                  aria-hidden="true"
-                />
-                <span>Feedback &amp; Feature Requests</span>
-              </button>
-              <span className="inline-flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-[var(--success-text)]" />
-                <span>We never train on your prompts</span>
-              </span>
+      {/* 5. Footer: Structured multi-column footer for both guests and authenticated users */}
+      <footer
+        aria-label="Site footer"
+        className="border-t border-[var(--separator-subtle)] bg-[var(--surface-1)]/80 py-12 sm:py-16 px-4 sm:px-8 text-sm text-[var(--text-secondary)]"
+      >
+        <div className="mx-auto max-w-[1360px] grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-8 sm:gap-10 pb-10 sm:pb-12 border-b border-[var(--separator-subtle)]">
+          <div className="sm:col-span-2 lg:col-span-4 space-y-4">
+            <div className="inline-flex items-center gap-3 font-bold text-lg text-[var(--text-primary)]">
+              <BrandLogo className="w-8 h-8 shrink-0 shadow-sm" />
+              <span>Open Prompt OS</span>
+            </div>
+            <p className="text-base text-[var(--text-secondary)] max-w-sm leading-relaxed">
+              The complete lifecycle platform for creating, diagnosing, organizing, and sending
+              high-performing AI prompts across any model.
+            </p>
+            <div className="flex flex-col items-start gap-2.5">
+              <div className="inline-flex items-center gap-2 text-sm text-[var(--success-text)] font-medium">
+                <ShieldCheck className="w-4 h-4" />
+                <span>We never train on your prompts.</span>
+              </div>
               <a
                 href="https://github.com/fn-F5/open-prompt-os"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors focus-ring rounded"
+                className="inline-flex items-center gap-2.5 text-base font-medium text-[var(--text-primary)] hover:text-[var(--accent-text)] transition-colors focus-ring rounded"
               >
-                <GitHubLogo className="w-4 h-4 shrink-0" />
-                <span>GitHub</span>
+                <GitHubLogo className="w-5 h-5 shrink-0" />
+                <span>Open Source on GitHub</span>
               </a>
             </div>
           </div>
-        </footer>
-      ) : (
-        <footer
-          aria-label="Site footer"
-          className="border-t border-[var(--separator-subtle)] bg-[var(--surface-1)]/80 py-12 sm:py-16 px-4 sm:px-8 text-sm text-[var(--text-secondary)]"
-        >
-          <div className="mx-auto max-w-[1360px] grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-8 sm:gap-10 pb-10 sm:pb-12 border-b border-[var(--separator-subtle)]">
-            <div className="sm:col-span-2 lg:col-span-4 space-y-4">
-              <div className="inline-flex items-center gap-3 font-bold text-lg text-[var(--text-primary)]">
-                <BrandLogo className="w-8 h-8 shrink-0 shadow-sm" />
-                <span>Open Prompt OS</span>
-              </div>
-              <p className="text-base text-[var(--text-secondary)] max-w-sm leading-relaxed">
-                The complete lifecycle platform for creating, diagnosing, organizing, and sending
-                high-performing AI prompts across any model.
-              </p>
-              <div className="flex flex-col items-start gap-2.5">
-                <div className="inline-flex items-center gap-2 text-sm text-[var(--success-text)] font-medium">
-                  <ShieldCheck className="w-4 h-4" />
-                  <span>We never train on your prompts.</span>
-                </div>
-                <a
-                  href="https://github.com/fn-F5/open-prompt-os"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2.5 text-base font-medium text-[var(--text-primary)] hover:text-[var(--accent-text)] transition-colors focus-ring rounded"
+
+          <div className="lg:col-span-2 space-y-3">
+            <div className="font-semibold text-[var(--text-primary)]">Product</div>
+            <ul className="space-y-2.5">
+              <li>
+                <Link to="/" className="hover:text-[var(--text-primary)] focus-ring rounded">
+                  Prompt Compiler
+                </Link>
+              </li>
+              <li>
+                <Link to="/improve" className="hover:text-[var(--text-primary)] focus-ring rounded">
+                  Improve & Autopsy
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/reverse-engineer"
+                  className="hover:text-[var(--text-primary)] focus-ring rounded"
                 >
-                  <GitHubLogo className="w-5 h-5 shrink-0" />
-                  <span>Open Source on GitHub</span>
+                  Reverse Engineer
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/templates"
+                  className="hover:text-[var(--text-primary)] focus-ring rounded"
+                >
+                  Template Gallery
+                </Link>
+              </li>
+              <li>
+                <Link to="/pricing" className="hover:text-[var(--text-primary)] focus-ring rounded">
+                  Pricing Plans
+                </Link>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  onClick={() =>
+                    openFeedbackDialog({ defaultKind: "feature_request", source: "footer" })
+                  }
+                  className="hover:text-[var(--text-primary)] focus-ring rounded cursor-pointer text-left"
+                >
+                  Feedback &amp; Feature Requests
+                </button>
+              </li>
+            </ul>
+          </div>
+
+          <div className="lg:col-span-3 space-y-3">
+            <div className="font-semibold text-[var(--text-primary)]">Docs & Guides</div>
+            <ul className="space-y-2.5">
+              <li>
+                <Link to="/docs" className="hover:text-[var(--text-primary)] focus-ring rounded">
+                  Documentation Hub
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/docs/prompt-frameworks-costar-rise-care-cot"
+                  className="hover:text-[var(--text-primary)] focus-ring rounded"
+                >
+                  CO-STAR, RISE, CARE & CoT
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/docs/prompt-autopsy-and-debugging"
+                  className="hover:text-[var(--text-primary)] focus-ring rounded"
+                >
+                  Prompt Autopsy Guide
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/docs/privacy-and-security"
+                  className="hover:text-[var(--text-primary)] focus-ring rounded"
+                >
+                  Zero-Training Privacy
+                </Link>
+              </li>
+              <li>
+                <a
+                  href="/llms.txt"
+                  className="hover:text-[var(--text-primary)] focus-ring rounded font-mono text-xs"
+                >
+                  llms.txt
                 </a>
-              </div>
-            </div>
-
-            <div className="lg:col-span-2 space-y-3">
-              <div className="font-semibold text-[var(--text-primary)]">Product</div>
-              <ul className="space-y-2.5">
-                <li>
-                  <Link to="/" className="hover:text-[var(--text-primary)] focus-ring rounded">
-                    Prompt Compiler
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/improve"
-                    className="hover:text-[var(--text-primary)] focus-ring rounded"
-                  >
-                    Improve & Autopsy
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/reverse-engineer"
-                    className="hover:text-[var(--text-primary)] focus-ring rounded"
-                  >
-                    Reverse Engineer
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/templates"
-                    className="hover:text-[var(--text-primary)] focus-ring rounded"
-                  >
-                    Template Gallery
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/pricing"
-                    className="hover:text-[var(--text-primary)] focus-ring rounded"
-                  >
-                    Pricing Plans
-                  </Link>
-                </li>
-                <li>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      openFeedbackDialog({ defaultKind: "feature_request", source: "footer" })
-                    }
-                    className="hover:text-[var(--text-primary)] focus-ring rounded cursor-pointer text-left"
-                  >
-                    Feedback &amp; Feature Requests
-                  </button>
-                </li>
-              </ul>
-            </div>
-
-            <div className="lg:col-span-3 space-y-3">
-              <div className="font-semibold text-[var(--text-primary)]">Docs & Guides</div>
-              <ul className="space-y-2.5">
-                <li>
-                  <Link to="/docs" className="hover:text-[var(--text-primary)] focus-ring rounded">
-                    Documentation Hub
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/docs/prompt-frameworks-costar-rise-care-cot"
-                    className="hover:text-[var(--text-primary)] focus-ring rounded"
-                  >
-                    CO-STAR, RISE, CARE & CoT
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/docs/prompt-autopsy-and-debugging"
-                    className="hover:text-[var(--text-primary)] focus-ring rounded"
-                  >
-                    Prompt Autopsy Guide
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/docs/privacy-and-security"
-                    className="hover:text-[var(--text-primary)] focus-ring rounded"
-                  >
-                    Zero-Training Privacy
-                  </Link>
-                </li>
-                <li>
-                  <a
-                    href="/llms.txt"
-                    className="hover:text-[var(--text-primary)] focus-ring rounded font-mono text-xs"
-                  >
-                    llms.txt
-                  </a>
-                  {" · "}
-                  <a
-                    href="/sitemap.xml"
-                    className="hover:text-[var(--text-primary)] focus-ring rounded font-mono text-xs"
-                  >
-                    sitemap.xml
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            <div className="sm:col-span-2 lg:col-span-3 space-y-3">
-              <div className="font-semibold text-[var(--text-primary)]">Workspace</div>
-              <p className="text-sm text-[var(--text-secondary)]">
-                Save your prompts and sync across devices with a free account.
-              </p>
-              <Button
-                variant="solid"
-                size="sm"
-                onClick={() => openAuthDialog({ reason: "navbar_signin", mode: "signup" })}
-              >
-                Sign in / Create Account
-              </Button>
-            </div>
+                {" · "}
+                <a
+                  href="/sitemap.xml"
+                  className="hover:text-[var(--text-primary)] focus-ring rounded font-mono text-xs"
+                >
+                  sitemap.xml
+                </a>
+              </li>
+            </ul>
           </div>
 
-          <div className="mx-auto max-w-[1360px] pt-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-sm text-[var(--text-muted)]">
-            <span>© {new Date().getFullYear()} Open Prompt OS. All rights reserved.</span>
-            <span>PolyForm Noncommercial License 1.0.0</span>
+          <div className="sm:col-span-2 lg:col-span-3 space-y-3">
+            <div className="font-semibold text-[var(--text-primary)]">Workspace</div>
+            {isAuthenticated ? (
+              <ul className="space-y-2.5">
+                <li>
+                  <Link
+                    to="/library"
+                    className="hover:text-[var(--text-primary)] focus-ring rounded"
+                  >
+                    Prompt Library
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/history"
+                    className="hover:text-[var(--text-primary)] focus-ring rounded"
+                  >
+                    Prompt History
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/settings/profile"
+                    className="hover:text-[var(--text-primary)] focus-ring rounded"
+                  >
+                    Account &amp; Settings
+                  </Link>
+                </li>
+              </ul>
+            ) : (
+              <>
+                <p className="text-sm text-[var(--text-secondary)]">
+                  Save your prompts and sync across devices with a free account.
+                </p>
+                <Button
+                  variant="solid"
+                  size="sm"
+                  onClick={() => openAuthDialog({ reason: "navbar_signin", mode: "signup" })}
+                >
+                  Sign in / Create Account
+                </Button>
+              </>
+            )}
           </div>
-        </footer>
-      )}
+        </div>
+
+        <div className="mx-auto max-w-[1360px] pt-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-sm text-[var(--text-muted)]">
+          <span>© {new Date().getFullYear()} Open Prompt OS. All rights reserved.</span>
+          <span>PolyForm Noncommercial License 1.0.0</span>
+        </div>
+      </footer>
 
       {/* 6. Global Dialogs, Onboarding Tour & Toasts */}
       <AuthDialog />
