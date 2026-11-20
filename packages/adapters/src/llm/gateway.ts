@@ -27,12 +27,14 @@ import {
 import type { CircuitMemory } from "@open-prompt-os/core";
 import {
   analyzePromptVariables,
+  assertMeaningfulPrompt,
   assertNoClientSystemPrompt,
   circuitAllows,
   circuitFailureRate,
   circuitRecordFailure,
   circuitRecordSuccess,
   diagnoseAndRefinePrompt,
+  extractDraftSupplementalText,
   generateFollowUpQuestions,
   initialCircuitMemory,
   isInputGuardError,
@@ -95,6 +97,9 @@ function sanitizeAnswers(
 function prepareCompose(input: ComposePromptInput): PreparedCompose {
   assertNoClientSystemPrompt(input);
   const draft = sanitizeDraft(input.draft);
+  assertMeaningfulPrompt(draft.rawInput, {
+    supplementalText: extractDraftSupplementalText(draft),
+  });
   const followUpAnswers = sanitizeAnswers(input.followUpAnswers);
   const targetModelEntry = lookupModel(draft.modelId);
   const targetModel =
@@ -401,6 +406,7 @@ export function createOrchestrator(options: OrchestratorOptions): PromptOrchestr
         failedOutput: sanitizeOptionalUserText(input.failedOutput, 10000),
         targetTone: sanitizeOptionalUserText(input.targetTone, 200),
       };
+      assertMeaningfulPrompt(sanitized.originalPrompt);
       const task: SynthesizerTask = { kind: "refine", input: sanitized };
       try {
         const { result } = await dispatch(

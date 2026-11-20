@@ -7,7 +7,12 @@ import type {
   ReverseEngineerInput,
   ReverseEngineerOutput,
 } from "@open-prompt-os/contracts";
-import { isInputGuardError, redactSecrets } from "@open-prompt-os/core";
+import {
+  assertMeaningfulPrompt,
+  extractDraftSupplementalText,
+  isInputGuardError,
+  redactSecrets,
+} from "@open-prompt-os/core";
 import { ORPCError } from "@orpc/server";
 import type { ResolvedActor } from "../auth/session-resolver.js";
 import { logger } from "../logger.js";
@@ -45,6 +50,14 @@ export async function executeCompose(
   input: ComposePromptInput,
   ctx: OrchestratorContext & { actor: ResolvedActor },
 ): Promise<ComposePromptOutput> {
+  try {
+    assertMeaningfulPrompt(input.draft.rawInput, {
+      supplementalText: extractDraftSupplementalText(input.draft),
+    });
+  } catch (error) {
+    failure(error, ctx.requestId);
+  }
+
   const quota = await checkQuota(ctx.actor, "compose");
   if (!quota.allowed) {
     throw new ORPCError("FORBIDDEN", {
@@ -89,6 +102,12 @@ export async function executeRefine(
   input: RefinePromptInput,
   ctx: OrchestratorContext & { actor: ResolvedActor; kind?: "refine" | "autopsy" },
 ): Promise<RefinePromptOutput> {
+  try {
+    assertMeaningfulPrompt(input.originalPrompt);
+  } catch (error) {
+    failure(error, ctx.requestId);
+  }
+
   const action = ctx.kind === "autopsy" ? "autopsy" : "refine";
   const quota = await checkQuota(ctx.actor, action);
   if (!quota.allowed) {

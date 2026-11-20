@@ -1,7 +1,11 @@
 import type { PromptOrchestrator } from "@open-prompt-os/adapter-kit";
 import type { Auth } from "@open-prompt-os/auth";
 import { ComposePromptInputSchema } from "@open-prompt-os/contracts";
-import { redactSecrets } from "@open-prompt-os/core";
+import {
+  evaluatePromptQuality,
+  extractDraftSupplementalText,
+  redactSecrets,
+} from "@open-prompt-os/core";
 import type { Context, Hono } from "hono";
 import type { ApiEnv } from "../app-env.js";
 import { resolveActor } from "../auth/session-resolver.js";
@@ -35,6 +39,13 @@ export function registerComposeStream(app: Hono<ApiEnv>, deps: ComposeStreamDeps
         { code: "VALIDATION_ERROR", message: "Request failed validation.", requestId },
         400,
       );
+    }
+
+    const quality = evaluatePromptQuality(parsed.data.draft.rawInput, {
+      supplementalText: extractDraftSupplementalText(parsed.data.draft),
+    });
+    if (!quality.ok) {
+      return c.json({ code: "VALIDATION_ERROR", message: quality.message, requestId }, 400);
     }
 
     const quota = await checkQuota(actor, "compose");

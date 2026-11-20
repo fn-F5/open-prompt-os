@@ -1,5 +1,5 @@
 import type { PromptLength, RefinePromptOutput } from "@open-prompt-os/contracts";
-import { analyzePromptVariables } from "@open-prompt-os/core";
+import { analyzePromptVariables, evaluatePromptQuality } from "@open-prompt-os/core";
 import { Badge, Button, Tabs, Textarea, toast } from "@open-prompt-os/ui-web";
 import { useMutation } from "@tanstack/react-query";
 import {
@@ -65,6 +65,11 @@ export function ImproveAutopsyPage() {
   const handleRun = () => {
     if (!originalPrompt.trim()) {
       setValidationError("Enter the original prompt to analyze.");
+      return;
+    }
+    const quality = evaluatePromptQuality(originalPrompt);
+    if (!quality.ok) {
+      setValidationError(quality.message);
       return;
     }
     if (mode === "autopsy" && !failedOutput.trim()) {

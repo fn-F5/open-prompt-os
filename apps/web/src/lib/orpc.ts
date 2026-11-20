@@ -38,6 +38,8 @@ import {
 import {
   analyzePromptVariables,
   diagnoseAndRefinePrompt,
+  evaluatePromptQuality,
+  extractDraftSupplementalText,
   synthesizeCompiledPrompt,
   synthesizeReverseEngineeredPrompt,
 } from "@open-prompt-os/core";
@@ -532,6 +534,13 @@ export const orpcClient = {
         );
       }
 
+      const quality = evaluatePromptQuality(input.draft.rawInput, {
+        supplementalText: extractDraftSupplementalText(input.draft),
+      });
+      if (!quality.ok) {
+        throw new OrpcClientError("VALIDATION_ERROR", quality.message, headers["x-request-id"]);
+      }
+
       if (options?.signal?.aborted) {
         throw new DOMException("Aborted", "AbortError");
       }
@@ -664,6 +673,10 @@ export const orpcClient = {
           headers["x-request-id"],
         );
       }
+      const quality = evaluatePromptQuality(input.originalPrompt);
+      if (!quality.ok) {
+        throw new OrpcClientError("VALIDATION_ERROR", quality.message, headers["x-request-id"]);
+      }
       if (input.mode === "autopsy" && (!input.failedOutput || !input.failedOutput.trim())) {
         throw new OrpcClientError(
           "VALIDATION_ERROR",
@@ -707,6 +720,10 @@ export const orpcClient = {
           "Original prompt is required for optimization.",
           headers["x-request-id"],
         );
+      }
+      const quality = evaluatePromptQuality(enriched.originalPrompt);
+      if (!quality.ok) {
+        throw new OrpcClientError("VALIDATION_ERROR", quality.message, headers["x-request-id"]);
       }
       if (!enriched.failedOutput || !enriched.failedOutput.trim()) {
         throw new OrpcClientError(
