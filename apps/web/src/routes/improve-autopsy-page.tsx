@@ -287,7 +287,7 @@ export function ImproveAutopsyPage() {
                 <div className="flex items-center justify-between gap-2">
                   <Badge variant="framework">{result.findings.length} Diagnostic Finding(s)</Badge>
                   <span className="font-mono text-xs text-[var(--text-secondary)] tabular-nums">
-                    {result.providerId}/{result.modelId} · {result.latencyMs}ms
+                    {result.latencyMs}ms
                   </span>
                 </div>
                 <p className="text-xs sm:text-sm text-[var(--text-secondary)]">{result.summary}</p>

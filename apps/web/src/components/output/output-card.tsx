@@ -126,8 +126,14 @@ export function OutputCard({
         compiledPrompt.slice(0, 8000);
       const mode = effectiveDraft.mode;
       const framework = effectiveDraft.framework ?? "costar";
+      const derivedTitle =
+        compiledPrompt
+          .replace(/^#+\s*/gm, "")
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 80) || "Compiled Prompt Specification";
       const saved = await orpcClient.prompts.save({
-        title: rawInput.slice(0, 80) || "Compiled Prompt Specification",
+        title: derivedTitle,
         rawInput,
         compiledPrompt,
         mode,
@@ -208,7 +214,7 @@ export function OutputCard({
       >
         <div className="flex items-center justify-between gap-2 pb-4 border-b border-[var(--separator-subtle)]">
           <div className="flex items-center gap-2.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-[var(--accent-primary)] animate-ping" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[var(--accent-primary)]" />
             <span className="text-sm font-medium text-[var(--text-secondary)]">
               {hasStreamedText
                 ? `Streaming prompt for ${draft.modelId ?? "target model"}...`
@@ -223,7 +229,7 @@ export function OutputCard({
             <SanitizedPromptRenderer content={streamingBuffer} isStreaming />
           </div>
         ) : (
-          <div className="space-y-3 animate-pulse">
+          <div className="space-y-3">
             <div className="h-4 w-2/5 rounded bg-[var(--surface-2)]" />
             <div className="h-4 w-4/5 rounded bg-[var(--surface-2)]" />
             <div className="h-4 w-3/4 rounded bg-[var(--surface-2)]" />
@@ -247,18 +253,18 @@ export function OutputCard({
       className="mt-6 rounded-3xl p-6 sm:p-8 glow-card space-y-5"
     >
       <div className="sr-only" aria-live="polite">
-        Prompt specification compiled for {output.modelId} with {output.detectedVariables.length}{" "}
-        variables.
+        Prompt specification compiled with {output.detectedVariables.length} variables.
       </div>
 
-      {/* Header & Provider/Model Metadata Row */}
+      {/* Header & Metadata Row */}
       <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-[var(--separator-subtle)]">
         <div className="flex flex-wrap items-center gap-3">
           <Badge variant="framework">Ready-to-Use Prompt</Badge>
-          <span className="text-sm text-[var(--text-secondary)] font-mono tabular-nums">
-            {output.providerId}/{output.modelId}
-            {output.latencyMs > 0 ? ` · ${output.latencyMs}ms` : ""}
-          </span>
+          {output.latencyMs > 0 ? (
+            <span className="text-sm text-[var(--text-secondary)] font-mono tabular-nums">
+              {output.latencyMs}ms
+            </span>
+          ) : null}
           {output.healedFromFailure ? (
             <Badge variant="diagnostic">Auto-healed failover active</Badge>
           ) : null}

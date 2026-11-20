@@ -17,7 +17,7 @@ import {
   quotaKey,
 } from "./gemini-chain.js";
 
-const DEFAULT_MODEL = "gemini-3.6-flash";
+const DEFAULT_MODEL = "gemini-4-hydrogen";
 
 export interface GeminiContentRequest {
   readonly model: string;
@@ -68,11 +68,20 @@ function buildContents(request: GeminiContentRequest) {
     : request.userPrompt;
 }
 
+function thinkingConfigFor(model: string): { thinkingBudget: number } | undefined {
+  // Disable dynamic thinking on Gemini 4+ non-pro models so streaming starts immediately.
+  if (/^gemini-[4-9]\d*(?:\.\d+)?(?:-|$)/.test(model) && !model.includes("-pro")) {
+    return { thinkingBudget: 0 };
+  }
+  return undefined;
+}
+
 async function createDefaultGeminiClient(apiKey: string): Promise<GeminiClient> {
   const { GoogleGenAI } = await import("@google/genai");
   const ai = new GoogleGenAI({ apiKey });
   return {
     async generateContent(request) {
+      const thinkingConfig = thinkingConfigFor(request.model);
       const response = await ai.models.generateContent({
         model: request.model,
         contents: buildContents(request),
@@ -80,6 +89,7 @@ async function createDefaultGeminiClient(apiKey: string): Promise<GeminiClient> 
           systemInstruction: request.systemPrompt,
           temperature: request.temperature,
           maxOutputTokens: request.maxOutputTokens,
+          ...(thinkingConfig ? { thinkingConfig } : {}),
           abortSignal: request.signal,
         },
       });
@@ -90,6 +100,7 @@ async function createDefaultGeminiClient(apiKey: string): Promise<GeminiClient> 
       };
     },
     async *generateContentStream(request) {
+      const thinkingConfig = thinkingConfigFor(request.model);
       const responseStream = await ai.models.generateContentStream({
         model: request.model,
         contents: buildContents(request),
@@ -97,6 +108,7 @@ async function createDefaultGeminiClient(apiKey: string): Promise<GeminiClient> 
           systemInstruction: request.systemPrompt,
           temperature: request.temperature,
           maxOutputTokens: request.maxOutputTokens,
+          ...(thinkingConfig ? { thinkingConfig } : {}),
           abortSignal: request.signal,
         },
       });
@@ -117,13 +129,14 @@ function toResult(
   response: GeminiContentResponse,
   modelId: string,
   started: number,
+  latencyMs?: number,
 ): LlmCompletionResult {
   return {
     text: response.text,
     providerId: "gemini",
     modelId,
     usage: { inputTokens: response.inputTokens, outputTokens: response.outputTokens },
-    latencyMs: Date.now() - started,
+    latencyMs: latencyMs ?? Date.now() - started,
   };
 }
 
@@ -235,6 +248,7 @@ export function createGeminiAdapter(options: GeminiAdapterOptions): LlmProviderA
           if (request.signal?.aborted) throw asProviderError(abortError());
           const signal = combineSignals(request.signal, request.timeoutMs);
           let yielded = false;
+          let firstTokenLatencyMs: number | undefined;
           let text = "";
           let inputTokens = 0;
           let outputTokens = 0;
@@ -252,14 +266,23 @@ export function createGeminiAdapter(options: GeminiAdapterOptions): LlmProviderA
               if (chunk.inputTokens !== undefined) inputTokens = chunk.inputTokens;
               if (chunk.outputTokens !== undefined) outputTokens = chunk.outputTokens;
               if (chunk.text) {
-                yielded = true;
+                if (!yielded) {
+                  firstTokenLatencyMs = Date.now() - started;
+                  yielded = true;
+                }
                 text += chunk.text;
                 yield { type: "text-delta", text: chunk.text };
               }
             }
             yield {
               type: "done",
-              result: toResult(request, { text, inputTokens, outputTokens }, model, started),
+              result: toResult(
+                request,
+                { text, inputTokens, outputTokens },
+                model,
+                started,
+                firstTokenLatencyMs,
+              ),
             };
             return;
           } catch (error) {

@@ -116,7 +116,15 @@ export function HybridLayout() {
             : "pt-3 sm:pt-6 pb-8 sm:pb-12"
         }`}
       >
-        <Outlet />
+        <div
+          className={
+            !isAuthenticated && isIndexRoute
+              ? "min-h-[calc(100dvh-4.5rem)] sm:min-h-[calc(100dvh-5.75rem)]"
+              : undefined
+          }
+        >
+          <Outlet />
+        </div>
         {!isAuthenticated && isIndexRoute ? <MarketingScrollContent /> : null}
       </main>
 

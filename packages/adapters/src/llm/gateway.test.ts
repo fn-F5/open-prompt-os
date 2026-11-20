@@ -13,7 +13,7 @@ import {
   COMPOSE_MODE_PROMPTS,
   COMPOSE_SYSTEM_PREAMBLE,
   REVERSE_ENGINEER_MODE_PROMPTS,
-  TARGET_MODEL_GUIDANCE,
+  describeTargetModel,
 } from "./instructions.js";
 import { createRegistry } from "./registry.js";
 import { createSynthesizerAdapter } from "./synthesizer.js";
@@ -384,7 +384,7 @@ describe("createOrchestrator", () => {
     expect(gemini.lastRequest?.systemPrompt).toContain(
       "OpenAI (ChatGPT, GPT models) (openai-text)",
     );
-    expect(gemini.lastRequest?.systemPrompt).toContain(TARGET_MODEL_GUIDANCE["openai-text"]);
+    expect(gemini.lastRequest?.systemPrompt).toContain(describeTargetModel("openai-text", "text"));
     expect(JSON.parse(gemini.lastRequest?.userPrompt ?? "{}")).toMatchObject({
       mode: "text",
       modelId: "openai-text",
@@ -413,7 +413,9 @@ describe("createOrchestrator", () => {
     expect(gemini.lastRequest?.systemPrompt).toContain(
       "Midjourney (Midjourney models) (midjourney-image)",
     );
-    expect(gemini.lastRequest?.systemPrompt).toContain(TARGET_MODEL_GUIDANCE["midjourney-image"]);
+    expect(gemini.lastRequest?.systemPrompt).toContain(
+      describeTargetModel("midjourney-image", "image"),
+    );
     expect(JSON.parse(gemini.lastRequest?.userPrompt ?? "{}")).toMatchObject({
       mode: "image",
       modelId: "midjourney-image",
@@ -439,7 +441,7 @@ describe("createOrchestrator", () => {
 
     expect(gemini.lastRequest?.systemPrompt).toContain(COMPOSE_MODE_PROMPTS.video);
     expect(gemini.lastRequest?.systemPrompt).toContain("Runway (Gen models) (runway-video)");
-    expect(gemini.lastRequest?.systemPrompt).toContain(TARGET_MODEL_GUIDANCE["runway-video"]);
+    expect(gemini.lastRequest?.systemPrompt).toContain(describeTargetModel("runway-video", "video"));
     expect(JSON.parse(gemini.lastRequest?.userPrompt ?? "{}")).toMatchObject({
       mode: "video",
       modelId: "runway-video",

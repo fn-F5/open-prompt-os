@@ -146,6 +146,7 @@ export function LibraryPage() {
         <Input
           type="search"
           aria-label="Search saved prompts"
+          maxLength={200}
           placeholder="Search saved prompts by title, variable, or tag..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}

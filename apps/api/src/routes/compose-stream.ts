@@ -80,7 +80,7 @@ export function registerComposeStream(app: Hono<ApiEnv>, deps: ComposeStreamDeps
                 ),
               );
             } else {
-              const latencyMs = event.output.latencyMs || Date.now() - started;
+              const latencyMs = event.output.latencyMs ?? Date.now() - started;
 
               await Promise.all([
                 recordUsage(actor, "compose"),
