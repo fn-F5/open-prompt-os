@@ -152,4 +152,95 @@ describe("createGeminiAdapter", () => {
     expect(result.text).toBe("second account");
     expect(result.modelId).toBe("gemini-3.6-flash");
   });
+
+  it("yields the first streamed delta before later chunks resolve and preserves usage", async () => {
+    let releaseSecondChunk!: () => void;
+    const secondChunkGate = new Promise<void>((resolve) => {
+      releaseSecondChunk = resolve;
+    });
+    const client: GeminiClient = {
+      async generateContent() {
+        return { text: "", inputTokens: 0, outputTokens: 0 };
+      },
+      async *generateContentStream() {
+        yield { text: "First " };
+        await secondChunkGate;
+        yield { text: "Second", inputTokens: 12, outputTokens: 7 };
+      },
+    };
+
+    const adapter = createGeminiAdapter({ apiKey: "local-test-key", client });
+    const iterator = adapter.stream(request)[Symbol.asyncIterator]();
+
+    const first = await iterator.next();
+    expect(first.done).toBe(false);
+    expect(first.value).toEqual({ type: "text-delta", text: "First " });
+
+    releaseSecondChunk();
+    const second = await iterator.next();
+    expect(second.done).toBe(false);
+    expect(second.value).toEqual({ type: "text-delta", text: "Second" });
+
+    const done = await iterator.next();
+    expect(done.done).toBe(false);
+    expect(done.value?.type).toBe("done");
+    if (done.value?.type === "done") {
+      expect(done.value.result.text).toBe("First Second");
+      expect(done.value.result.usage).toEqual({ inputTokens: 12, outputTokens: 7 });
+    }
+  });
+
+  it("fails over across models before the first streamed delta and aborts if an error occurs mid-stream", async () => {
+    const seenModels: string[] = [];
+    const client: GeminiClient = {
+      async generateContent() {
+        return { text: "", inputTokens: 0, outputTokens: 0 };
+      },
+      async *generateContentStream(call) {
+        seenModels.push(call.model);
+        if (call.model === "gemini-3.6-flash") {
+          throw new Error(
+            '{"error":{"code":429,"message":"You exceeded your current quota, please check your plan and billing details."}}',
+          );
+        }
+        yield { text: "from fallback model" };
+      },
+    };
+
+    const adapter = createGeminiAdapter({ apiKey: "local-test-key", client });
+    const events: LlmStreamEvent[] = [];
+    for await (const event of adapter.stream(request)) {
+      events.push(event);
+    }
+    expect(seenModels).toEqual(["gemini-3.6-flash", "gemini-3.5-flash"]);
+    expect(events[0]).toEqual({ type: "text-delta", text: "from fallback model" });
+    expect(events[1]?.type).toBe("done");
+    if (events[1]?.type === "done") {
+      expect(events[1].result.modelId).toBe("gemini-3.5-flash");
+    }
+
+    const midStreamModels: string[] = [];
+    const midStreamClient: GeminiClient = {
+      async generateContent() {
+        return { text: "", inputTokens: 0, outputTokens: 0 };
+      },
+      async *generateContentStream(call) {
+        midStreamModels.push(call.model);
+        yield { text: "partial" };
+        throw new Error("upstream stream reset sk-secret-token");
+      },
+    };
+    const midStreamAdapter = createGeminiAdapter({
+      apiKey: "local-test-key",
+      client: midStreamClient,
+    });
+    const received: LlmStreamEvent[] = [];
+    await expect(async () => {
+      for await (const event of midStreamAdapter.stream(request)) {
+        received.push(event);
+      }
+    }).rejects.toMatchObject({ code: "provider_error" });
+    expect(received).toEqual([{ type: "text-delta", text: "partial" }]);
+    expect(midStreamModels).toEqual(["gemini-3.5-flash"]);
+  });
 });

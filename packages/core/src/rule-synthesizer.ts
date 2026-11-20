@@ -128,11 +128,13 @@ export function synthesizeCompiledPrompt(
 
   if (draft.mode === "image") {
     sections = [
-      `# VISUAL GENERATION SPECIFICATION (${FRAMEWORK_LABELS[framework]})`,
+      "Generate image following the specification.",
       `Role: ${persona.trim()}`,
       "",
-      "## 1. Subject & Core Scene",
-      `${draft.rawInput.trim()} — anchored on [Primary_Subject] with [Key_Detail_Focus].`,
+      `# VISUAL GENERATION SPECIFICATION (${FRAMEWORK_LABELS[framework]})`,
+      "",
+      "## 1. Ready-to-Dispatch Master Prompt",
+      `Generate an image of ${draft.rawInput.trim()} — anchored on [Primary_Subject] with [Key_Detail_Focus].`,
       "",
       "## 2. Camera, Lens & Lighting",
       `- **Framing & Optics**: ${format}`,
@@ -145,11 +147,13 @@ export function synthesizeCompiledPrompt(
     ];
   } else if (draft.mode === "video") {
     sections = [
-      `# MOTION & TEMPORAL PROMPT SPECIFICATION (${FRAMEWORK_LABELS[framework]})`,
+      "Generate video following the specification.",
       `Role: ${persona.trim()}`,
       "",
+      `# MOTION & TEMPORAL PROMPT SPECIFICATION (${FRAMEWORK_LABELS[framework]})`,
+      "",
       "## 1. Scene & Temporal Arc",
-      `[Opening_Frame] transitions smoothly as ${draft.rawInput.trim()} toward [Closing_Beat].`,
+      `Generate a continuous 24fps video where [Opening_Frame] transitions smoothly as ${draft.rawInput.trim()} toward [Closing_Beat].`,
       "",
       "## 2. Cinematography & Pacing",
       `- **Camera & Format**: ${format}`,

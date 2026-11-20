@@ -18,10 +18,23 @@ export function useComposePrompt() {
   const { isAuthenticated } = useAuthSession();
   const qc = useQueryClient();
   const abortControllerRef = React.useRef<AbortController | null>(null);
+  const rafIdRef = React.useRef<number | null>(null);
+  const pendingBufferRef = React.useRef<string | null>(null);
+
+  const cancelPendingFlush = React.useCallback(() => {
+    if (rafIdRef.current !== null && typeof window !== "undefined") {
+      window.cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+    pendingBufferRef.current = null;
+  }, []);
+
+  React.useEffect(() => cancelPendingFlush, [cancelPendingFlush]);
 
   const mutation = useMutation<ComposePromptOutput, Error, ComposeMutationArgs>({
     mutationFn: async ({ draft, followUpAnswers }) => {
       // Cancel any in-flight request before starting a newer one (Section 18)
+      cancelPendingFlush();
       abortControllerRef.current?.abort();
       const controller = new AbortController();
       abortControllerRef.current = controller;
@@ -41,6 +54,7 @@ export function useComposePrompt() {
         saveGuestInteraction(draft, null, { interactionId, requestTimestamp });
       }
 
+      let hasFlushedFirstChunk = false;
       composerActions.setStreamingBuffer("");
 
       try {
@@ -53,11 +67,42 @@ export function useComposePrompt() {
           {
             signal: controller.signal,
             onChunk: (partial) => {
-              composerActions.setStreamingBuffer(partial);
+              if (
+                !partial ||
+                controller.signal.aborted ||
+                abortControllerRef.current !== controller
+              ) {
+                return;
+              }
+              if (
+                !hasFlushedFirstChunk ||
+                typeof window === "undefined" ||
+                typeof window.requestAnimationFrame !== "function"
+              ) {
+                hasFlushedFirstChunk = true;
+                composerActions.setStreamingBuffer(partial);
+                return;
+              }
+              pendingBufferRef.current = partial;
+              if (rafIdRef.current === null) {
+                rafIdRef.current = window.requestAnimationFrame(() => {
+                  rafIdRef.current = null;
+                  if (controller.signal.aborted || abortControllerRef.current !== controller) {
+                    pendingBufferRef.current = null;
+                    return;
+                  }
+                  const latest = pendingBufferRef.current;
+                  pendingBufferRef.current = null;
+                  if (latest !== null) {
+                    composerActions.setStreamingBuffer(latest);
+                  }
+                });
+              }
             },
           },
         );
 
+        cancelPendingFlush();
         composerActions.setCompletedOutput(result, {
           isGuest: !isAuthenticated,
           requestTimestamp,
@@ -75,6 +120,7 @@ export function useComposePrompt() {
         qc.invalidateQueries({ queryKey: queryKeys.billing.status() });
         return result;
       } catch (err) {
+        cancelPendingFlush();
         composerActions.setStreamingBuffer(null);
         const code = err instanceof OrpcClientError ? err.code : "INTERNAL_ERROR";
         const requestId = err instanceof OrpcClientError ? err.requestId : undefined;
@@ -94,10 +140,11 @@ export function useComposePrompt() {
   });
 
   const stopGeneration = React.useCallback(() => {
+    cancelPendingFlush();
     abortControllerRef.current?.abort();
     abortControllerRef.current = null;
     composerActions.setStreamingBuffer(null);
-  }, []);
+  }, [cancelPendingFlush]);
 
   return {
     ...mutation,

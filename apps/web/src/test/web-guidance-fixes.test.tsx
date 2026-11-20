@@ -753,4 +753,47 @@ describe("Modern Web Guidance fixes", () => {
       expect(screen.getByRole("button", { name: /Goal/i })).toBeInTheDocument();
     });
   });
+
+  describe("12. OutputCard streaming state", () => {
+    it("transitions from structuring skeleton to live streaming buffer with cursor", () => {
+      const qc = createAppQueryClient();
+      const draft = composerActions.getActiveDraft();
+
+      const { container, rerender } = render(
+        <QueryClientProvider client={qc}>
+          <MemoryRouter>
+            <OutputCard
+              draft={draft}
+              output={null}
+              streamingBuffer=""
+              isPending={true}
+              error={null}
+              onRetry={vi.fn()}
+            />
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+
+      expect(screen.getByText(/Structuring your prompt for/i)).toBeInTheDocument();
+
+      rerender(
+        <QueryClientProvider client={qc}>
+          <MemoryRouter>
+            <OutputCard
+              draft={draft}
+              output={null}
+              streamingBuffer={"# OPERATIONAL PROMPT\nRole: Architect\nEvaluate [Target_System]"}
+              isPending={true}
+              error={null}
+              onRetry={vi.fn()}
+            />
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+
+      expect(screen.getByText(/Streaming prompt for/i)).toBeInTheDocument();
+      expect(container.querySelector("code")?.textContent).toBe("[Target_System]");
+      expect(container.querySelector('pre span[aria-hidden="true"]')).toBeInTheDocument();
+    });
+  });
 });

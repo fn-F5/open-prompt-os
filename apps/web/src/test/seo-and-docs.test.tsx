@@ -84,8 +84,8 @@ describe("Navigation Placement, Docs Hub, SEO Metadata & AEO Assets", () => {
       const desktopLinks = within(primaryNav).getAllByRole("link");
       expect(desktopLinks.map((link) => link.textContent)).toEqual([
         "Compiler",
-        "Improve & Autopsy",
         "Reverse Engineer",
+        "Improve & Autopsy",
         "Templates",
         "Pricing",
       ]);
@@ -100,8 +100,8 @@ describe("Navigation Placement, Docs Hub, SEO Metadata & AEO Assets", () => {
       const mobileLinks = within(mobileNav).getAllByRole("link");
       expect(mobileLinks.map((link) => link.textContent)).toEqual([
         "Compiler",
-        "Improve & Autopsy",
         "Reverse Engineer",
+        "Improve & Autopsy",
         "Templates",
         "Pricing",
       ]);
@@ -132,6 +132,15 @@ describe("Navigation Placement, Docs Hub, SEO Metadata & AEO Assets", () => {
       );
 
       const workspaceNav = screen.getByRole("navigation", { name: "Workspace navigation" });
+      const workspaceLinks = within(workspaceNav).getAllByRole("link");
+      expect(workspaceLinks.map((link) => link.textContent)).toEqual([
+        "Compiler",
+        "Reverse Engineer",
+        "Improve & Autopsy",
+        "Library",
+        "History",
+        "Templates",
+      ]);
       expect(within(workspaceNav).queryByRole("link", { name: /Docs/i })).toBeNull();
       expect(screen.queryByRole("button", { name: /Tour/i })).toBeNull();
     });
