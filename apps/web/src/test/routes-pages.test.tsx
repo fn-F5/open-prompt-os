@@ -442,6 +442,24 @@ describe("Web Route Pages & AuthGate", () => {
       fireEvent.click(screen.getByRole("button", { name: /Accept into Composer/i }));
       expect(screen.getByTestId("composer-dest")).toBeInTheDocument();
     });
+
+    it("loads one-click Autopsy examples, renders health score delta, and toggles Before/After Diff", async () => {
+      renderRoute(<ImproveAutopsyPage />, ["/improve"], "/improve");
+
+      fireEvent.click(screen.getByRole("tab", { name: /Prompt Autopsy/i }));
+      fireEvent.click(screen.getByRole("button", { name: /Hallucinated API Citation/i }));
+      fireEvent.click(screen.getByRole("button", { name: /Run Autopsy/i }));
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/Prompt health score change/i)).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole("tab", { name: /Before \/ After Diff/i }));
+      expect(screen.getByLabelText(/Prompt diff comparison/i)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Save to Library/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Claude/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Gemini/i })).toBeInTheDocument();
+    });
   });
 
   describe("ReverseEngineerPage", () => {
