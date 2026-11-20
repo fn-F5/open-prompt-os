@@ -151,6 +151,38 @@
       }
     </script>
     <title>Open Prompt OS — Write AI Prompts That Work on the First Try</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        background-color: #0f0f11;
+        color: #f9fafb;
+      }
+      html[data-theme="light"],
+      html[data-theme="light"] body {
+        background-color: #f2f5fa;
+        color: #111827;
+      }
+      html.js-loading #root {
+        display: none;
+      }
+    </style>
+    <script>
+      (function () {
+        var root = document.documentElement;
+        root.classList.add("js-loading");
+        try {
+          var saved = localStorage.getItem("open-prompt-os:theme");
+          var theme =
+            saved === "light" || saved === "dark"
+              ? saved
+              : window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches
+                ? "light"
+                : "dark";
+          root.setAttribute("data-theme", theme);
+        } catch (_) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root">

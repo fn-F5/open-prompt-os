@@ -12,6 +12,7 @@ import { createOrchestrator } from "./gateway.js";
 import {
   COMPOSE_MODE_PROMPTS,
   COMPOSE_SYSTEM_PREAMBLE,
+  REVERSE_ENGINEER_MODE_PROMPTS,
   TARGET_MODEL_GUIDANCE,
 } from "./instructions.js";
 import { createRegistry } from "./registry.js";
@@ -494,5 +495,41 @@ describe("createOrchestrator", () => {
     }
     expect(gemini.lastRequest?.systemPrompt).toContain("User-Supplied Building Blocks");
     expect(JSON.parse(gemini.lastRequest?.userPrompt ?? "{}")).toMatchObject(expectedBlocks);
+  });
+
+  it("injects detailed mode-specific reverse-engineer instructions for image and video targets", async () => {
+    const gemini = createFakeAdapter({
+      id: "gemini",
+      text: JSON.stringify({
+        reconstructedPrompt:
+          "Generate image following the specification.\nRole: You are a Lead Photographer.\n\n# VISUAL GENERATION SPECIFICATION (Reverse-Engineered)\n\n## 1. Ready-to-Dispatch Master Prompt\nGenerate an image of [Primary_Subject].",
+        breakdown: {
+          subject: "[Primary_Subject]",
+          styleAndMedium: "35mm editorial photography",
+          lightingAndColor: "Warm tungsten key light with cool rim fill",
+          cameraAndComposition: "50mm f/1.8 shallow depth of field",
+          moodAndAtmosphere: "Intimate studio mood",
+          negativePrompt: "blurry, watermark",
+        },
+      }),
+    });
+    const orchestrator = createOrchestrator({
+      registry: createRegistry([createSynthesizerAdapter(), gemini]),
+      timeoutMs: 1000,
+    });
+    const base64 =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+
+    await orchestrator.reverseEngineer(
+      { imageBase64: base64, mimeType: "image/png", targetMode: "image" },
+      { requestId: "req_rev_img_prompt" },
+    );
+    expect(gemini.lastRequest?.systemPrompt).toContain(REVERSE_ENGINEER_MODE_PROMPTS.image);
+
+    await orchestrator.reverseEngineer(
+      { imageBase64: base64, mimeType: "image/png", targetMode: "video" },
+      { requestId: "req_rev_vid_prompt" },
+    );
+    expect(gemini.lastRequest?.systemPrompt).toContain(REVERSE_ENGINEER_MODE_PROMPTS.video);
   });
 });

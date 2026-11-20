@@ -119,7 +119,7 @@ describe("Anytime Feedback / Feature Requests & Signup Attribution", () => {
 
       fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
-      const authFooter = screen.getByRole("contentinfo", { name: "Workspace status footer" });
+      const authFooter = screen.getByRole("contentinfo", { name: "Site footer" });
       const footerBtn = Array.from(authFooter.querySelectorAll("button")).find((btn) =>
         btn.textContent?.includes("Feedback & Feature Requests"),
       );

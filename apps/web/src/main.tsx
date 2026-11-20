@@ -18,6 +18,7 @@ if (!rootElement) {
   throw new Error("Root element #root not found in index.html");
 }
 
+rootElement.replaceChildren();
 createRoot(rootElement).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
@@ -27,3 +28,4 @@ createRoot(rootElement).render(
     </QueryClientProvider>
   </React.StrictMode>,
 );
+document.documentElement.classList.remove("js-loading");

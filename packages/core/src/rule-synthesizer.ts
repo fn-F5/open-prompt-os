@@ -345,15 +345,51 @@ export function synthesizeReverseEngineeredPrompt(
       "blurry, low-resolution, overexposed highlights, deformed anatomy, watermark, text overlay, compression artifacts",
   };
 
-  const reconstructedPrompt = [
-    `# RECONSTRUCTED ${isVideo ? "VIDEO MOTION" : "VISUAL"} PROMPT`,
-    `Subject: ${breakdown.subject}.`,
-    `Style & Medium: ${breakdown.styleAndMedium}.`,
-    `Lighting & Color Grade: ${breakdown.lightingAndColor}.`,
-    `Camera & Composition: ${breakdown.cameraAndComposition}.`,
-    `Atmosphere: ${breakdown.moodAndAtmosphere}`,
-    `Negative Guardrails: ${breakdown.negativePrompt}`,
-  ].join("\n\n");
+  const reconstructedPrompt = isVideo
+    ? [
+        "Generate video following the specification.",
+        "Role: You are a Senior Cinematographer and Temporal Motion Director.",
+        "",
+        "# RECONSTRUCTED VIDEO MOTION PROMPT",
+        "",
+        "## 1. Ready-to-Dispatch Temporal Master Prompt",
+        `Generate a continuous 24fps video anchored on ${breakdown.subject}, captured with ${breakdown.cameraAndComposition}, under ${breakdown.lightingAndColor}, with ${breakdown.styleAndMedium.toLowerCase()}.`,
+        "",
+        "## 2. Subject, Style & Atmosphere",
+        `- **Focal Subject**: ${breakdown.subject}`,
+        `- **Style & Medium**: ${breakdown.styleAndMedium}`,
+        `- **Atmosphere**: ${breakdown.moodAndAtmosphere}`,
+        "",
+        "## 3. Camera Rig, Lighting & Color Grade",
+        `- **Camera & Composition**: ${breakdown.cameraAndComposition}`,
+        `- **Lighting & Color Grade**: ${breakdown.lightingAndColor}`,
+        "",
+        "## 4. Continuity & Negative Guardrails",
+        "- MUST preserve subject geometry, lighting continuity, and physical motion stability across all frames.",
+        `- MUST NOT include: ${breakdown.negativePrompt}.`,
+      ].join("\n")
+    : [
+        "Generate image following the specification.",
+        "Role: You are a Principal Visual Director and Computational Photography Specialist.",
+        "",
+        "# RECONSTRUCTED VISUAL PROMPT",
+        "",
+        "## 1. Ready-to-Dispatch Master Prompt",
+        `Generate an image of ${breakdown.subject}, rendered as ${breakdown.styleAndMedium.toLowerCase()}, framed with ${breakdown.cameraAndComposition}, illuminated by ${breakdown.lightingAndColor}.`,
+        "",
+        "## 2. Subject, Style & Atmosphere",
+        `- **Focal Subject**: ${breakdown.subject}`,
+        `- **Style & Medium**: ${breakdown.styleAndMedium}`,
+        `- **Atmosphere**: ${breakdown.moodAndAtmosphere}`,
+        "",
+        "## 3. Camera Optics, Lighting & Color Grade",
+        `- **Camera & Composition**: ${breakdown.cameraAndComposition}`,
+        `- **Lighting & Color Grade**: ${breakdown.lightingAndColor}`,
+        "",
+        "## 4. Compositional Constraints & Negative Guardrails",
+        "- MUST keep lighting physics, surface materiality, and perspective geometry coherent.",
+        `- MUST NOT include: ${breakdown.negativePrompt}.`,
+      ].join("\n");
 
   const { detectedVariables } = analyzePromptVariables(reconstructedPrompt);
   const modelId = input.targetModelId ?? (isVideo ? "veo-2-cinema" : "imagen-3-pro");

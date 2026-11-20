@@ -293,10 +293,12 @@ describe("Open Prompt OS Landing Page & Frontend Plan Verification", () => {
         });
       });
 
-      // Marketing content must be completely unmounted after authentication without redirecting away from composer
+      // Marketing content must be completely unmounted after authentication without redirecting away from composer,
+      // while main workspace keeps full viewport min-height so the footer stays below the fold until scroll
       await waitFor(() => {
         expect(screen.queryByTestId("anonymous-marketing-content")).toBeNull();
-        expect(mainWorkspace?.className).not.toContain("min-h-[calc(100dvh-3.5rem)]");
+        expect(mainWorkspace?.className).toContain("min-h-[calc(100dvh-3.5rem)]");
+        expect(mainWorkspace?.className).toContain("sm:min-h-[calc(100dvh-4rem)]");
       });
 
       // Guest record is migrated once and cleared from localStorage

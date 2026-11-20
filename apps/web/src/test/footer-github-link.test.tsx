@@ -56,8 +56,8 @@ describe("Footer GitHub Project Link", () => {
 
     renderWithApp(<AppRoutes />, ["/"]);
 
-    const authFooter = screen.getByRole("contentinfo", { name: "Workspace status footer" });
-    const githubLink = within(authFooter).getByRole("link", { name: /GitHub/i });
+    const authFooter = screen.getByRole("contentinfo", { name: "Site footer" });
+    const githubLink = within(authFooter).getByRole("link", { name: /Open Source on GitHub/i });
 
     expect(githubLink).toHaveAttribute("href", "https://github.com/fn-F5/open-prompt-os");
     expect(githubLink).toHaveAttribute("target", "_blank");
