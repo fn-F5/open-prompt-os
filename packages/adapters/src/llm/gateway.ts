@@ -20,6 +20,9 @@ import type {
   ReverseEngineerOutput,
 } from "@open-prompt-os/contracts";
 import {
+  DiagnosticCategorySchema,
+  DiagnosticFindingSchema,
+  DiagnosticSeveritySchema,
   RefinePromptOutputSchema,
   ReverseEngineerBreakdownSchema,
   ReverseEngineerOutputSchema,
@@ -27,12 +30,14 @@ import {
 import type { CircuitMemory } from "@open-prompt-os/core";
 import {
   analyzePromptVariables,
+  assertMeaningfulPrompt,
   assertNoClientSystemPrompt,
   circuitAllows,
   circuitFailureRate,
   circuitRecordFailure,
   circuitRecordSuccess,
   diagnoseAndRefinePrompt,
+  extractDraftSupplementalText,
   generateFollowUpQuestions,
   initialCircuitMemory,
   isInputGuardError,
@@ -95,6 +100,9 @@ function sanitizeAnswers(
 function prepareCompose(input: ComposePromptInput): PreparedCompose {
   assertNoClientSystemPrompt(input);
   const draft = sanitizeDraft(input.draft);
+  assertMeaningfulPrompt(draft.rawInput, {
+    supplementalText: extractDraftSupplementalText(draft),
+  });
   const followUpAnswers = sanitizeAnswers(input.followUpAnswers);
   const targetModelEntry = lookupModel(draft.modelId);
   const targetModel =
@@ -157,10 +165,79 @@ function unfenceJson(text: string): string {
     .trim();
 }
 
-function parseRefine(text: string): RefinePromptOutput | null {
+function parseRefine(
+  text: string,
+  result: LlmCompletionResult,
+  ctx: OrchestratorContext,
+): RefinePromptOutput | null {
   try {
-    const parsed = RefinePromptOutputSchema.safeParse(JSON.parse(unfenceJson(text)));
-    return parsed.success ? parsed.data : null;
+    const raw = JSON.parse(unfenceJson(text)) as Record<string, unknown>;
+    const fullParsed = RefinePromptOutputSchema.safeParse(raw);
+    if (fullParsed.success) {
+      return {
+        ...fullParsed.data,
+        providerId: result.providerId,
+        modelId: result.modelId,
+        latencyMs: result.latencyMs,
+        requestId: ctx.requestId,
+      };
+    }
+
+    const optimizedPrompt =
+      typeof raw.optimizedPrompt === "string" ? raw.optimizedPrompt.trim() : "";
+    if (!optimizedPrompt) return null;
+
+    const rawFindings = Array.isArray(raw.findings) ? raw.findings : [];
+    const findings: RefinePromptOutput["findings"] = [];
+    for (let index = 0; index < rawFindings.length; index += 1) {
+      const item = rawFindings[index];
+      if (!item || typeof item !== "object") continue;
+      const record = item as Record<string, unknown>;
+      const categoryParsed = DiagnosticCategorySchema.safeParse(
+        typeof record.category === "string" ? record.category.trim().toLowerCase() : "",
+      );
+      const severityParsed = DiagnosticSeveritySchema.safeParse(
+        typeof record.severity === "string" ? record.severity.trim().toLowerCase() : "",
+      );
+      const candidate = DiagnosticFindingSchema.safeParse({
+        id:
+          typeof record.id === "string" && record.id.trim().length > 0
+            ? record.id.trim()
+            : `finding-${index + 1}`,
+        category: categoryParsed.success ? categoryParsed.data : "missing_context",
+        title: typeof record.title === "string" ? record.title.trim() : "",
+        severity: severityParsed.success ? severityParsed.data : "warning",
+        evidence: typeof record.evidence === "string" ? record.evidence.trim() : "",
+        recommendation:
+          typeof record.recommendation === "string" ? record.recommendation.trim() : "",
+        changedSection:
+          typeof record.changedSection === "string" && record.changedSection.trim().length > 0
+            ? record.changedSection.trim()
+            : "## Optimized Specification",
+      });
+      if (candidate.success && candidate.data.title.length > 0) {
+        findings.push(candidate.data);
+      }
+    }
+
+    const varAnalysis = analyzePromptVariables(optimizedPrompt);
+    const summary =
+      typeof raw.summary === "string" && raw.summary.trim().length > 0
+        ? raw.summary.trim()
+        : `Identified ${findings.length} structural improvement(s) and synthesized a hardened prompt specification.`;
+
+    return {
+      optimizedPrompt,
+      detectedVariables: varAnalysis.detectedVariables,
+      unresolvedVariables: varAnalysis.unresolvedVariables,
+      duplicateVariables: varAnalysis.duplicateVariables,
+      findings,
+      summary,
+      providerId: result.providerId,
+      modelId: result.modelId,
+      latencyMs: result.latencyMs,
+      requestId: ctx.requestId,
+    };
   } catch {
     return null;
   }
@@ -401,23 +478,24 @@ export function createOrchestrator(options: OrchestratorOptions): PromptOrchestr
         failedOutput: sanitizeOptionalUserText(input.failedOutput, 10000),
         targetTone: sanitizeOptionalUserText(input.targetTone, 200),
       };
+      assertMeaningfulPrompt(sanitized.originalPrompt);
       const task: SynthesizerTask = { kind: "refine", input: sanitized };
       try {
         const { result } = await dispatch(
           sanitized.targetModelId ?? null,
-          { systemPrompt: buildRefineSystemPrompt(), userPrompt: JSON.stringify(sanitized) },
+          {
+            systemPrompt: buildRefineSystemPrompt({
+              mode: sanitized.mode,
+              targetModelId: sanitized.targetModelId,
+            }),
+            userPrompt: JSON.stringify(sanitized),
+          },
           JSON.stringify(task),
           ctx,
         );
-        const parsed = parseRefine(result.text);
+        const parsed = parseRefine(result.text, result, ctx);
         if (!parsed) return fallbackRefine(sanitized, ctx, result.latencyMs);
-        return {
-          ...parsed,
-          providerId: result.providerId,
-          modelId: result.modelId,
-          latencyMs: result.latencyMs,
-          requestId: ctx.requestId,
-        };
+        return parsed;
       } catch (error) {
         if (isInputGuardError(error)) throw error;
         return fallbackRefine(sanitized, ctx, 0);

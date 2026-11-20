@@ -796,4 +796,42 @@ describe("Modern Web Guidance fixes", () => {
       expect(container.querySelector('pre span[aria-hidden="true"]')).toBeInTheDocument();
     });
   });
+
+  describe("13. Pre-LLM prompt quality guard in PromptComposer", () => {
+    it("rejects greetings and single-word low-signal prompts inline without submitting", () => {
+      const qc = createAppQueryClient();
+      const onSubmit = vi.fn();
+
+      render(
+        <QueryClientProvider client={qc}>
+          <MemoryRouter>
+            <PromptComposer
+              isPending={false}
+              onSubmitPrompt={onSubmit}
+              onStopGeneration={vi.fn()}
+            />
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+
+      const textarea = screen.getByLabelText<HTMLTextAreaElement>(
+        /Prompt intent and instructions/i,
+      );
+      const submitBtn = screen.getByRole("button", { name: /Compile structured prompt/i });
+
+      fireEvent.change(textarea, { target: { value: "hi" } });
+      fireEvent.click(submitBtn);
+      expect(screen.getByRole("alert")).toHaveTextContent(/Hey there/i);
+      expect(onSubmit).not.toHaveBeenCalled();
+
+      fireEvent.change(textarea, { target: { value: "cat" } });
+      fireEvent.click(submitBtn);
+      expect(screen.getByRole("alert")).toHaveTextContent(/little more to work with/i);
+      expect(onSubmit).not.toHaveBeenCalled();
+
+      fireEvent.change(textarea, { target: { value: "resignation email" } });
+      fireEvent.click(submitBtn);
+      expect(onSubmit).toHaveBeenCalledTimes(1);
+    });
+  });
 });

@@ -3,6 +3,7 @@ import { describeFramework } from "@open-prompt-os/core";
 import {
   COMPOSE_MODE_PROMPTS,
   COMPOSE_SYSTEM_PREAMBLE,
+  REFINE_MODE_PROMPTS,
   REFINE_SYSTEM_PREAMBLE,
   REVERSE_ENGINEER_MODE_PROMPTS,
   REVERSE_ENGINEER_SYSTEM_PREAMBLE,
@@ -13,6 +14,7 @@ import {
 export {
   COMPOSE_MODE_PROMPTS,
   COMPOSE_SYSTEM_PREAMBLE,
+  REFINE_MODE_PROMPTS,
   REFINE_SYSTEM_PREAMBLE,
   REVERSE_ENGINEER_MODE_PROMPTS,
   REVERSE_ENGINEER_SYSTEM_PREAMBLE,
@@ -41,8 +43,20 @@ export function buildComposeSystemPrompt(
   ].join("\n\n");
 }
 
-export function buildRefineSystemPrompt(): string {
-  return `${REFINE_SYSTEM_PREAMBLE}\nFramework: ${describeFramework("costar")}`;
+export interface BuildRefineSystemPromptOptions {
+  readonly mode?: "improve" | "autopsy";
+  readonly targetModelId?: string | null;
+}
+
+export function buildRefineSystemPrompt(options?: BuildRefineSystemPromptOptions): string {
+  const mode = options?.mode ?? "improve";
+  return [
+    REFINE_SYSTEM_PREAMBLE,
+    REFINE_MODE_PROMPTS[mode],
+    `Framework: ${describeFramework("costar")}`,
+    `Target Model: ${describeTargetModel(options?.targetModelId, "text")}`,
+    "Return ONLY raw valid JSON without markdown code fences.",
+  ].join("\n\n");
 }
 
 export function buildReverseEngineerSystemPrompt(targetMode: "image" | "video"): string {

@@ -1,4 +1,5 @@
 import type { ComposerMode } from "@open-prompt-os/contracts";
+import { evaluatePromptQuality, extractDraftSupplementalText } from "@open-prompt-os/core";
 import { Badge, Button, Tabs, Textarea } from "@open-prompt-os/ui-web";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -155,6 +156,13 @@ export function PromptComposer({
     }
     if (activeDraft.rawInput.length > 8000) {
       setValidationError("Prompt input exceeds the 8,000 character limit.");
+      return;
+    }
+    const quality = evaluatePromptQuality(activeDraft.rawInput, {
+      supplementalText: extractDraftSupplementalText(activeDraft),
+    });
+    if (!quality.ok) {
+      setValidationError(quality.message);
       return;
     }
     setValidationError(null);

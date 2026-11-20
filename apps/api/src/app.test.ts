@@ -181,6 +181,61 @@ describe("compose stream", () => {
     expect(await response.json()).toMatchObject({ code: "VALIDATION_ERROR" });
   });
 
+  it("rejects greetings and low-signal prompts without invoking the orchestrator", async () => {
+    let called = false;
+    const runtime = createRuntime(loadConfig({}));
+    const orchestrator: PromptOrchestrator = {
+      async compose(input, ctx) {
+        called = true;
+        return runtime.orchestrator.compose(input, ctx);
+      },
+      async *composeStream(input, ctx) {
+        called = true;
+        yield* runtime.orchestrator.composeStream(input, ctx);
+      },
+      async refine(input, ctx) {
+        called = true;
+        return runtime.orchestrator.refine(input, ctx);
+      },
+      reverseEngineer: runtimePlaceholderReverseEngineer(),
+      healthSnapshot: () => [],
+    };
+    const app = buildApp(20, orchestrator);
+
+    const streamRes = await app.request("http://localhost/api/prompts/compose/stream", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...draft, draft: { ...draft.draft, rawInput: "hi" } }),
+    });
+    expect(streamRes.status).toBe(400);
+    expect(await streamRes.json()).toMatchObject({
+      code: "VALIDATION_ERROR",
+      message: expect.stringMatching(/Hey there/i),
+    });
+
+    const rpcComposeRes = await app.request("http://localhost/rpc/prompts/compose", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        json: { ...draft, draft: { ...draft.draft, rawInput: "hello" } },
+      }),
+    });
+    expect(rpcComposeRes.status).toBe(400);
+    expect(await rpcComposeRes.text()).toContain("VALIDATION_ERROR");
+
+    const rpcRefineRes = await app.request("http://localhost/rpc/prompts/refine", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        json: { originalPrompt: "asdfghjkl", mode: "improve", targetLength: "balanced" },
+      }),
+    });
+    expect(rpcRefineRes.status).toBe(400);
+    expect(await rpcRefineRes.text()).toContain("VALIDATION_ERROR");
+
+    expect(called).toBe(false);
+  });
+
   it("stops the iterator when the request is aborted", async () => {
     const stopped = { value: false };
     const output: ComposePromptOutput = {
