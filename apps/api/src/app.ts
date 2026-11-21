@@ -20,6 +20,7 @@ import {
 } from "./logger.js";
 import { createRouter } from "./router.js";
 import { registerComposeStream } from "./routes/compose-stream.js";
+import { registerVideoReverseEngineerStream } from "./routes/reverse-engineer-video-stream.js";
 import { registerSeoRoutes } from "./routes/seo-routes.js";
 import { registerStripeWebhook } from "./routes/stripe-webhook.js";
 
@@ -97,11 +98,15 @@ export function createApp(options: AppOptions) {
     }),
   );
   const reverseEngineerBodyLimit = bodyLimit({ maxSize: 6 * 1024 * 1024 });
+  const videoReverseEngineerBodyLimit = bodyLimit({ maxSize: 105 * 1024 * 1024 });
   const defaultBodyLimit = bodyLimit({ maxSize: 32 * 1024 });
   const stripeWebhookBodyLimit = bodyLimit({ maxSize: 256 * 1024 });
   app.use("*", async (c, next) => {
     if (c.req.path === "/rpc/prompts/reverseEngineer") {
       return reverseEngineerBodyLimit(c, next);
+    }
+    if (c.req.path === "/api/prompts/reverse-engineer-video/stream") {
+      return videoReverseEngineerBodyLimit(c, next);
     }
     if (c.req.path === "/api/webhooks/stripe") {
       return stripeWebhookBodyLimit(c, next);
@@ -209,6 +214,12 @@ export function createApp(options: AppOptions) {
   registerComposeStream(app, {
     orchestrator: options.orchestrator,
     allowRequest: () => true,
+    trustProxy: options.trustProxy,
+    auth: options.auth,
+  });
+
+  registerVideoReverseEngineerStream(app, {
+    orchestrator: options.orchestrator,
     trustProxy: options.trustProxy,
     auth: options.auth,
   });

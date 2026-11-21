@@ -18,14 +18,19 @@ import type {
   RefinePromptOutput,
   ReverseEngineerInput,
   ReverseEngineerOutput,
+  VideoReverseEngineerInput,
+  VideoReverseEngineerOutput,
 } from "@open-prompt-os/contracts";
 import {
   RefinePromptOutputSchema,
   ReverseEngineerBreakdownSchema,
   ReverseEngineerOutputSchema,
+  VideoContinuityBibleSchema,
+  VideoShotSchema,
 } from "@open-prompt-os/contracts";
 import type { CircuitMemory } from "@open-prompt-os/core";
 import {
+  InputGuardError,
   analyzePromptVariables,
   assertNoClientSystemPrompt,
   circuitAllows,
@@ -47,6 +52,7 @@ import {
   buildComposeSystemPrompt,
   buildRefineSystemPrompt,
   buildReverseEngineerSystemPrompt,
+  buildVideoReverseEngineerSystemPrompt,
 } from "./instructions.js";
 import type { ProviderRegistry } from "./registry.js";
 import type { SynthesizerTask } from "./synthesizer.js";
@@ -211,6 +217,116 @@ function parseReverseEngineer(
         guardrails: [breakdown.negativePrompt],
         framework: "costar",
         advanced: { length: "detailed", creativity: 0.5 },
+      },
+      providerId: result.providerId,
+      modelId: result.modelId,
+      latencyMs: result.latencyMs,
+      remainingDailyRuns: null,
+      requestId: ctx.requestId,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Strip accidental meta-directive / specification headers so video prompts are ready to paste. */
+function stripVideoSpecWrapper(text: string): string {
+  return text
+    .replace(/^Generate (?:video|image) following the specification\.\s*\n?/i, "")
+    .replace(/^Role:\s*You are [^\n]*\n+/i, "")
+    .replace(/^#\s*MOTION\s*&\s*TEMPORAL\s*PROMPT\s*SPECIFICATION[^\n]*\n+/i, "")
+    .trim();
+}
+
+function parseVideoReverseEngineer(
+  text: string,
+  input: VideoReverseEngineerInput,
+  result: LlmCompletionResult,
+  ctx: OrchestratorContext,
+): VideoReverseEngineerOutput | null {
+  try {
+    const raw = JSON.parse(unfenceJson(text)) as Record<string, unknown>;
+    const overviewRaw = raw.overview as Record<string, unknown> | undefined;
+    const bibleParsed = VideoContinuityBibleSchema.safeParse(raw.continuityBible);
+    const rawShots = Array.isArray(raw.shots) ? raw.shots.slice(0, 8) : [];
+    const shotsParsed = rawShots
+      .map((item, idx) =>
+        VideoShotSchema.safeParse({
+          ...(item && typeof item === "object" ? item : {}),
+          shotNumber:
+            item &&
+            typeof item === "object" &&
+            typeof (item as { shotNumber?: unknown }).shotNumber === "number"
+              ? (item as { shotNumber: number }).shotNumber
+              : idx + 1,
+        }),
+      )
+      .filter(
+        (parsed): parsed is { success: true; data: VideoReverseEngineerOutput["shots"][number] } =>
+          parsed.success,
+      )
+      .map((parsed) => ({
+        ...parsed.data,
+        firstFramePrompt: stripVideoSpecWrapper(parsed.data.firstFramePrompt),
+        shotPrompt: stripVideoSpecWrapper(parsed.data.shotPrompt),
+      }));
+
+    const masterPrompt =
+      typeof raw.masterPrompt === "string" ? stripVideoSpecWrapper(raw.masterPrompt) : "";
+    if (!overviewRaw || !bibleParsed.success || shotsParsed.length === 0 || !masterPrompt) {
+      return null;
+    }
+
+    const durationSeconds =
+      typeof overviewRaw.durationSeconds === "number" &&
+      Number.isFinite(overviewRaw.durationSeconds)
+        ? Math.max(0, overviewRaw.durationSeconds)
+        : (input.endOffsetSec ?? input.durationSeconds ?? 15) - input.startOffsetSec;
+    const aspectRatio =
+      typeof overviewRaw.aspectRatio === "string" && overviewRaw.aspectRatio.trim().length > 0
+        ? overviewRaw.aspectRatio.trim()
+        : "16:9";
+    const pacingStyle =
+      typeof overviewRaw.pacingStyle === "string" && overviewRaw.pacingStyle.trim().length > 0
+        ? overviewRaw.pacingStyle.trim()
+        : "24fps cinematic";
+    const isSingleTake =
+      typeof overviewRaw.isSingleTake === "boolean"
+        ? overviewRaw.isSingleTake
+        : shotsParsed.length === 1;
+
+    const bible = bibleParsed.data;
+    const draftModelId =
+      input.targetGenerator === "runway"
+        ? "runway-video"
+        : input.targetGenerator === "sora"
+          ? "sora-turbo"
+          : "google-video";
+
+    return {
+      overview: {
+        durationSeconds,
+        aspectRatio,
+        pacingStyle,
+        isSingleTake,
+        timestampsAreEstimated: true,
+      },
+      continuityBible: bible,
+      shots: shotsParsed,
+      targetGenerator: input.targetGenerator,
+      masterPrompt,
+      detectedVariables: [],
+      suggestedDraft: {
+        rawInput: masterPrompt,
+        mode: "video",
+        modelId: draftModelId,
+        goal: "Recreate the reference video's visual continuity, camera choreography, lighting, and audio pacing.",
+        format: bible.lensAndOpticalDna,
+        tone: bible.lightingAndColorGrade,
+        constraints: [bible.subjectAndWardrobe, bible.audioAndMusicDna].filter(Boolean),
+        guardrails: [bible.negativeGuardrails],
+        framework: "costar",
+        advanced: { length: "detailed", creativity: 0.4 },
       },
       providerId: result.providerId,
       modelId: result.modelId,
@@ -454,6 +570,91 @@ export function createOrchestrator(options: OrchestratorOptions): PromptOrchestr
         if (isInputGuardError(error)) throw error;
         return fallbackReverseEngineer(sanitized, ctx, 0);
       }
+    },
+    async reverseEngineerVideo(input, ctx) {
+      assertNoClientSystemPrompt(input);
+      const focusNotes = sanitizeOptionalUserText(input.focusNotes, 500);
+      const gemini = options.registry
+        .list()
+        .find((adapter) => adapter.id === "gemini" && adapter.isConfigured());
+      if (!gemini) {
+        throw new LlmProviderError(
+          "not_configured",
+          "Video reverse engineering requires a configured Gemini provider.",
+        );
+      }
+      if (!acquire("gemini", clock())) {
+        throw new LlmProviderError(
+          "provider_error",
+          "Gemini video analyzer is temporarily cooling down. Please try again shortly.",
+        );
+      }
+
+      const videoTimeoutMs = Math.max(options.timeoutMs, 120_000);
+      ctx.onStage?.("preparing");
+
+      const videoAttachment =
+        input.sourceType === "youtube"
+          ? {
+              fileUri: input.youtubeUrl,
+              mimeType: "video/mp4" as const,
+              startOffsetSec: input.startOffsetSec,
+              endOffsetSec: input.endOffsetSec,
+            }
+          : {
+              bytes: input.fileBytes,
+              mimeType: input.mimeType ?? ("video/mp4" as const),
+              startOffsetSec: input.startOffsetSec > 0 ? input.startOffsetSec : undefined,
+              endOffsetSec: input.endOffsetSec,
+            };
+
+      if (input.sourceType === "youtube" && !videoAttachment.fileUri) {
+        throw new InputGuardError("A valid YouTube URL is required.");
+      }
+      if (
+        input.sourceType === "upload" &&
+        (!videoAttachment.bytes || videoAttachment.bytes.length === 0)
+      ) {
+        throw new InputGuardError("A video file is required.");
+      }
+
+      ctx.onStage?.("analyzing");
+      let result: LlmCompletionResult;
+      try {
+        result = await gemini.complete({
+          requestId: ctx.requestId,
+          systemPrompt: buildVideoReverseEngineerSystemPrompt(input.targetGenerator),
+          userPrompt: JSON.stringify({
+            sourceType: input.sourceType,
+            targetGenerator: input.targetGenerator,
+            startOffsetSec: input.startOffsetSec,
+            endOffsetSec: input.endOffsetSec,
+            durationSeconds: input.durationSeconds,
+            focusNotes,
+          }),
+          video: videoAttachment,
+          responseMimeType: "application/json",
+          modelId: "gemini-3.6-flash",
+          timeoutMs: videoTimeoutMs,
+          signal: ctx.signal,
+        });
+        succeed("gemini");
+      } catch (error) {
+        if (isInputGuardError(error)) throw error;
+        const providerError = asProviderError(error);
+        fail("gemini", clock(), providerError);
+        throw providerError;
+      }
+
+      ctx.onStage?.("finalizing");
+      const parsed = parseVideoReverseEngineer(result.text, input, result, ctx);
+      if (!parsed) {
+        throw new LlmProviderError(
+          "provider_error",
+          "Could not parse structured video analysis. Please retry.",
+        );
+      }
+      return parsed;
     },
     healthSnapshot(): readonly ProviderHealthSnapshot[] {
       return options.registry.list().map((adapter) => {

@@ -1,4 +1,4 @@
-import type { ComposerMode } from "@open-prompt-os/contracts";
+import type { ComposerMode, VideoGeneratorTarget } from "@open-prompt-os/contracts";
 import { describeFramework } from "@open-prompt-os/core";
 import {
   COMPOSE_MODE_PROMPTS,
@@ -7,6 +7,8 @@ import {
   REVERSE_ENGINEER_MODE_PROMPTS,
   REVERSE_ENGINEER_SYSTEM_PREAMBLE,
   TARGET_MODEL_GUIDANCE,
+  VIDEO_REVERSE_ENGINEER_GENERATOR_GUIDANCE,
+  VIDEO_REVERSE_ENGINEER_SYSTEM_PREAMBLE,
   describeTargetModel,
 } from "./prompt-config.js";
 
@@ -17,6 +19,8 @@ export {
   REVERSE_ENGINEER_MODE_PROMPTS,
   REVERSE_ENGINEER_SYSTEM_PREAMBLE,
   TARGET_MODEL_GUIDANCE,
+  VIDEO_REVERSE_ENGINEER_GENERATOR_GUIDANCE,
+  VIDEO_REVERSE_ENGINEER_SYSTEM_PREAMBLE,
   describeTargetModel,
 };
 
@@ -51,5 +55,18 @@ export function buildReverseEngineerSystemPrompt(targetMode: "image" | "video"):
     REVERSE_ENGINEER_SYSTEM_PREAMBLE,
     modePrompt,
     `Target modality: ${targetMode}. Return ONLY raw valid JSON without markdown code fences.`,
+  ].join("\n\n");
+}
+
+export function buildVideoReverseEngineerSystemPrompt(
+  targetGenerator: VideoGeneratorTarget,
+): string {
+  const guidance =
+    VIDEO_REVERSE_ENGINEER_GENERATOR_GUIDANCE[targetGenerator] ??
+    VIDEO_REVERSE_ENGINEER_GENERATOR_GUIDANCE.general;
+  return [
+    VIDEO_REVERSE_ENGINEER_SYSTEM_PREAMBLE,
+    `TARGET GENERATOR CALIBRATION (${targetGenerator}): ${guidance}`,
+    "Return ONLY raw valid JSON without markdown code fences.",
   ].join("\n\n");
 }

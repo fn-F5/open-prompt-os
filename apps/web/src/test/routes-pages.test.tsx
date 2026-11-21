@@ -473,6 +473,53 @@ describe("Web Route Pages & AuthGate", () => {
       expect(composerActions.getState().activeMode).toBe("image");
       expect(composerActions.getActiveDraft().rawInput).toContain("RECONSTRUCTED VISUAL PROMPT");
     });
+
+    it("switches to Video mode, validates social URLs, analyzes a YouTube clip, and loads draft into Composer", async () => {
+      renderRoute(<ReverseEngineerPage />, ["/reverse-engineer"], "/reverse-engineer");
+
+      fireEvent.click(screen.getByRole("tab", { name: "Video" }));
+
+      expect(screen.getByRole("button", { name: /Reverse Engineer Video/i })).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: /Reverse Engineer Video/i }));
+      expect(screen.getByRole("alert")).toHaveTextContent(/Upload an MP4, WebM, or MOV clip/i);
+
+      fireEvent.click(screen.getByRole("tab", { name: /YouTube Link/i }));
+      const urlInput = screen.getByLabelText("Public YouTube / Shorts URL");
+      fireEvent.change(urlInput, {
+        target: { value: "https://www.tiktok.com/@creator/video/123456" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: /Reverse Engineer Video/i }));
+      expect(screen.getByRole("alert")).toHaveTextContent(/Download the clip as an MP4/i);
+
+      fireEvent.change(urlInput, {
+        target: { value: "https://www.youtube.com/watch?v=jNQXAC9IVRw" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: /Reverse Engineer Video/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/Estimated timestamps/i)).toBeInTheDocument();
+      });
+
+      expect(screen.getByText(/Continuity Bible/i)).toBeInTheDocument();
+      expect(screen.getByText(/Shot-by-Shot Storyboard/i)).toBeInTheDocument();
+      expect(screen.getByText(/Master Video Prompt Specification/i)).toBeInTheDocument();
+
+      const expandShot1 = screen.getByRole("button", { name: /Shot 1/i });
+      expect(screen.getByText(/Motion & Camera/i)).toBeInTheDocument();
+      fireEvent.click(expandShot1);
+      expect(screen.queryByText(/Motion & Camera/i)).not.toBeInTheDocument();
+      fireEvent.click(expandShot1);
+      expect(screen.getByText(/Motion & Camera/i)).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: /Accept into Composer/i }));
+      expect(screen.getByTestId("composer-dest")).toBeInTheDocument();
+      expect(composerActions.getState().activeMode).toBe("video");
+      const rawDraft = composerActions.getActiveDraft().rawInput;
+      expect(rawDraft).toContain("reference YouTube clip");
+      expect(rawDraft).not.toContain("Role:");
+      expect(rawDraft).not.toContain("[Primary_Subject]");
+    });
   });
 
   describe("HistoryPage", () => {

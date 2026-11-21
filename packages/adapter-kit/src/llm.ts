@@ -6,6 +6,9 @@ import type {
   RefinePromptOutput,
   ReverseEngineerInput,
   ReverseEngineerOutput,
+  VideoReverseEngineerInput,
+  VideoReverseEngineerMime,
+  VideoReverseEngineerOutput,
 } from "@open-prompt-os/contracts";
 
 export interface LlmImageAttachment {
@@ -13,11 +16,21 @@ export interface LlmImageAttachment {
   readonly mimeType: "image/png" | "image/jpeg" | "image/webp";
 }
 
+export interface LlmVideoAttachment {
+  readonly fileUri?: string;
+  readonly bytes?: Uint8Array;
+  readonly mimeType: VideoReverseEngineerMime;
+  readonly startOffsetSec?: number;
+  readonly endOffsetSec?: number;
+}
+
 export interface LlmCompletionRequest {
   readonly requestId: string;
   readonly systemPrompt: string;
   readonly userPrompt: string;
   readonly image?: LlmImageAttachment;
+  readonly video?: LlmVideoAttachment;
+  readonly responseMimeType?: "application/json";
   readonly modelId?: string;
   readonly temperature?: number;
   readonly maxOutputTokens?: number;
@@ -89,6 +102,12 @@ export interface PromptOrchestrator {
     input: ReverseEngineerInput,
     ctx: OrchestratorContext,
   ): Promise<ReverseEngineerOutput>;
+  reverseEngineerVideo(
+    input: VideoReverseEngineerInput & { readonly fileBytes?: Uint8Array },
+    ctx: OrchestratorContext & {
+      readonly onStage?: (stage: "preparing" | "analyzing" | "finalizing") => void;
+    },
+  ): Promise<VideoReverseEngineerOutput>;
   healthSnapshot(): readonly ProviderHealthSnapshot[];
 }
 

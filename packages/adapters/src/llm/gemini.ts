@@ -4,6 +4,7 @@ import type {
   LlmImageAttachment,
   LlmProviderAdapter,
   LlmStreamEvent,
+  LlmVideoAttachment,
 } from "@open-prompt-os/adapter-kit";
 import { LlmProviderError } from "@open-prompt-os/adapter-kit";
 import { asProviderError, combineSignals } from "./errors.js";
@@ -24,6 +25,8 @@ export interface GeminiContentRequest {
   readonly systemPrompt: string;
   readonly userPrompt: string;
   readonly image?: LlmImageAttachment;
+  readonly video?: LlmVideoAttachment;
+  readonly responseMimeType?: "application/json";
   readonly temperature?: number;
   readonly maxOutputTokens?: number;
   readonly signal: AbortSignal;
@@ -41,9 +44,23 @@ export interface GeminiStreamChunk {
   readonly outputTokens?: number;
 }
 
+export interface GeminiUploadedFile {
+  readonly name: string;
+  readonly uri: string;
+  readonly mimeType: string;
+  readonly state?: string;
+}
+
 export interface GeminiClient {
   generateContent(request: GeminiContentRequest): Promise<GeminiContentResponse>;
   generateContentStream(request: GeminiContentRequest): AsyncIterable<GeminiStreamChunk>;
+  uploadFile?(
+    bytes: Uint8Array,
+    mimeType: string,
+    signal: AbortSignal,
+  ): Promise<GeminiUploadedFile>;
+  getFile?(name: string, signal: AbortSignal): Promise<GeminiUploadedFile>;
+  deleteFile?(name: string): Promise<void>;
 }
 
 export interface GeminiAdapterOptions {
@@ -52,9 +69,32 @@ export interface GeminiAdapterOptions {
   readonly defaultModel?: string;
   readonly client?: GeminiClient;
   readonly clients?: readonly GeminiClient[];
+  readonly filePollIntervalMs?: number;
 }
 
 function buildContents(request: GeminiContentRequest) {
+  if (request.video?.fileUri) {
+    const videoPart: {
+      fileData: { fileUri: string; mimeType: string };
+      videoMetadata?: { startOffset?: string; endOffset?: string };
+    } = {
+      fileData: {
+        fileUri: request.video.fileUri,
+        mimeType: request.video.mimeType,
+      },
+    };
+    if (request.video.startOffsetSec !== undefined || request.video.endOffsetSec !== undefined) {
+      videoPart.videoMetadata = {
+        ...(request.video.startOffsetSec !== undefined
+          ? { startOffset: `${Math.floor(request.video.startOffsetSec)}s` }
+          : {}),
+        ...(request.video.endOffsetSec !== undefined
+          ? { endOffset: `${Math.ceil(request.video.endOffsetSec)}s` }
+          : {}),
+      };
+    }
+    return [videoPart, { text: request.userPrompt }];
+  }
   return request.image
     ? [
         {
@@ -80,6 +120,7 @@ async function createDefaultGeminiClient(apiKey: string): Promise<GeminiClient> 
           systemInstruction: request.systemPrompt,
           temperature: request.temperature,
           maxOutputTokens: request.maxOutputTokens,
+          responseMimeType: request.responseMimeType,
           abortSignal: request.signal,
         },
       });
@@ -97,6 +138,7 @@ async function createDefaultGeminiClient(apiKey: string): Promise<GeminiClient> 
           systemInstruction: request.systemPrompt,
           temperature: request.temperature,
           maxOutputTokens: request.maxOutputTokens,
+          responseMimeType: request.responseMimeType,
           abortSignal: request.signal,
         },
       });
@@ -107,6 +149,47 @@ async function createDefaultGeminiClient(apiKey: string): Promise<GeminiClient> 
         if (text || inputTokens !== undefined || outputTokens !== undefined) {
           yield { text, inputTokens, outputTokens };
         }
+      }
+    },
+    async uploadFile(bytes, mimeType, signal) {
+      const blob = new Blob([bytes.slice()], { type: mimeType });
+      const uploaded = await ai.files.upload({
+        file: blob,
+        config: {
+          mimeType,
+          abortSignal: signal,
+        },
+      });
+      if (!uploaded.name || !uploaded.uri) {
+        throw new LlmProviderError("provider_error", "Gemini did not return an uploaded file URI.");
+      }
+      return {
+        name: uploaded.name,
+        uri: uploaded.uri,
+        mimeType: uploaded.mimeType ?? mimeType,
+        state: uploaded.state,
+      };
+    },
+    async getFile(name, signal) {
+      const file = await ai.files.get({
+        name,
+        config: { abortSignal: signal },
+      });
+      if (!file.name || !file.uri) {
+        throw new LlmProviderError("provider_error", "Gemini file metadata was incomplete.");
+      }
+      return {
+        name: file.name,
+        uri: file.uri,
+        mimeType: file.mimeType ?? "video/mp4",
+        state: file.state,
+      };
+    },
+    async deleteFile(name) {
+      try {
+        await ai.files.delete({ name });
+      } catch {
+        // Best-effort cleanup of ephemeral uploaded files.
       }
     },
   };
@@ -132,6 +215,45 @@ interface GeminiAccount {
   client(): Promise<GeminiClient>;
 }
 
+async function waitUntilFileActive(
+  client: GeminiClient,
+  initial: GeminiUploadedFile,
+  signal: AbortSignal,
+  pollIntervalMs: number,
+): Promise<GeminiUploadedFile> {
+  if (initial.state === "ACTIVE" || !initial.state || !client.getFile) {
+    if (initial.state === "FAILED") {
+      throw new LlmProviderError("provider_error", "Gemini failed to process the uploaded video.");
+    }
+    return initial;
+  }
+
+  let current = initial;
+  while (current.state !== "ACTIVE") {
+    if (current.state === "FAILED") {
+      throw new LlmProviderError("provider_error", "Gemini failed to process the uploaded video.");
+    }
+    await new Promise<void>((resolve, reject) => {
+      if (signal.aborted) {
+        reject(abortError());
+        return;
+      }
+      const timer = setTimeout(() => {
+        signal.removeEventListener("abort", onAbort);
+        resolve();
+      }, pollIntervalMs);
+      const onAbort = () => {
+        clearTimeout(timer);
+        reject(abortError());
+      };
+      signal.addEventListener("abort", onAbort, { once: true });
+    });
+    if (signal.aborted) throw abortError();
+    current = await client.getFile(current.name, signal);
+  }
+  return current;
+}
+
 export function createGeminiAdapter(options: GeminiAdapterOptions): LlmProviderAdapter {
   const keys = [
     ...new Set(
@@ -141,6 +263,7 @@ export function createGeminiAdapter(options: GeminiAdapterOptions): LlmProviderA
     ),
   ];
   const defaultModel = options.defaultModel ?? DEFAULT_MODEL;
+  const pollIntervalMs = options.filePollIntervalMs ?? 1500;
   const clientPromises = new Map<string, Promise<GeminiClient>>();
 
   function accounts(): readonly GeminiAccount[] {
@@ -206,17 +329,43 @@ export function createGeminiAdapter(options: GeminiAdapterOptions): LlmProviderA
     async complete(request) {
       assertConfigured();
       const started = Date.now();
-      const { model, value } = await firstSuccess(request, (client, modelId, signal) =>
-        client.generateContent({
-          model: modelId,
-          systemPrompt: request.systemPrompt,
-          userPrompt: request.userPrompt,
-          image: request.image,
-          temperature: request.temperature,
-          maxOutputTokens: request.maxOutputTokens,
-          signal,
-        }),
-      );
+      const { model, value } = await firstSuccess(request, async (client, modelId, signal) => {
+        let uploadedName: string | undefined;
+        let video = request.video;
+        try {
+          if (video?.bytes) {
+            if (!client.uploadFile) {
+              throw new LlmProviderError(
+                "provider_error",
+                "Gemini file upload is unavailable on this client.",
+              );
+            }
+            const uploaded = await client.uploadFile(video.bytes, video.mimeType, signal);
+            uploadedName = uploaded.name;
+            const active = await waitUntilFileActive(client, uploaded, signal, pollIntervalMs);
+            video = {
+              ...video,
+              fileUri: active.uri,
+              bytes: undefined,
+            };
+          }
+          return await client.generateContent({
+            model: modelId,
+            systemPrompt: request.systemPrompt,
+            userPrompt: request.userPrompt,
+            image: request.image,
+            video,
+            responseMimeType: request.responseMimeType,
+            temperature: request.temperature,
+            maxOutputTokens: request.maxOutputTokens,
+            signal,
+          });
+        } finally {
+          if (uploadedName) {
+            await client.deleteFile?.(uploadedName);
+          }
+        }
+      });
       return toResult(request, value, model, started);
     },
     async *stream(request): AsyncIterable<LlmStreamEvent> {

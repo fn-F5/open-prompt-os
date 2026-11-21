@@ -269,3 +269,81 @@ export const PromptGenerationItemSchema = z.object({
   createdAt: z.string(),
 });
 export type PromptGenerationItem = z.infer<typeof PromptGenerationItemSchema>;
+
+export const VideoGeneratorTargetSchema = z.enum(["veo", "sora", "runway", "kling_wan", "general"]);
+export type VideoGeneratorTarget = z.infer<typeof VideoGeneratorTargetSchema>;
+
+export const VideoReverseEngineerMimeSchema = z.enum([
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
+]);
+export type VideoReverseEngineerMime = z.infer<typeof VideoReverseEngineerMimeSchema>;
+
+export const VideoShotSchema = z.object({
+  shotNumber: z.number().int().min(1).max(8),
+  startTime: z.string().min(1).max(16),
+  endTime: z.string().min(1).max(16),
+  transitionIn: z.string().min(1).max(120),
+  firstFramePrompt: z.string().min(1).max(1500),
+  motionAndCamera: z.string().min(1).max(1500),
+  audioCue: z.string().max(1000),
+  shotPrompt: z.string().min(1).max(2000),
+});
+export type VideoShot = z.infer<typeof VideoShotSchema>;
+
+export const VideoContinuityBibleSchema = z.object({
+  subjectAndWardrobe: z.string().min(1),
+  environmentAndSet: z.string().min(1),
+  lightingAndColorGrade: z.string().min(1),
+  lensAndOpticalDna: z.string().min(1),
+  audioAndMusicDna: z.string(),
+  negativeGuardrails: z.string().min(1),
+});
+export type VideoContinuityBible = z.infer<typeof VideoContinuityBibleSchema>;
+
+export const VideoReverseEngineerInputSchema = z
+  .object({
+    sourceType: z.enum(["upload", "youtube"]),
+    youtubeUrl: z.string().url().max(500).optional(),
+    mimeType: VideoReverseEngineerMimeSchema.optional(),
+    durationSeconds: z.number().positive().max(3600).optional(),
+    startOffsetSec: z.number().min(0).default(0),
+    endOffsetSec: z.number().positive().optional(),
+    targetGenerator: VideoGeneratorTargetSchema.default("veo"),
+    focusNotes: z.string().max(500).optional(),
+  })
+  .refine((v) => v.endOffsetSec === undefined || v.endOffsetSec > v.startOffsetSec, {
+    message: "End time must be greater than start time.",
+    path: ["endOffsetSec"],
+  });
+export type VideoReverseEngineerInput = z.infer<typeof VideoReverseEngineerInputSchema>;
+
+export const VideoReverseEngineerOutputSchema = z.object({
+  overview: z.object({
+    durationSeconds: z.number().min(0),
+    aspectRatio: z.string(),
+    pacingStyle: z.string(),
+    isSingleTake: z.boolean(),
+    timestampsAreEstimated: z.literal(true),
+  }),
+  continuityBible: VideoContinuityBibleSchema,
+  shots: z.array(VideoShotSchema).min(1).max(8),
+  targetGenerator: VideoGeneratorTargetSchema,
+  masterPrompt: z.string().min(1),
+  detectedVariables: z.array(z.string()),
+  suggestedDraft: ComposerDraftSchema,
+  providerId: z.string(),
+  modelId: z.string(),
+  latencyMs: z.number(),
+  remainingDailyRuns: z.number().nullable(),
+  requestId: z.string(),
+});
+export type VideoReverseEngineerOutput = z.infer<typeof VideoReverseEngineerOutputSchema>;
+
+export const VIDEO_REVERSE_ENGINEER_LIMITS = {
+  guest: { maxDurationSec: 15, maxBytes: 20 * 1024 * 1024 },
+  free: { maxDurationSec: 30, maxBytes: 50 * 1024 * 1024 },
+  pro: { maxDurationSec: 120, maxBytes: 100 * 1024 * 1024 },
+  team: { maxDurationSec: 120, maxBytes: 100 * 1024 * 1024 },
+} as const;

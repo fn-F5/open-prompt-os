@@ -60,6 +60,34 @@ export const REVERSE_ENGINEER_MODE_PROMPTS: Readonly<Record<"image" | "video", s
   ].join("\n"),
 };
 
+export const VIDEO_REVERSE_ENGINEER_GENERATOR_GUIDANCE: Readonly<Record<string, string>> = {
+  veo: "Calibrate prompts for Google Veo: single-take 24fps cinematographic framing, explicit camera trajectory, lighting continuity, and synchronized ambient/foley/dialogue audio cues.",
+  sora: "Calibrate prompts for OpenAI Sora: physically grounded world simulation, continuous temporal motion beats, multi-plane depth physics, and strict anti-morphing temporal coherence.",
+  runway:
+    "Calibrate prompts for Runway Gen: pair crisp camera-control terminology (dolly push-in, pan, tilt, orbital, static tripod) with clear subject action, environmental physics, and visual style.",
+  kling_wan:
+    "Calibrate prompts for Kling / Alibaba Wan: concise subject identity, smooth motion verbs, steady pacing across the shot duration, and consistent scene lighting without abrupt cuts.",
+  general:
+    "Calibrate prompts for frontier AI video generators: clear subject/wardrobe locks, concrete optical/lighting specs, continuous camera motion curves, physical secondary motion, and audio cues.",
+};
+
+export const VIDEO_REVERSE_ENGINEER_SYSTEM_PREAMBLE = [
+  "You are the Principal Film Director, Cinematographer, and Multimodal Video Reverse-Engineering Specialist for Open Prompt OS.",
+  "Analyze BOTH the video frames AND the audio track (speech, foley, ambient sound, music rhythm) of the provided clip in forensic detail so a video generator can recreate it accurately.",
+  "",
+  "STRICT JSON OUTPUT CONTRACT:",
+  '- Return ONLY a single valid JSON object matching this exact schema: { "overview": { "durationSeconds": number, "aspectRatio": string, "pacingStyle": string, "isSingleTake": boolean }, "continuityBible": { "subjectAndWardrobe": string, "environmentAndSet": string, "lightingAndColorGrade": string, "lensAndOpticalDna": string, "audioAndMusicDna": string, "negativeGuardrails": string }, "shots": [{ "shotNumber": number, "startTime": string, "endTime": string, "transitionIn": string, "firstFramePrompt": string, "motionAndCamera": string, "audioCue": string, "shotPrompt": string }], "masterPrompt": string }.',
+  "- Return ONLY raw valid JSON (no markdown code fences, no extra prose).",
+  "- Escape all newlines inside string fields as `\\n`.",
+  "- Hard cap: return between 1 and 8 shots total. If the clip is a fast montage with more than 8 cuts, group consecutive beats into at most 8 cohesive shots.",
+  "- Format `startTime` and `endTime` as `MM:SS` (e.g. `00:00`, `00:03`).",
+  "- In `continuityBible`: lock exact appearance/wardrobe, environment geometry, key/fill/rim lighting + color grade, focal length/depth-of-field/film grain, audio/music/voice cadence, and anti-morphing negative guardrails.",
+  "- For every shot: `firstFramePrompt` must describe the exact opening frame cleanly enough for Image-to-Video (I2V) anchor generation; `motionAndCamera` must describe primary subject motion, secondary physics (hair, cloth, particles, reflections), and camera rig curve; `audioCue` must capture dialogue, SFX, or music; `shotPrompt` must be a direct, self-contained, ready-to-paste video generator prompt describing that single shot with full continuity locks.",
+  "- `masterPrompt` must be a single cohesive, ready-to-paste video generation prompt describing the exact video verbatim: concrete subject appearance and wardrobe, setting/environment, camera movement, lens/framing, lighting and color grade, chronological action beats across the clip, and synchronized dialogue, SFX, or music cues, ending with brief anti-artifact negative guardrails.",
+  "- Write `masterPrompt`, `firstFramePrompt`, and `shotPrompt` as direct natural-language generator prompts ready to paste straight into Veo, Sora, Runway, or Kling. Do NOT include meta-directives (`Generate video following the specification.`), persona headers (`Role: You are a ...`), Markdown specification headings (`# ... SPECIFICATION`, `## 1...`), or bracketed template placeholders (`[Primary_Subject]`, `[Variable_Name]`, etc.). State every observed detail from the clip directly.",
+  "- Strictly honor `focusNotes` from the user JSON payload whenever provided.",
+].join("\n");
+
 export const TARGET_MODEL_GUIDANCE: Readonly<Record<string, string>> = {
   // Text targets
   "openai-text":

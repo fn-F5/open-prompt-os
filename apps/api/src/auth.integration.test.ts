@@ -29,6 +29,9 @@ const orchestrator: PromptOrchestrator = {
   async reverseEngineer() {
     throw new Error("unused");
   },
+  async reverseEngineerVideo() {
+    throw new Error("unused");
+  },
   healthSnapshot: () => [],
 };
 

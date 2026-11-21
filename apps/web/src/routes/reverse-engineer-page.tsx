@@ -5,6 +5,7 @@ import { ArrowRight, Check, Copy, ImagePlus, Sparkles, Trash2 } from "lucide-rea
 import * as React from "react";
 import { useNavigate } from "react-router";
 import { SanitizedPromptRenderer } from "../components/output/output-card.js";
+import { VideoReverseEngineerPanel } from "../components/reverse-engineer/video-reverse-engineer-panel.js";
 import { SeoHead } from "../components/seo/seo-head.js";
 import { useCardHoverAnimation } from "../hooks/use-card-parallax.js";
 import { copyTextToClipboard } from "../lib/dispatch.js";
@@ -66,6 +67,7 @@ export function ReverseEngineerPage() {
   const animateCard = useCardHoverAnimation();
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
+  const [sourceModality, setSourceModality] = React.useState<"image" | "video">("image");
   const [targetMode, setTargetMode] = React.useState<"image" | "video">("image");
   const [focusNotes, setFocusNotes] = React.useState("");
   const [selectedFile, setSelectedFile] = React.useState<{
@@ -166,220 +168,245 @@ export function ReverseEngineerPage() {
           <div className="flex flex-wrap items-center gap-2 mb-1">
             <Badge variant="framework">Vision Extractor</Badge>
             <span className="text-xs text-[var(--text-secondary)]">
-              Image-to-Prompt Reconstruction
+              {sourceModality === "video"
+                ? "Video-to-Prompt Storyboard Reconstruction"
+                : "Image-to-Prompt Reconstruction"}
             </span>
           </div>
           <h1 className="text-2xl font-semibold tracking-tight">Reverse Engineer</h1>
           <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
-            Upload any reference image to extract lighting, lens, style, and a reusable prompt.
+            {sourceModality === "video"
+              ? "Upload a video clip or paste a public YouTube link to extract camera motion, audio DNA, and shot-by-shot prompts."
+              : "Upload any reference image to extract lighting, lens, style, and a reusable prompt."}
           </p>
         </div>
 
-        <Tabs
-          ariaLabel="Target modality"
-          value={targetMode}
-          onValueChange={setTargetMode}
-          options={[
-            { value: "image", label: "Image Prompt" },
-            { value: "video", label: "Video Motion Prompt" },
-          ]}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <Tabs
+            ariaLabel="Source media type"
+            value={sourceModality}
+            onValueChange={setSourceModality}
+            options={[
+              { value: "image", label: "Image" },
+              { value: "video", label: "Video" },
+            ]}
+          />
+          {sourceModality === "image" ? (
+            <Tabs
+              ariaLabel="Target modality"
+              value={targetMode}
+              onValueChange={setTargetMode}
+              options={[
+                { value: "image", label: "Image Prompt" },
+                { value: "video", label: "Video Motion Prompt" },
+              ]}
+            />
+          ) : null}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-        <section
-          aria-label="Reference image upload"
-          data-animate={animateCard("reverseEngineerInput")}
-          className="rounded-xl p-5 flat-surface space-y-4"
-        >
-          <div
-            onDragOver={(e) => {
-              e.preventDefault();
-              setIsDragging(true);
-            }}
-            onDragLeave={() => setIsDragging(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setIsDragging(false);
-              handleFile(e.dataTransfer.files?.[0]);
-            }}
-            className={`rounded-xl border-2 border-dashed p-6 text-center transition-colors ${
-              isDragging
-                ? "border-[var(--accent-primary)] bg-[var(--accent-subtle-bg)]"
-                : "border-[var(--separator-strong)] bg-[var(--surface-2)]"
-            }`}
+      {sourceModality === "video" ? (
+        <VideoReverseEngineerPanel />
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          <section
+            aria-label="Reference image upload"
+            data-animate={animateCard("reverseEngineerInput")}
+            className="rounded-xl p-5 flat-surface space-y-4"
           >
-            <input
-              ref={fileInputRef}
-              type="file"
-              aria-label="Upload reference image"
-              accept="image/png,image/jpeg,image/webp"
-              className="hidden"
-              onChange={(e) => handleFile(e.target.files?.[0])}
-            />
-
-            {selectedFile ? (
-              <div className="space-y-3">
-                <img
-                  src={selectedFile.previewUrl}
-                  alt={selectedFile.name}
-                  className="max-h-64 mx-auto rounded-lg object-contain border border-[var(--separator-subtle)]"
-                />
-                <div className="flex items-center justify-center gap-3 text-xs text-[var(--text-secondary)]">
-                  <span className="truncate max-w-[220px] font-medium text-[var(--text-primary)]">
-                    {selectedFile.name}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setSelectedFile(null);
-                      if (fileInputRef.current) fileInputRef.current.value = "";
-                    }}
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Remove</span>
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-3 py-4">
-                <ImagePlus className="w-8 h-8 mx-auto text-[var(--accent-text)] opacity-80" />
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-[var(--text-primary)]">
-                    Drop a PNG, JPEG, or WebP image here
-                  </p>
-                  <p className="text-xs text-[var(--text-secondary)]">Maximum file size: 4 MB</p>
-                </div>
-                <Button variant="secondary" size="sm" onClick={() => fileInputRef.current?.click()}>
-                  Choose Image
-                </Button>
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-1.5">
-            <label
-              htmlFor="reverse-engineer-focus"
-              className="text-xs font-semibold uppercase tracking-wider"
-            >
-              Focus Notes (Optional)
-            </label>
-            <Textarea
-              id="reverse-engineer-focus"
-              value={focusNotes}
-              onChange={(e) => setFocusNotes(e.target.value)}
-              placeholder="e.g. Emphasize lens focal length, film stock, or color grading..."
-              className="min-h-[84px] bg-[var(--surface-2)]"
-            />
-          </div>
-
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-[var(--separator-subtle)]">
-            <span className="text-xs text-[var(--text-secondary)]">
-              {result?.remainingDailyRuns !== null && result?.remainingDailyRuns !== undefined
-                ? `${result.remainingDailyRuns} reverse-engineer run(s) left today`
-                : "Extracts structured [Variable] slots"}
-            </span>
-            <Button variant="primary-inverse" onClick={handleRun} disabled={mutation.isPending}>
-              <Sparkles className="w-4 h-4" />
-              <span>{mutation.isPending ? "Analyzing Image..." : "Reverse Engineer Image"}</span>
-            </Button>
-          </div>
-
-          {validationError ? (
             <div
-              role="alert"
-              className="rounded-lg p-3 text-xs bg-[var(--danger-bg)] text-[var(--danger-text)] border border-[var(--danger-text)]/30"
+              onDragOver={(e) => {
+                e.preventDefault();
+                setIsDragging(true);
+              }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setIsDragging(false);
+                handleFile(e.dataTransfer.files?.[0]);
+              }}
+              className={`rounded-xl border-2 border-dashed p-6 text-center transition-colors ${
+                isDragging
+                  ? "border-[var(--accent-primary)] bg-[var(--accent-subtle-bg)]"
+                  : "border-[var(--separator-strong)] bg-[var(--surface-2)]"
+              }`}
             >
-              {validationError}
-            </div>
-          ) : null}
-        </section>
+              <input
+                ref={fileInputRef}
+                type="file"
+                aria-label="Upload reference image"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                onChange={(e) => handleFile(e.target.files?.[0])}
+              />
 
-        <section
-          aria-label="Visual breakdown and reconstructed prompt"
-          data-animate={animateCard("reverseEngineerOutput")}
-          className="rounded-xl p-5 flat-surface space-y-5"
-        >
-          {!result ? (
-            <div className="py-12 text-center space-y-2 text-[var(--text-secondary)]">
-              <Sparkles className="w-8 h-8 mx-auto opacity-60" />
-              <div className="text-sm font-medium text-[var(--text-primary)]">
-                Ready to Reconstruct Prompt
-              </div>
-              <p className="text-xs max-w-sm mx-auto">
-                Upload a reference image on the left to inspect its visual anatomy and generate a
-                customizable prompt draft.
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="flex items-center justify-between gap-2">
-                <Badge variant="framework">6-Axis Visual Breakdown</Badge>
-                <span className="font-mono text-xs text-[var(--text-secondary)] tabular-nums">
-                  {result.providerId}/{result.modelId} · {result.latencyMs}ms
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {breakdownCards.map((card) => (
-                  <div
-                    key={card.label}
-                    className="p-3 rounded-lg bg-[var(--surface-2)] border border-[var(--separator-subtle)] space-y-1"
-                  >
-                    <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
-                      {card.label}
-                    </div>
-                    <p className="text-xs text-[var(--text-primary)] leading-relaxed">
-                      {card.value}
-                    </p>
+              {selectedFile ? (
+                <div className="space-y-3">
+                  <img
+                    src={selectedFile.previewUrl}
+                    alt={selectedFile.name}
+                    className="max-h-64 mx-auto rounded-lg object-contain border border-[var(--separator-subtle)]"
+                  />
+                  <div className="flex items-center justify-center gap-3 text-xs text-[var(--text-secondary)]">
+                    <span className="truncate max-w-[220px] font-medium text-[var(--text-primary)]">
+                      {selectedFile.name}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedFile(null);
+                        if (fileInputRef.current) fileInputRef.current.value = "";
+                      }}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Remove</span>
+                    </Button>
                   </div>
-                ))}
-              </div>
-
-              <div className="space-y-2 pt-3 border-t border-[var(--separator-subtle)]">
-                <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
-                  Reconstructed Prompt
                 </div>
-                <div className="p-4 rounded-xl bg-[var(--surface-2)] border border-[var(--separator-subtle)]">
-                  <SanitizedPromptRenderer content={result.reconstructedPrompt} />
-                </div>
-
-                <div className="pt-2 flex flex-wrap items-center gap-2">
-                  <Button
-                    variant="solid"
-                    size="sm"
-                    onClick={async () => {
-                      const ok = await copyTextToClipboard(result.reconstructedPrompt);
-                      if (ok) toast({ title: "Copied reconstructed prompt" });
-                    }}
-                  >
-                    <Copy className="w-3.5 h-3.5" />
-                    <span>Copy Prompt</span>
-                  </Button>
-
+              ) : (
+                <div className="space-y-3 py-4">
+                  <ImagePlus className="w-8 h-8 mx-auto text-[var(--accent-text)] opacity-80" />
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-[var(--text-primary)]">
+                      Drop a PNG, JPEG, or WebP image here
+                    </p>
+                    <p className="text-xs text-[var(--text-secondary)]">Maximum file size: 4 MB</p>
+                  </div>
                   <Button
                     variant="secondary"
                     size="sm"
-                    onClick={() => {
-                      composerActions.applyTemplateDraft(result.suggestedDraft);
-                      toast({
-                        title: "Loaded into Composer",
-                        description: `Switched Composer to ${result.suggestedDraft.mode} mode.`,
-                      });
-                      navigate("/");
-                    }}
+                    onClick={() => fileInputRef.current?.click()}
                   >
-                    <Check className="w-3.5 h-3.5" />
-                    <span>Accept into Composer</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
+                    Choose Image
                   </Button>
                 </div>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <label
+                htmlFor="reverse-engineer-focus"
+                className="text-xs font-semibold uppercase tracking-wider"
+              >
+                Focus Notes (Optional)
+              </label>
+              <Textarea
+                id="reverse-engineer-focus"
+                value={focusNotes}
+                onChange={(e) => setFocusNotes(e.target.value)}
+                placeholder="e.g. Emphasize lens focal length, film stock, or color grading..."
+                className="min-h-[84px] bg-[var(--surface-2)]"
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-[var(--separator-subtle)]">
+              <span className="text-xs text-[var(--text-secondary)]">
+                {result?.remainingDailyRuns !== null && result?.remainingDailyRuns !== undefined
+                  ? `${result.remainingDailyRuns} reverse-engineer run(s) left today`
+                  : "Extracts structured [Variable] slots"}
+              </span>
+              <Button variant="primary-inverse" onClick={handleRun} disabled={mutation.isPending}>
+                <Sparkles className="w-4 h-4" />
+                <span>{mutation.isPending ? "Analyzing Image..." : "Reverse Engineer Image"}</span>
+              </Button>
+            </div>
+
+            {validationError ? (
+              <div
+                role="alert"
+                className="rounded-lg p-3 text-xs bg-[var(--danger-bg)] text-[var(--danger-text)] border border-[var(--danger-text)]/30"
+              >
+                {validationError}
               </div>
-            </>
-          )}
-        </section>
-      </div>
+            ) : null}
+          </section>
+
+          <section
+            aria-label="Visual breakdown and reconstructed prompt"
+            data-animate={animateCard("reverseEngineerOutput")}
+            className="rounded-xl p-5 flat-surface space-y-5"
+          >
+            {!result ? (
+              <div className="py-12 text-center space-y-2 text-[var(--text-secondary)]">
+                <Sparkles className="w-8 h-8 mx-auto opacity-60" />
+                <div className="text-sm font-medium text-[var(--text-primary)]">
+                  Ready to Reconstruct Prompt
+                </div>
+                <p className="text-xs max-w-sm mx-auto">
+                  Upload a reference image on the left to inspect its visual anatomy and generate a
+                  customizable prompt draft.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between gap-2">
+                  <Badge variant="framework">6-Axis Visual Breakdown</Badge>
+                  <span className="font-mono text-xs text-[var(--text-secondary)] tabular-nums">
+                    {result.providerId}/{result.modelId} · {result.latencyMs}ms
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {breakdownCards.map((card) => (
+                    <div
+                      key={card.label}
+                      className="p-3 rounded-lg bg-[var(--surface-2)] border border-[var(--separator-subtle)] space-y-1"
+                    >
+                      <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+                        {card.label}
+                      </div>
+                      <p className="text-xs text-[var(--text-primary)] leading-relaxed">
+                        {card.value}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="space-y-2 pt-3 border-t border-[var(--separator-subtle)]">
+                  <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+                    Reconstructed Prompt
+                  </div>
+                  <div className="p-4 rounded-xl bg-[var(--surface-2)] border border-[var(--separator-subtle)]">
+                    <SanitizedPromptRenderer content={result.reconstructedPrompt} />
+                  </div>
+
+                  <div className="pt-2 flex flex-wrap items-center gap-2">
+                    <Button
+                      variant="solid"
+                      size="sm"
+                      onClick={async () => {
+                        const ok = await copyTextToClipboard(result.reconstructedPrompt);
+                        if (ok) toast({ title: "Copied reconstructed prompt" });
+                      }}
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Copy Prompt</span>
+                    </Button>
+
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => {
+                        composerActions.applyTemplateDraft(result.suggestedDraft);
+                        toast({
+                          title: "Loaded into Composer",
+                          description: `Switched Composer to ${result.suggestedDraft.mode} mode.`,
+                        });
+                        navigate("/");
+                      }}
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Accept into Composer</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              </>
+            )}
+          </section>
+        </div>
+      )}
     </div>
   );
 }

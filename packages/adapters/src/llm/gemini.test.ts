@@ -243,4 +243,123 @@ describe("createGeminiAdapter", () => {
     expect(received).toEqual([{ type: "text-delta", text: "partial" }]);
     expect(midStreamModels).toEqual(["gemini-3.5-flash"]);
   });
+
+  it("uploads video bytes, polls until ACTIVE, analyzes, and deletes the file even on errors or abort", async () => {
+    const deleted: string[] = [];
+    let pollCount = 0;
+    let seenVideoUri: string | undefined;
+
+    const client: GeminiClient = {
+      async generateContent(call) {
+        seenVideoUri = call.video?.fileUri;
+        return { text: '{"ok":true}', inputTokens: 20, outputTokens: 10 };
+      },
+      async *generateContentStream() {
+        yield { text: "" };
+      },
+      async uploadFile() {
+        return {
+          name: "files/vid_1",
+          uri: "https://generativelanguage.googleapis.com/v1beta/files/vid_1",
+          mimeType: "video/mp4",
+          state: "PROCESSING",
+        };
+      },
+      async getFile(name) {
+        pollCount += 1;
+        return {
+          name,
+          uri: "https://generativelanguage.googleapis.com/v1beta/files/vid_1",
+          mimeType: "video/mp4",
+          state: pollCount >= 2 ? "ACTIVE" : "PROCESSING",
+        };
+      },
+      async deleteFile(name) {
+        deleted.push(name);
+      },
+    };
+
+    const adapter = createGeminiAdapter({
+      apiKey: "local-test-key",
+      client,
+      filePollIntervalMs: 1,
+    });
+
+    const okRes = await adapter.complete({
+      ...request,
+      responseMimeType: "application/json",
+      video: {
+        bytes: new Uint8Array([1, 2, 3, 4]),
+        mimeType: "video/mp4",
+      },
+    });
+    expect(okRes.text).toBe('{"ok":true}');
+    expect(pollCount).toBe(2);
+    expect(seenVideoUri).toBe("https://generativelanguage.googleapis.com/v1beta/files/vid_1");
+    expect(deleted).toEqual(["files/vid_1"]);
+
+    // Cleanup on generateContent failure
+    const failingClient: GeminiClient = {
+      ...client,
+      async uploadFile() {
+        return {
+          name: "files/vid_fail",
+          uri: "https://generativelanguage.googleapis.com/v1beta/files/vid_fail",
+          mimeType: "video/mp4",
+          state: "ACTIVE",
+        };
+      },
+      async generateContent() {
+        throw new Error("bad upstream status 400");
+      },
+    };
+    const failAdapter = createGeminiAdapter({
+      apiKey: "local-test-key",
+      client: failingClient,
+      filePollIntervalMs: 1,
+    });
+    await expect(
+      failAdapter.complete({
+        ...request,
+        video: { bytes: new Uint8Array([1, 2]), mimeType: "video/mp4" },
+      }),
+    ).rejects.toMatchObject({ code: "provider_error" });
+    expect(deleted).toContain("files/vid_fail");
+
+    // Cleanup on AbortSignal during polling
+    const abortController = new AbortController();
+    const abortingClient: GeminiClient = {
+      ...client,
+      async uploadFile() {
+        return {
+          name: "files/vid_abort",
+          uri: "https://generativelanguage.googleapis.com/v1beta/files/vid_abort",
+          mimeType: "video/mp4",
+          state: "PROCESSING",
+        };
+      },
+      async getFile(name) {
+        abortController.abort();
+        return {
+          name,
+          uri: "https://generativelanguage.googleapis.com/v1beta/files/vid_abort",
+          mimeType: "video/mp4",
+          state: "PROCESSING",
+        };
+      },
+    };
+    const abortAdapter = createGeminiAdapter({
+      apiKey: "local-test-key",
+      client: abortingClient,
+      filePollIntervalMs: 1,
+    });
+    await expect(
+      abortAdapter.complete({
+        ...request,
+        signal: abortController.signal,
+        video: { bytes: new Uint8Array([1, 2]), mimeType: "video/mp4" },
+      }),
+    ).rejects.toMatchObject({ code: "timeout" });
+    expect(deleted).toContain("files/vid_abort");
+  });
 });

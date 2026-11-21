@@ -34,10 +34,13 @@ import {
   type SubmitFeedbackInput,
   type SystemHealth,
   type UpdateOnboardingInput,
+  type VideoGeneratorTarget,
+  type VideoReverseEngineerOutput,
 } from "@open-prompt-os/contracts";
 import {
   analyzePromptVariables,
   diagnoseAndRefinePrompt,
+  parsePublicVideoUrl,
   synthesizeCompiledPrompt,
   synthesizeReverseEngineeredPrompt,
 } from "@open-prompt-os/core";
@@ -766,6 +769,206 @@ export const orpcClient = {
         remainingDailyRuns: 2,
         requestId: headers["x-request-id"],
       };
+    },
+
+    async reverseEngineerVideo(
+      input:
+        | {
+            readonly sourceType: "upload";
+            readonly file: File;
+            readonly durationSeconds?: number;
+            readonly startOffsetSec: number;
+            readonly endOffsetSec?: number;
+            readonly targetGenerator: VideoGeneratorTarget;
+            readonly focusNotes?: string;
+          }
+        | {
+            readonly sourceType: "youtube";
+            readonly youtubeUrl: string;
+            readonly startOffsetSec: number;
+            readonly endOffsetSec?: number;
+            readonly targetGenerator: VideoGeneratorTarget;
+            readonly focusNotes?: string;
+          },
+      options?: {
+        readonly signal?: AbortSignal;
+        readonly onStage?: (
+          stage: "preparing" | "analyzing" | "finalizing",
+          message: string,
+        ) => void;
+      },
+    ): Promise<VideoReverseEngineerOutput> {
+      const headers = createCorrelationHeaders();
+      if (input.sourceType === "youtube") {
+        const urlCheck = parsePublicVideoUrl(input.youtubeUrl);
+        if (!urlCheck.ok) {
+          throw new OrpcClientError("VALIDATION_ERROR", urlCheck.message, headers["x-request-id"]);
+        }
+      }
+
+      const remote = remoteApiUrl();
+      if (remote !== undefined) {
+        let response: Response;
+        if (input.sourceType === "upload") {
+          const form = new FormData();
+          form.append("file", input.file);
+          form.append("targetGenerator", input.targetGenerator);
+          form.append("startOffsetSec", String(input.startOffsetSec));
+          if (input.endOffsetSec !== undefined) {
+            form.append("endOffsetSec", String(input.endOffsetSec));
+          }
+          if (input.durationSeconds !== undefined) {
+            form.append("durationSeconds", String(input.durationSeconds));
+          }
+          if (input.focusNotes?.trim()) {
+            form.append("focusNotes", input.focusNotes.trim());
+          }
+          response = await fetch(`${remote}/api/prompts/reverse-engineer-video/stream`, {
+            method: "POST",
+            credentials: "include",
+            headers: {
+              "x-request-id": headers["x-request-id"],
+              traceparent: headers.traceparent,
+            },
+            body: form,
+            signal: options?.signal,
+          });
+        } else {
+          response = await fetch(`${remote}/api/prompts/reverse-engineer-video/stream`, {
+            method: "POST",
+            credentials: "include",
+            headers: {
+              "content-type": "application/json",
+              "x-request-id": headers["x-request-id"],
+              traceparent: headers.traceparent,
+            },
+            body: JSON.stringify({
+              sourceType: "youtube",
+              youtubeUrl: input.youtubeUrl,
+              startOffsetSec: input.startOffsetSec,
+              endOffsetSec: input.endOffsetSec,
+              targetGenerator: input.targetGenerator,
+              focusNotes: input.focusNotes?.trim() || undefined,
+            }),
+            signal: options?.signal,
+          });
+        }
+
+        if (!response.ok) await throwApiError(response, headers["x-request-id"]);
+        let done: VideoReverseEngineerOutput | undefined;
+        let streamError: { code?: string; message?: string; requestId?: string } | undefined;
+        await readServerSentEvents(response, (event, data) => {
+          if (event === "stage") {
+            const payload = JSON.parse(data) as {
+              stage?: "preparing" | "analyzing" | "finalizing";
+              message?: string;
+            };
+            if (payload.stage && payload.message) {
+              options?.onStage?.(payload.stage, payload.message);
+            }
+          } else if (event === "done") {
+            done = JSON.parse(data) as VideoReverseEngineerOutput;
+          } else if (event === "error") {
+            streamError = JSON.parse(data) as {
+              code?: string;
+              message?: string;
+              requestId?: string;
+            };
+          }
+        });
+        if (streamError) {
+          throw new OrpcClientError(
+            apiErrorCode(500, streamError.code),
+            streamError.message ?? "Video reverse engineering failed.",
+            streamError.requestId ?? headers["x-request-id"],
+          );
+        }
+        if (!done) {
+          throw new OrpcClientError(
+            "INTERNAL_ERROR",
+            "Video analysis stream ended before completion.",
+            headers["x-request-id"],
+          );
+        }
+        return done;
+      }
+
+      options?.onStage?.("preparing", "Preparing video clip for multimodal inspection...");
+      options?.onStage?.("analyzing", "Analyzing frames, camera motion, and audio...");
+      options?.onStage?.(
+        "finalizing",
+        "Validating shot timeline, Continuity Bible, and variables...",
+      );
+
+      const duration =
+        input.sourceType === "upload"
+          ? Math.round((input.endOffsetSec ?? input.durationSeconds ?? 12) - input.startOffsetSec)
+          : Math.round((input.endOffsetSec ?? input.startOffsetSec + 12) - input.startOffsetSec);
+      const sourceDescriptor =
+        input.sourceType === "upload"
+          ? `the uploaded clip "${input.file.name}"`
+          : "the reference YouTube clip";
+      const masterPrompt = [
+        `A continuous ${Math.max(1, duration)}-second 24fps shot capturing the exact visual framing, lighting, camera trajectory, and audio atmosphere of ${sourceDescriptor}${input.focusNotes?.trim() ? `, emphasizing ${input.focusNotes.trim()}` : ""}.`,
+        "Shot on a 35mm prime lens at f/2.8 with natural 24fps motion blur, directional volumetric key lighting with clean rim separation, and balanced color contrast.",
+        "Smooth dolly push-in keeping the primary subject and surrounding environment physically grounded with natural secondary motion, paired with synchronized ambient room tone and subtle foley.",
+        "Avoid morphing geometry, temporal flicker, or sudden exposure shifts.",
+      ].join(" ");
+
+      const output: VideoReverseEngineerOutput = {
+        overview: {
+          durationSeconds: Math.max(1, duration),
+          aspectRatio: "16:9",
+          pacingStyle: "Steady 24fps single-take",
+          isSingleTake: true,
+          timestampsAreEstimated: true,
+        },
+        continuityBible: {
+          subjectAndWardrobe:
+            "Primary subject with consistent facial structure, surface texture, and wardrobe details across frames",
+          environmentAndSet:
+            "Grounded real-world location with distinct foreground, midground, and background depth separation",
+          lightingAndColorGrade: "Directional volumetric key light with subtle rim highlights",
+          lensAndOpticalDna: "35mm prime lens, f/2.8 shallow depth of field, 24fps motion cadence",
+          audioAndMusicDna: "Natural ambient room tone and subtle foley aligned to motion",
+          negativeGuardrails: "morphing geometry, temporal flicker, sudden exposure shifts",
+        },
+        shots: [
+          {
+            shotNumber: 1,
+            startTime: "00:00",
+            endTime: `00:${String(Math.min(59, Math.max(1, duration))).padStart(2, "0")}`,
+            transitionIn: "Fade in",
+            firstFramePrompt:
+              "Opening medium-wide 35mm frame showing the primary subject anchored clearly in the environment under directional volumetric key lighting.",
+            motionAndCamera: "Smooth 24fps dolly push-in with natural secondary motion.",
+            audioCue: "Subtle ambient soundscape matching camera movement.",
+            shotPrompt:
+              "Continuous 24fps 35mm dolly push-in on the primary subject within the sunlit scene, steady volumetric key lighting, subtle rim highlights, natural ambient soundscape, no temporal flicker.",
+          },
+        ],
+        targetGenerator: input.targetGenerator,
+        masterPrompt,
+        detectedVariables: [],
+        suggestedDraft: {
+          rawInput: masterPrompt,
+          mode: "video",
+          modelId: input.targetGenerator === "runway" ? "runway-video" : "google-video",
+          goal: "Recreate the reference video's camera choreography, lighting, and audio cadence",
+          format: "35mm prime lens, 24fps motion cadence",
+          tone: "Directional volumetric key light",
+          constraints: ["Preserve subject continuity across frames"],
+          guardrails: ["morphing geometry, temporal flicker"],
+          framework: "costar",
+          advanced: { length: "detailed", creativity: 0.4 },
+        },
+        providerId: "gemini",
+        modelId: "gemini-3.6-flash",
+        latencyMs: 120,
+        remainingDailyRuns: 2,
+        requestId: headers["x-request-id"],
+      };
+      return output;
     },
 
     async importGuestInteraction(
