@@ -593,7 +593,7 @@ export function ImproveAutopsyPage() {
                     ) : null}
                   </div>
                   <span className="font-mono text-xs text-[var(--text-secondary)] tabular-nums">
-                    {result.providerId}/{result.modelId} · {result.latencyMs}ms
+                    {result.latencyMs}ms
                   </span>
                 </div>
                 <p className="text-xs sm:text-sm text-[var(--text-secondary)]">{result.summary}</p>

@@ -198,13 +198,13 @@ export function PromptComposer({
           </div>
 
           <h1 className="text-[26px] sm:text-4xl lg:text-5xl font-medium tracking-[-0.03em] leading-[1.08] text-balance text-[var(--text-primary)]">
-            Stop overthinking{" "}
-            <span className="text-gradient-brand whitespace-nowrap">your prompts.</span>
+            Prompts are trade secrets{" "}
+            <span className="text-gradient-brand whitespace-nowrap">creators rarely share</span>
           </h1>
 
           <p className="text-sm sm:text-lg text-[var(--text-secondary)] max-w-3xl mx-auto leading-relaxed">
-            Skip the 10 back-and-forth messages fixing weak AI answers. Type a rough idea below and
-            hit Compile for a master-level prompt on the first run.
+            Top creators guard the exact wording that gets studio-grade AI results. Drop a rough
+            idea below and hit Compile to generate the same pro-level structure in one click.
           </p>
 
           <div className="hidden sm:inline-flex items-center gap-2 text-sm text-[var(--success-text)] font-medium">

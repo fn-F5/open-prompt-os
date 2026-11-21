@@ -4,7 +4,7 @@
   "private": true,
   "packageManager": "pnpm@12.18.0",
   "scripts": {
-    "dev": "pnpm --filter=@open-prompt-os/api --filter @open-prompt-os/web dev",
+    "dev": "pnpm --filter=@open-prompt-os/api --filter @open-prompt-os/web dev < /dev/null 2>&1 | tee api.log",
     "db:generate": "pnpm --filter @open-prompt-os/db db:generate",
     "db:migrate": "pnpm --filter @open-prompt-os/db db:migrate && pnpm --filter @open-prompt-os/db db:rls",
     "db:migrate:deploy": "pnpm --filter @open-prompt-os/db db:migrate:deploy && pnpm --filter @open-prompt-os/db db:rls",

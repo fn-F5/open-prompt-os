@@ -121,12 +121,16 @@ export function createOpenAiCompatibleAdapter(
       let text = "";
       let inputTokens = 0;
       let outputTokens = 0;
+      let firstTokenLatencyMs: number | undefined;
       try {
         for await (const data of readSseData(response, signal)) {
           if (data === "[DONE]") break;
           const payload = JSON.parse(data) as ChatCompletion;
           const delta = payload.choices?.[0]?.delta?.content ?? "";
           if (delta.length > 0) {
+            if (firstTokenLatencyMs === undefined) {
+              firstTokenLatencyMs = Date.now() - started;
+            }
             text += delta;
             yield { type: "text-delta", text: delta };
           }
@@ -145,7 +149,7 @@ export function createOpenAiCompatibleAdapter(
           providerId: options.id,
           modelId: model,
           usage: { inputTokens, outputTokens },
-          latencyMs: Date.now() - started,
+          latencyMs: firstTokenLatencyMs ?? Date.now() - started,
         },
       };
     },

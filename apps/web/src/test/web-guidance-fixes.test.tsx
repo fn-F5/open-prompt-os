@@ -644,6 +644,7 @@ describe("Modern Web Guidance fixes", () => {
       await waitFor(() => {
         expect(saveSpy).toHaveBeenCalledWith(
           expect.objectContaining({
+            title: "High-end cinematic luxury watch orbital video prompt.",
             rawInput: "Continuous 6-second orbital camera shot around a luxury watch",
             mode: "video",
             compiledPrompt: "High-end cinematic luxury watch orbital video prompt.",

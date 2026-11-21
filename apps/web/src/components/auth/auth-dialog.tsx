@@ -318,6 +318,7 @@ export function AuthDialog({ turnstileSiteKey }: { turnstileSiteKey?: string | n
             type="email"
             autoComplete="email"
             required
+            maxLength={254}
             placeholder="you@company.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -333,6 +334,7 @@ export function AuthDialog({ turnstileSiteKey }: { turnstileSiteKey?: string | n
             id="auth-name-input"
             type="text"
             autoComplete="name"
+            maxLength={120}
             placeholder="John Doe"
             value={name}
             onChange={(e) => setName(e.target.value)}

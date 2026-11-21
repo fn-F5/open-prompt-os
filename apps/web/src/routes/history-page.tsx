@@ -63,7 +63,12 @@ export function HistoryPage() {
     mutationFn: (item: PromptGenerationItem) => {
       const compiledPrompt = item.compiledPrompt.trim().slice(0, 16000);
       const rawInput = item.rawInput.trim().slice(0, 8000) || compiledPrompt.slice(0, 8000);
-      const derivedTitle = rawInput.slice(0, 80) || `${KIND_LABELS[item.kind]} Run`;
+      const derivedTitle =
+        compiledPrompt
+          .replace(/^#+\s*/gm, "")
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 80) || `${KIND_LABELS[item.kind]} Run`;
       return orpcClient.prompts.save({
         title: derivedTitle,
         rawInput,
@@ -253,7 +258,7 @@ export function HistoryPage() {
                   <Badge variant="framework">{KIND_LABELS[item.kind]}</Badge>
                   <Badge variant="neutral">{item.mode.toUpperCase()}</Badge>
                   <span className="font-mono text-xs text-[var(--text-secondary)]">
-                    {item.modelId ?? "default"} · {item.providerId} · {item.latencyMs}ms
+                    {item.latencyMs}ms
                   </span>
                 </div>
                 <time

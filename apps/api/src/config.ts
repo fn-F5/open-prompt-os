@@ -28,12 +28,18 @@ const EnvSchema = z.object({
   GEMINI_API_KEY: optionalSecret,
   GEMINI_API_KEY_2: optionalSecret,
   GOOGLE_GENERATIVE_AI_API_KEY_2: optionalSecret,
+  GEMINI_MODEL: optionalSecret,
   OPENAI_API_KEY: optionalSecret,
+  OPENAI_MODEL: optionalSecret,
   GROQ_API_KEY: optionalSecret,
+  GROQ_MODEL: optionalSecret,
   OPENROUTER_API_KEY: optionalSecret,
+  OPENROUTER_MODEL: optionalSecret,
   ANTHROPIC_API_KEY: optionalSecret,
+  ANTHROPIC_MODEL: optionalSecret,
   OLLAMA_BASE_URL: optionalSecret,
-  LLM_TIMEOUT_MS: optionalPositiveInt(20_000),
+  OLLAMA_MODEL: optionalSecret,
+  LLM_TIMEOUT_MS: optionalPositiveInt(30_000),
   RATE_LIMIT_PER_MINUTE: optionalPositiveInt(30),
   TRUST_PROXY: z.string().optional(),
   STRIPE_SECRET_KEY: optionalSecret,
@@ -49,11 +55,17 @@ export interface AppConfig {
   readonly webOrigins: readonly string[];
   readonly geminiApiKey?: string;
   readonly geminiApiKey2?: string;
+  readonly geminiModel?: string;
   readonly openaiApiKey?: string;
+  readonly openaiModel?: string;
   readonly groqApiKey?: string;
+  readonly groqModel?: string;
   readonly openrouterApiKey?: string;
+  readonly openrouterModel?: string;
   readonly anthropicApiKey?: string;
+  readonly anthropicModel?: string;
   readonly ollamaBaseUrl?: string;
+  readonly ollamaModel?: string;
   readonly llmTimeoutMs: number;
   readonly rateLimitPerMinute: number;
   readonly trustProxy: boolean;
@@ -76,11 +88,17 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     webOrigins: origins,
     geminiApiKey: parsed.GEMINI_API_KEY,
     geminiApiKey2: parsed.GEMINI_API_KEY_2 ?? parsed.GOOGLE_GENERATIVE_AI_API_KEY_2,
+    geminiModel: parsed.GEMINI_MODEL,
     openaiApiKey: parsed.OPENAI_API_KEY,
+    openaiModel: parsed.OPENAI_MODEL,
     groqApiKey: parsed.GROQ_API_KEY,
+    groqModel: parsed.GROQ_MODEL,
     openrouterApiKey: parsed.OPENROUTER_API_KEY,
+    openrouterModel: parsed.OPENROUTER_MODEL,
     anthropicApiKey: parsed.ANTHROPIC_API_KEY,
+    anthropicModel: parsed.ANTHROPIC_MODEL,
     ollamaBaseUrl: parsed.OLLAMA_BASE_URL,
+    ollamaModel: parsed.OLLAMA_MODEL,
     llmTimeoutMs: parsed.LLM_TIMEOUT_MS,
     rateLimitPerMinute: parsed.RATE_LIMIT_PER_MINUTE,
     trustProxy: parsed.TRUST_PROXY === "true",

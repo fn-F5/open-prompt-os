@@ -7,10 +7,10 @@ import {
 } from "./gemini-chain.js";
 
 describe("gemini model fallback", () => {
-  it("puts a requested tier first and then the rest of the chain", () => {
-    expect(geminiModelChain("gemini-3.8-flash")[0]).toBe("gemini-3.8-flash");
-    expect(geminiModelChain("gemini-3.8-flash")).toContain("gemini-3.6-flash");
-    expect(geminiModelChain("claude-3-7-sonnet")[0]).toBe("gemini-3.6-flash");
+  it("returns only a single model without fallbacks", () => {
+    expect(geminiModelChain("gemini-4-hydrogen")).toEqual(["gemini-4-hydrogen"]);
+    expect(geminiModelChain("gemini-4-custom")).toEqual(["gemini-4-custom"]);
+    expect(geminiModelChain("claude-3-7-sonnet")).toEqual(["gemini-4-hydrogen"]);
   });
 
   it("treats a daily quota error as recoverable and a short retry as rate limit only", () => {

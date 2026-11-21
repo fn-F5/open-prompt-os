@@ -49,7 +49,7 @@ export const appContract = {
       .input(
         z
           .object({
-            search: z.string().optional(),
+            search: z.string().max(200).optional(),
             category: z.string().optional(),
             mode: ComposerModeSchema.optional(),
             cursor: z.string().optional(),

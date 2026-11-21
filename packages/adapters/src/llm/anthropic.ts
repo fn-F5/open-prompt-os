@@ -117,10 +117,14 @@ export function createAnthropicAdapter(options: AnthropicAdapterOptions): LlmPro
       let text = "";
       let inputTokens = 0;
       let outputTokens = 0;
+      let firstTokenLatencyMs: number | undefined;
       try {
         for await (const data of readSseData(response, signal)) {
           const payload = JSON.parse(data) as AnthropicMessage;
           if (payload.type === "content_block_delta" && payload.delta?.text) {
+            if (firstTokenLatencyMs === undefined) {
+              firstTokenLatencyMs = Date.now() - started;
+            }
             text += payload.delta.text;
             yield { type: "text-delta", text: payload.delta.text };
           }
@@ -139,7 +143,7 @@ export function createAnthropicAdapter(options: AnthropicAdapterOptions): LlmPro
           providerId: "anthropic",
           modelId: model,
           usage: { inputTokens, outputTokens },
-          latencyMs: Date.now() - started,
+          latencyMs: firstTokenLatencyMs ?? Date.now() - started,
         },
       };
     },
