@@ -32,10 +32,10 @@ describe("createGeminiAdapter", () => {
       },
     };
     const adapter = createGeminiAdapter({ apiKey: "local-test-key", client });
-    const result = await adapter.complete({ ...request, modelId: "gemini-2.5-pro" });
+    const result = await adapter.complete({ ...request, modelId: "gemini-4-hydrogen" });
     expect(result.text).toBe("Role: editor");
     expect(result.providerId).toBe("gemini");
-    expect(result.modelId).toBe("gemini-3.6-flash");
+    expect(result.modelId).toBe("gemini-4-hydrogen");
     expect(result.usage).toEqual({ inputTokens: 4, outputTokens: 2 });
   });
 
@@ -97,29 +97,26 @@ describe("createGeminiAdapter", () => {
     }
   });
 
-  it("tries the next Gemini model after a daily quota error", async () => {
+  it("does not fall back to another Gemini model on quota error", async () => {
     const seen: string[] = [];
     const client: GeminiClient = {
       async generateContent(call) {
         seen.push(call.model);
-        if (call.model === "gemini-3.6-flash") {
-          throw new Error(
-            '{"error":{"code":429,"message":"You exceeded your current quota, please check your plan and billing details."}}',
-          );
-        }
-        return { text: "from the next model", inputTokens: 1, outputTokens: 1 };
+        throw new Error(
+          '{"error":{"code":429,"message":"You exceeded your current quota, please check your plan and billing details."}}',
+        );
       },
       async *generateContentStream() {
         yield { text: "" };
       },
     };
-    const adapter = createGeminiAdapter({ apiKey: "local-test-key", client });
-    const result = await adapter.complete(request);
-    expect(result.modelId).toBe("gemini-3.5-flash");
-    expect(result.text).toBe("from the next model");
-    const again = await adapter.complete(request);
-    expect(again.modelId).toBe("gemini-3.5-flash");
-    expect(seen.filter((model) => model === "gemini-3.6-flash")).toHaveLength(1);
+    const adapter = createGeminiAdapter({
+      apiKey: "local-test-key",
+      defaultModel: "gemini-4-custom",
+      client,
+    });
+    await expect(adapter.complete(request)).rejects.toMatchObject({ code: "provider_error" });
+    expect(seen).toEqual(["gemini-4-custom"]);
   });
 
   it("tries the second key when the first key is out of quota", async () => {
@@ -150,7 +147,7 @@ describe("createGeminiAdapter", () => {
     });
     const result = await adapter.complete(request);
     expect(result.text).toBe("second account");
-    expect(result.modelId).toBe("gemini-3.6-flash");
+    expect(result.modelId).toBe("gemini-4-hydrogen");
   });
 
   it("yields the first streamed delta before later chunks resolve and preserves usage", async () => {
@@ -187,10 +184,11 @@ describe("createGeminiAdapter", () => {
     if (done.value?.type === "done") {
       expect(done.value.result.text).toBe("First Second");
       expect(done.value.result.usage).toEqual({ inputTokens: 12, outputTokens: 7 });
+      expect(done.value.result.latencyMs).toBeLessThan(60);
     }
   });
 
-  it("fails over across models before the first streamed delta and aborts if an error occurs mid-stream", async () => {
+  it("surfaces stream errors directly without falling back to other models", async () => {
     const seenModels: string[] = [];
     const client: GeminiClient = {
       async generateContent() {
@@ -198,26 +196,23 @@ describe("createGeminiAdapter", () => {
       },
       async *generateContentStream(call) {
         seenModels.push(call.model);
-        if (call.model === "gemini-3.6-flash") {
-          throw new Error(
-            '{"error":{"code":429,"message":"You exceeded your current quota, please check your plan and billing details."}}',
-          );
-        }
-        yield { text: "from fallback model" };
+        throw new Error(
+          '{"error":{"code":429,"message":"You exceeded your current quota, please check your plan and billing details."}}',
+        );
       },
     };
 
-    const adapter = createGeminiAdapter({ apiKey: "local-test-key", client });
-    const events: LlmStreamEvent[] = [];
-    for await (const event of adapter.stream(request)) {
-      events.push(event);
-    }
-    expect(seenModels).toEqual(["gemini-3.6-flash", "gemini-3.5-flash"]);
-    expect(events[0]).toEqual({ type: "text-delta", text: "from fallback model" });
-    expect(events[1]?.type).toBe("done");
-    if (events[1]?.type === "done") {
-      expect(events[1].result.modelId).toBe("gemini-3.5-flash");
-    }
+    const adapter = createGeminiAdapter({
+      apiKey: "local-test-key",
+      defaultModel: "gemini-4-custom",
+      client,
+    });
+    await expect(async () => {
+      for await (const _event of adapter.stream(request)) {
+        // no-op
+      }
+    }).rejects.toMatchObject({ code: "provider_error" });
+    expect(seenModels).toEqual(["gemini-4-custom"]);
 
     const midStreamModels: string[] = [];
     const midStreamClient: GeminiClient = {
@@ -241,7 +236,7 @@ describe("createGeminiAdapter", () => {
       }
     }).rejects.toMatchObject({ code: "provider_error" });
     expect(received).toEqual([{ type: "text-delta", text: "partial" }]);
-    expect(midStreamModels).toEqual(["gemini-3.5-flash"]);
+    expect(midStreamModels).toEqual(["gemini-4-hydrogen"]);
   });
 
   it("uploads video bytes, polls until ACTIVE, analyzes, and deletes the file even on errors or abort", async () => {

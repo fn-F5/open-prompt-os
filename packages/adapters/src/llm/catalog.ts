@@ -20,7 +20,6 @@ export const MODEL_CATALOG: readonly CatalogEntry[] = [
     modelId: "google-text",
     providerId: "gemini",
     displayName: "Google (Gemini models)",
-    apiModelId: "gemini-3.6-flash",
   },
   {
     modelId: "anthropic-text",
@@ -44,7 +43,6 @@ export const MODEL_CATALOG: readonly CatalogEntry[] = [
     modelId: "google-image",
     providerId: "gemini",
     displayName: "Google (Imagen, Gemini)",
-    apiModelId: "gemini-3.6-flash",
   },
   {
     modelId: "midjourney-image",
@@ -63,7 +61,6 @@ export const MODEL_CATALOG: readonly CatalogEntry[] = [
     modelId: "google-video",
     providerId: "gemini",
     displayName: "Google (Veo, Gemini Omni Flash)",
-    apiModelId: "gemini-3.6-flash",
   },
   { modelId: "alibaba-video", providerId: "openrouter", displayName: "Alibaba (Wan)" },
   { modelId: "minimax-video", providerId: "openrouter", displayName: "MiniMax (H3)" },
@@ -81,13 +78,11 @@ export const MODEL_CATALOG: readonly CatalogEntry[] = [
     modelId: "imagen-3-pro",
     providerId: "gemini",
     displayName: "Imagen 3 Studio",
-    apiModelId: "gemini-3.6-flash",
   },
   {
     modelId: "veo-2-cinema",
     providerId: "gemini",
     displayName: "Veo 2 Cinema",
-    apiModelId: "gemini-3.6-flash",
   },
   { modelId: "gpt-4.1", providerId: "openai", displayName: "GPT-4.1", apiModelId: "gpt-4.1" },
   { modelId: "sora-turbo", providerId: "openai", displayName: "Sora Turbo", apiModelId: "gpt-4.1" },

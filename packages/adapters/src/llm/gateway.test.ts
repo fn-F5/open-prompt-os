@@ -13,8 +13,9 @@ import { createOrchestrator } from "./gateway.js";
 import {
   COMPOSE_MODE_PROMPTS,
   COMPOSE_SYSTEM_PREAMBLE,
+  REFINE_MODE_PROMPTS,
   REVERSE_ENGINEER_MODE_PROMPTS,
-  TARGET_MODEL_GUIDANCE,
+  describeTargetModel,
 } from "./instructions.js";
 import { createRegistry } from "./registry.js";
 import { createSynthesizerAdapter } from "./synthesizer.js";
@@ -385,7 +386,7 @@ describe("createOrchestrator", () => {
     expect(gemini.lastRequest?.systemPrompt).toContain(
       "OpenAI (ChatGPT, GPT models) (openai-text)",
     );
-    expect(gemini.lastRequest?.systemPrompt).toContain(TARGET_MODEL_GUIDANCE["openai-text"]);
+    expect(gemini.lastRequest?.systemPrompt).toContain(describeTargetModel("openai-text", "text"));
     expect(JSON.parse(gemini.lastRequest?.userPrompt ?? "{}")).toMatchObject({
       mode: "text",
       modelId: "openai-text",
@@ -414,7 +415,9 @@ describe("createOrchestrator", () => {
     expect(gemini.lastRequest?.systemPrompt).toContain(
       "Midjourney (Midjourney models) (midjourney-image)",
     );
-    expect(gemini.lastRequest?.systemPrompt).toContain(TARGET_MODEL_GUIDANCE["midjourney-image"]);
+    expect(gemini.lastRequest?.systemPrompt).toContain(
+      describeTargetModel("midjourney-image", "image"),
+    );
     expect(JSON.parse(gemini.lastRequest?.userPrompt ?? "{}")).toMatchObject({
       mode: "image",
       modelId: "midjourney-image",
@@ -440,7 +443,9 @@ describe("createOrchestrator", () => {
 
     expect(gemini.lastRequest?.systemPrompt).toContain(COMPOSE_MODE_PROMPTS.video);
     expect(gemini.lastRequest?.systemPrompt).toContain("Runway (Gen models) (runway-video)");
-    expect(gemini.lastRequest?.systemPrompt).toContain(TARGET_MODEL_GUIDANCE["runway-video"]);
+    expect(gemini.lastRequest?.systemPrompt).toContain(
+      describeTargetModel("runway-video", "video"),
+    );
     expect(JSON.parse(gemini.lastRequest?.userPrompt ?? "{}")).toMatchObject({
       mode: "video",
       modelId: "runway-video",
@@ -640,5 +645,62 @@ describe("createOrchestrator", () => {
         { requestId: "req_rev_video_bad" },
       ),
     ).rejects.toMatchObject({ code: "provider_error" });
+  });
+
+  it("parses live LLM JSON for improve and autopsy modes without falling back to rule-synthesizer", async () => {
+    const gemini = createFakeAdapter({
+      id: "gemini",
+      defaultModel: "gemini-3.6-flash",
+      text: JSON.stringify({
+        optimizedPrompt:
+          "Role: You are a Principal API Engineer.\n\n## Hard Guardrails\n- MUST NOT invent undocumented endpoints for [Service_Name].",
+        summary: "Diagnosed hallucinated endpoint drift and added grounding guardrails.",
+        findings: [
+          {
+            id: "f1",
+            category: "unsafe_guardrail",
+            title: "No anti-hallucination boundary for API names",
+            severity: "critical",
+            evidence: "Failed output invented /v9/magic-sync",
+            recommendation: "Require citing only provided endpoints.",
+            changedSection: "## Hard Guardrails",
+          },
+        ],
+      }),
+    });
+    const orchestrator = createOrchestrator({
+      registry: createRegistry([createSynthesizerAdapter(), gemini]),
+      timeoutMs: 1000,
+    });
+
+    const improveOut = await orchestrator.refine(
+      {
+        originalPrompt: "Write API migration steps for [Service_Name]",
+        mode: "improve",
+        targetLength: "balanced",
+        targetModelId: "anthropic-text",
+      },
+      { requestId: "req_refine_live" },
+    );
+    expect(RefinePromptOutputSchema.parse(improveOut)).toMatchObject({
+      providerId: "gemini",
+      detectedVariables: ["Service_Name"],
+      requestId: "req_refine_live",
+    });
+    expect(gemini.lastRequest?.systemPrompt).toContain(REFINE_MODE_PROMPTS.improve);
+    expect(gemini.lastRequest?.systemPrompt).toContain("Anthropic (Claude models)");
+
+    const autopsyOut = await orchestrator.refine(
+      {
+        originalPrompt: "Write API migration steps for [Service_Name]",
+        mode: "autopsy",
+        failedOutput: "Call POST /v9/magic-sync to auto-migrate.",
+        targetLength: "detailed",
+      },
+      { requestId: "req_autopsy_live" },
+    );
+    expect(autopsyOut.providerId).toBe("gemini");
+    expect(autopsyOut.findings[0]?.category).toBe("unsafe_guardrail");
+    expect(gemini.lastRequest?.systemPrompt).toContain(REFINE_MODE_PROMPTS.autopsy);
   });
 });

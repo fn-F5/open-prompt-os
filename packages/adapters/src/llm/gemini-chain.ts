@@ -1,10 +1,4 @@
-export const GEMINI_MODEL_TIERS = [
-  "gemini-3.6-flash",
-  "gemini-3.5-flash",
-  "gemini-3.5-flash-lite",
-  "gemini-3.7-flash",
-  "gemini-3.8-flash",
-] as const;
+export const GEMINI_MODEL_TIERS = ["gemini-4-hydrogen"] as const;
 
 const exhaustedUntil = new Map<string, number>();
 let requestCounter = 0;
@@ -14,12 +8,15 @@ export function resetGeminiFallbackState(): void {
   requestCounter = 0;
 }
 
+const MAX_GEMINI_FALLBACK_MODELS = 1;
+
 export function geminiModelChain(requested: string | undefined): readonly string[] {
   const tiers: string[] = [...GEMINI_MODEL_TIERS];
-  if (requested && tiers.includes(requested)) {
-    return [requested, ...tiers.filter((id) => id !== requested)];
+  const trimmed = requested?.trim();
+  if (trimmed && (tiers.includes(trimmed) || trimmed.startsWith("gemini-"))) {
+    return [trimmed].slice(0, MAX_GEMINI_FALLBACK_MODELS);
   }
-  return tiers;
+  return tiers.slice(0, MAX_GEMINI_FALLBACK_MODELS);
 }
 
 export function accountOrder(count: number): readonly number[] {

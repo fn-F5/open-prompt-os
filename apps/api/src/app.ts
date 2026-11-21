@@ -60,6 +60,25 @@ export function createApp(options: AppOptions) {
         sink: options.log,
       },
       async () => {
+        const contentType = c.req.header("content-type") ?? "";
+        let requestData: unknown = undefined;
+        if (contentType.includes("application/json")) {
+          try {
+            const rawText = await c.req.raw.clone().text();
+            requestData = rawText ? (JSON.parse(rawText) as unknown) : undefined;
+          } catch {
+            requestData = "[unparseable json]";
+          }
+        }
+        const queryData = c.req.query();
+        appLogger.debug(`API entry: ${c.req.method} ${c.req.path}`, {
+          event: "api.entry",
+          method: c.req.method,
+          path: c.req.path,
+          ...(Object.keys(queryData).length > 0 ? { query: queryData } : {}),
+          ...(requestData !== undefined ? { requestData } : {}),
+        });
+
         await next();
         c.res.headers.set("x-request-id", requestId);
         c.res.headers.set("x-content-type-options", "nosniff");
@@ -68,6 +87,26 @@ export function createApp(options: AppOptions) {
 
         const durationMs = Date.now() - started;
         const status = c.res.status;
+        const resContentType = c.res.headers.get("content-type") ?? "";
+        let responseData: unknown = undefined;
+        if (resContentType.includes("text/event-stream")) {
+          responseData = { streaming: true };
+        } else if (resContentType.includes("application/json")) {
+          try {
+            responseData = await c.res.clone().json();
+          } catch {
+            responseData = "[unparseable json]";
+          }
+        }
+        appLogger.debug(`API exit: ${c.req.method} ${c.req.path} ${status} ${durationMs}ms`, {
+          event: "api.exit",
+          method: c.req.method,
+          path: c.req.path,
+          status,
+          durationMs,
+          ...(responseData !== undefined ? { responseData } : {}),
+        });
+
         const level = status >= 500 ? "error" : status >= 400 ? "warn" : "info";
         appLogger[level](`${c.req.method} ${c.req.path} ${status} ${durationMs}ms`, {
           event: "http.request",

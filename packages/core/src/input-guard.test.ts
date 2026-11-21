@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   InputGuardError,
+  assertMeaningfulPrompt,
   assertNoClientSystemPrompt,
+  evaluatePromptQuality,
+  extractDraftSupplementalText,
   isInputGuardError,
   parsePublicVideoUrl,
   redactSecrets,
@@ -100,5 +103,86 @@ describe("parsePublicVideoUrl", () => {
       ok: false,
       reason: "invalid_url",
     });
+  });
+});
+
+describe("evaluatePromptQuality & assertMeaningfulPrompt", () => {
+  it("rejects greetings, small talk, and elongated salutations", () => {
+    for (const sample of [
+      "hi",
+      "hello",
+      "Hiiii!!!",
+      "helloooo",
+      "hey there",
+      "good morning",
+      "how are you?",
+      "hey chatgpt",
+      "hi hi hi",
+      "ok",
+      "thanks",
+    ]) {
+      const result = evaluatePromptQuality(sample);
+      expect(result.ok, `expected "${sample}" to be rejected`).toBe(false);
+      if (!result.ok) {
+        expect(result.reason).toBe("greeting");
+      }
+    }
+  });
+
+  it("rejects placeholder, test strings, symbol-only, and gibberish inputs", () => {
+    for (const sample of ["test", "testing 123", "asdf", "hello world", "test test test", "idk"]) {
+      const result = evaluatePromptQuality(sample);
+      expect(result.ok, `expected "${sample}" to be rejected`).toBe(false);
+      if (!result.ok) {
+        expect(result.reason).toBe("placeholder");
+      }
+    }
+
+    for (const sample of ["   ", "???", "123456", "🔥🔥🔥"]) {
+      const result = evaluatePromptQuality(sample);
+      expect(result.ok, `expected "${sample}" to be rejected`).toBe(false);
+      if (!result.ok) {
+        expect(result.reason).toBe("empty");
+      }
+    }
+
+    for (const sample of ["aaaaaaaaaa", "asdfghjklm", "qwrtypsdfg", "cat cat cat"]) {
+      const result = evaluatePromptQuality(sample);
+      expect(result.ok, `expected "${sample}" to be rejected`).toBe(false);
+      if (!result.ok) {
+        expect(result.reason).toBe("gibberish");
+      }
+    }
+  });
+
+  it("rejects under-specified single-word prompts unless guided building blocks add detail", () => {
+    for (const sample of ["cat", "email", "sql", "a b"]) {
+      const result = evaluatePromptQuality(sample);
+      expect(result.ok, `expected "${sample}" to be rejected`).toBe(false);
+      if (!result.ok) {
+        expect(result.reason).toBe("too_short");
+      }
+    }
+
+    const supplementalText = extractDraftSupplementalText({
+      goal: "Studio macro product photography with rim lighting",
+      constraints: ["85mm f/2.0 lens"],
+    });
+    expect(evaluatePromptQuality("watch", { supplementalText })).toEqual({ ok: true });
+    expect(() => assertMeaningfulPrompt("hi")).toThrow(InputGuardError);
+  });
+
+  it("allows valid short prompts across text, image, video, and non-English scripts", () => {
+    for (const sample of [
+      "resignation email",
+      "cyberpunk neon alley",
+      "SQL churn query",
+      "Write unit tests for a Stripe webhook handler",
+      "Good morning newsletter for SaaS founders",
+      "PostgreSQL RLS rollout plan",
+      "月についてのエッセイを書いて",
+    ]) {
+      expect(evaluatePromptQuality(sample), `expected "${sample}" to pass`).toEqual({ ok: true });
+    }
   });
 });

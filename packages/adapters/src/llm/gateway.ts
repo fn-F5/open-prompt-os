@@ -22,6 +22,9 @@ import type {
   VideoReverseEngineerOutput,
 } from "@open-prompt-os/contracts";
 import {
+  DiagnosticCategorySchema,
+  DiagnosticFindingSchema,
+  DiagnosticSeveritySchema,
   RefinePromptOutputSchema,
   ReverseEngineerBreakdownSchema,
   ReverseEngineerOutputSchema,
@@ -32,12 +35,14 @@ import type { CircuitMemory } from "@open-prompt-os/core";
 import {
   InputGuardError,
   analyzePromptVariables,
+  assertMeaningfulPrompt,
   assertNoClientSystemPrompt,
   circuitAllows,
   circuitFailureRate,
   circuitRecordFailure,
   circuitRecordSuccess,
   diagnoseAndRefinePrompt,
+  extractDraftSupplementalText,
   generateFollowUpQuestions,
   initialCircuitMemory,
   isInputGuardError,
@@ -57,10 +62,44 @@ import {
 import type { ProviderRegistry } from "./registry.js";
 import type { SynthesizerTask } from "./synthesizer.js";
 
+export interface ProviderFailureEvent {
+  readonly providerId: ProviderId;
+  readonly modelId: string;
+  readonly code: LlmProviderError["code"];
+  readonly message: string;
+  readonly requestId: string;
+}
+
+export interface LlmRequestLogEvent {
+  readonly providerId: ProviderId;
+  readonly modelId: string;
+  readonly requestId: string;
+  readonly streaming: boolean;
+  readonly systemPrompt: string;
+  readonly userPrompt: string;
+  readonly maxOutputTokens?: number;
+  readonly timeoutMs: number;
+}
+
+export interface LlmResponseLogEvent {
+  readonly providerId: ProviderId;
+  readonly modelId: string;
+  readonly requestId: string;
+  readonly streaming: boolean;
+  readonly latencyMs: number;
+  readonly usage: LlmCompletionResult["usage"];
+  readonly text: string;
+  readonly healed: boolean;
+}
+
 export interface OrchestratorOptions {
   readonly registry: ProviderRegistry;
   readonly timeoutMs: number;
   readonly clock?: () => number;
+  readonly disableFailover?: boolean;
+  readonly onProviderFailure?: (event: ProviderFailureEvent) => void;
+  readonly onLlmRequest?: (event: LlmRequestLogEvent) => void;
+  readonly onLlmResponse?: (event: LlmResponseLogEvent) => void;
 }
 
 interface PreparedCompose {
@@ -101,6 +140,9 @@ function sanitizeAnswers(
 function prepareCompose(input: ComposePromptInput): PreparedCompose {
   assertNoClientSystemPrompt(input);
   const draft = sanitizeDraft(input.draft);
+  assertMeaningfulPrompt(draft.rawInput, {
+    supplementalText: extractDraftSupplementalText(draft),
+  });
   const followUpAnswers = sanitizeAnswers(input.followUpAnswers);
   const targetModelEntry = lookupModel(draft.modelId);
   const targetModel =
@@ -163,10 +205,79 @@ function unfenceJson(text: string): string {
     .trim();
 }
 
-function parseRefine(text: string): RefinePromptOutput | null {
+function parseRefine(
+  text: string,
+  result: LlmCompletionResult,
+  ctx: OrchestratorContext,
+): RefinePromptOutput | null {
   try {
-    const parsed = RefinePromptOutputSchema.safeParse(JSON.parse(unfenceJson(text)));
-    return parsed.success ? parsed.data : null;
+    const raw = JSON.parse(unfenceJson(text)) as Record<string, unknown>;
+    const fullParsed = RefinePromptOutputSchema.safeParse(raw);
+    if (fullParsed.success) {
+      return {
+        ...fullParsed.data,
+        providerId: result.providerId,
+        modelId: result.modelId,
+        latencyMs: result.latencyMs,
+        requestId: ctx.requestId,
+      };
+    }
+
+    const optimizedPrompt =
+      typeof raw.optimizedPrompt === "string" ? raw.optimizedPrompt.trim() : "";
+    if (!optimizedPrompt) return null;
+
+    const rawFindings = Array.isArray(raw.findings) ? raw.findings : [];
+    const findings: RefinePromptOutput["findings"] = [];
+    for (let index = 0; index < rawFindings.length; index += 1) {
+      const item = rawFindings[index];
+      if (!item || typeof item !== "object") continue;
+      const record = item as Record<string, unknown>;
+      const categoryParsed = DiagnosticCategorySchema.safeParse(
+        typeof record.category === "string" ? record.category.trim().toLowerCase() : "",
+      );
+      const severityParsed = DiagnosticSeveritySchema.safeParse(
+        typeof record.severity === "string" ? record.severity.trim().toLowerCase() : "",
+      );
+      const candidate = DiagnosticFindingSchema.safeParse({
+        id:
+          typeof record.id === "string" && record.id.trim().length > 0
+            ? record.id.trim()
+            : `finding-${index + 1}`,
+        category: categoryParsed.success ? categoryParsed.data : "missing_context",
+        title: typeof record.title === "string" ? record.title.trim() : "",
+        severity: severityParsed.success ? severityParsed.data : "warning",
+        evidence: typeof record.evidence === "string" ? record.evidence.trim() : "",
+        recommendation:
+          typeof record.recommendation === "string" ? record.recommendation.trim() : "",
+        changedSection:
+          typeof record.changedSection === "string" && record.changedSection.trim().length > 0
+            ? record.changedSection.trim()
+            : "## Optimized Specification",
+      });
+      if (candidate.success && candidate.data.title.length > 0) {
+        findings.push(candidate.data);
+      }
+    }
+
+    const varAnalysis = analyzePromptVariables(optimizedPrompt);
+    const summary =
+      typeof raw.summary === "string" && raw.summary.trim().length > 0
+        ? raw.summary.trim()
+        : `Identified ${findings.length} structural improvement(s) and synthesized a hardened prompt specification.`;
+
+    return {
+      optimizedPrompt,
+      detectedVariables: varAnalysis.detectedVariables,
+      unresolvedVariables: varAnalysis.unresolvedVariables,
+      duplicateVariables: varAnalysis.duplicateVariables,
+      findings,
+      summary,
+      providerId: result.providerId,
+      modelId: result.modelId,
+      latencyMs: result.latencyMs,
+      requestId: ctx.requestId,
+    };
   } catch {
     return null;
   }
@@ -395,10 +506,25 @@ export function createOrchestrator(options: OrchestratorOptions): PromptOrchestr
     circuits.set(id, circuitRecordSuccess(current));
   }
 
-  function fail(id: ProviderId, now: number, error: LlmProviderError): void {
+  function fail(
+    id: ProviderId,
+    now: number,
+    error: LlmProviderError,
+    meta?: { modelId: string; requestId: string },
+  ): void {
     if (id === "rule-synthesizer") return;
     const current = circuits.get(id) ?? initialCircuitMemory();
-    circuits.set(id, circuitRecordFailure(current, now, redactSecrets(error.message)));
+    const safeMessage = redactSecrets(error.message);
+    circuits.set(id, circuitRecordFailure(current, now, safeMessage));
+    if (meta) {
+      options.onProviderFailure?.({
+        providerId: id,
+        modelId: meta.modelId,
+        code: error.code,
+        message: safeMessage,
+        requestId: meta.requestId,
+      });
+    }
   }
 
   function requestFor(
@@ -417,6 +543,7 @@ export function createOrchestrator(options: OrchestratorOptions): PromptOrchestr
       systemPrompt: prepared.systemPrompt,
       userPrompt: adapter.id === "rule-synthesizer" ? JSON.stringify(task) : prepared.userPrompt,
       modelId: resolveAdapterModelId(prepared.draft.modelId, adapter),
+      maxOutputTokens: 2048,
       timeoutMs: options.timeoutMs,
       signal: ctx.signal,
     };
@@ -428,7 +555,8 @@ export function createOrchestrator(options: OrchestratorOptions): PromptOrchestr
     synthUserPrompt: string,
     ctx: OrchestratorContext,
   ): Promise<{ result: LlmCompletionResult; healed: boolean }> {
-    const chain = options.registry.failoverChain(modelId);
+    const fullChain = options.registry.failoverChain(modelId);
+    const chain = options.disableFailover ? fullChain.slice(0, 1) : fullChain;
     const preferred = chain[0];
     for (const adapter of chain) {
       if (!acquire(adapter.id, clock())) continue;
@@ -443,14 +571,38 @@ export function createOrchestrator(options: OrchestratorOptions): PromptOrchestr
         signal: ctx.signal,
       };
       try {
+        options.onLlmRequest?.({
+          providerId: adapter.id,
+          modelId: resolvedModelId,
+          requestId: ctx.requestId,
+          streaming: false,
+          systemPrompt: request.systemPrompt,
+          userPrompt: request.userPrompt,
+          maxOutputTokens: request.maxOutputTokens,
+          timeoutMs: request.timeoutMs,
+        });
         const result = await adapter.complete(request);
         succeed(adapter.id);
-        return { result, healed: adapter !== preferred };
+        const healed = adapter !== preferred;
+        options.onLlmResponse?.({
+          providerId: result.providerId,
+          modelId: result.modelId,
+          requestId: ctx.requestId,
+          streaming: false,
+          latencyMs: result.latencyMs,
+          usage: result.usage,
+          text: result.text,
+          healed,
+        });
+        return { result, healed };
       } catch (error) {
         if (isInputGuardError(error)) throw error;
         const providerError = asProviderError(error);
-        fail(adapter.id, clock(), providerError);
-        if (adapter.id === "rule-synthesizer") throw providerError;
+        fail(adapter.id, clock(), providerError, {
+          modelId: resolvedModelId,
+          requestId: ctx.requestId,
+        });
+        if (options.disableFailover || adapter.id === "rule-synthesizer") throw providerError;
       }
     }
     throw new LlmProviderError("provider_error", "No provider available.");
@@ -475,22 +627,45 @@ export function createOrchestrator(options: OrchestratorOptions): PromptOrchestr
     },
     async *composeStream(input, ctx): AsyncIterable<ComposeStreamEvent> {
       const prepared = prepareCompose(input);
-      const chain = options.registry.failoverChain(prepared.draft.modelId);
+      const fullChain = options.registry.failoverChain(prepared.draft.modelId);
+      const chain = options.disableFailover ? fullChain.slice(0, 1) : fullChain;
       const preferred = chain[0];
       for (const adapter of chain) {
         if (!acquire(adapter.id, clock())) continue;
         let yielded = false;
+        const req = requestFor(adapter, prepared, ctx);
         try {
-          for await (const event of adapter.stream(requestFor(adapter, prepared, ctx))) {
+          options.onLlmRequest?.({
+            providerId: adapter.id,
+            modelId: req.modelId ?? adapter.defaultModel,
+            requestId: ctx.requestId,
+            streaming: true,
+            systemPrompt: req.systemPrompt,
+            userPrompt: req.userPrompt,
+            maxOutputTokens: req.maxOutputTokens,
+            timeoutMs: req.timeoutMs,
+          });
+          for await (const event of adapter.stream(req)) {
             if (event.type === "text-delta") {
               yielded = true;
               yield event;
               continue;
             }
             succeed(adapter.id);
+            const healed = adapter !== preferred;
+            options.onLlmResponse?.({
+              providerId: event.result.providerId,
+              modelId: event.result.modelId,
+              requestId: ctx.requestId,
+              streaming: true,
+              latencyMs: event.result.latencyMs,
+              usage: event.result.usage,
+              text: event.result.text,
+              healed,
+            });
             yield {
               type: "done",
-              output: toComposeOutput(prepared, event.result, adapter !== preferred, ctx),
+              output: toComposeOutput(prepared, event.result, healed, ctx),
             };
             return;
           }
@@ -499,13 +674,19 @@ export function createOrchestrator(options: OrchestratorOptions): PromptOrchestr
             "Stream ended before completion.",
           );
           if (yielded) throw providerError;
-          fail(adapter.id, clock(), providerError);
+          fail(adapter.id, clock(), providerError, {
+            modelId: req.modelId ?? adapter.defaultModel,
+            requestId: ctx.requestId,
+          });
         } catch (error) {
           if (isInputGuardError(error)) throw error;
           const providerError = asProviderError(error);
           if (yielded) throw providerError;
-          fail(adapter.id, clock(), providerError);
-          if (adapter.id === "rule-synthesizer") throw providerError;
+          fail(adapter.id, clock(), providerError, {
+            modelId: req.modelId ?? adapter.defaultModel,
+            requestId: ctx.requestId,
+          });
+          if (options.disableFailover || adapter.id === "rule-synthesizer") throw providerError;
         }
       }
     },
@@ -517,23 +698,24 @@ export function createOrchestrator(options: OrchestratorOptions): PromptOrchestr
         failedOutput: sanitizeOptionalUserText(input.failedOutput, 10000),
         targetTone: sanitizeOptionalUserText(input.targetTone, 200),
       };
+      assertMeaningfulPrompt(sanitized.originalPrompt);
       const task: SynthesizerTask = { kind: "refine", input: sanitized };
       try {
         const { result } = await dispatch(
           sanitized.targetModelId ?? null,
-          { systemPrompt: buildRefineSystemPrompt(), userPrompt: JSON.stringify(sanitized) },
+          {
+            systemPrompt: buildRefineSystemPrompt({
+              mode: sanitized.mode,
+              targetModelId: sanitized.targetModelId,
+            }),
+            userPrompt: JSON.stringify(sanitized),
+          },
           JSON.stringify(task),
           ctx,
         );
-        const parsed = parseRefine(result.text);
+        const parsed = parseRefine(result.text, result, ctx);
         if (!parsed) return fallbackRefine(sanitized, ctx, result.latencyMs);
-        return {
-          ...parsed,
-          providerId: result.providerId,
-          modelId: result.modelId,
-          latencyMs: result.latencyMs,
-          requestId: ctx.requestId,
-        };
+        return parsed;
       } catch (error) {
         if (isInputGuardError(error)) throw error;
         return fallbackRefine(sanitized, ctx, 0);
@@ -548,7 +730,7 @@ export function createOrchestrator(options: OrchestratorOptions): PromptOrchestr
       const task: SynthesizerTask = { kind: "reverse_engineer", input: sanitized };
       try {
         const { result } = await dispatch(
-          sanitized.targetModelId ?? "gemini-2.5-pro",
+          sanitized.targetModelId ?? "google-image",
           {
             systemPrompt: buildReverseEngineerSystemPrompt(sanitized.targetMode),
             userPrompt: JSON.stringify({

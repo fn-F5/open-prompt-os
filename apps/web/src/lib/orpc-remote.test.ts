@@ -324,11 +324,14 @@ describe("remote compose client", () => {
 
     await expect(
       orpcClient.prompts.refine({
-        originalPrompt: "test",
+        originalPrompt: "Draft an API design review prompt",
         mode: "improve",
         targetLength: "balanced",
       }),
-    ).rejects.toThrowError(OrpcClientError);
+    ).rejects.toMatchObject({
+      code: "QUOTA_EXCEEDED",
+      requestId: "req_quota_err",
+    });
   });
 
   it("dispatches remote RPC calls for feedback and signup referral attribution", async () => {

@@ -1,30 +1,98 @@
 import type { PromptLength, RefinePromptOutput } from "@open-prompt-os/contracts";
-import { analyzePromptVariables } from "@open-prompt-os/core";
+import {
+  analyzePromptVariables,
+  computeLineDiff,
+  computePromptHealthScore,
+  evaluatePromptQuality,
+} from "@open-prompt-os/core";
 import { Badge, Button, Tabs, Textarea, toast } from "@open-prompt-os/ui-web";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
   ArrowRight,
+  Bookmark,
   Check,
   Copy,
   ExternalLink,
+  RefreshCw,
+  RotateCcw,
+  Sparkles,
   Stethoscope,
   Wrench,
 } from "lucide-react";
 import * as React from "react";
 import { useLocation, useNavigate } from "react-router";
+import { AuthGate } from "../components/auth/auth-gate.js";
 import { SanitizedPromptRenderer } from "../components/output/output-card.js";
 import { SeoHead } from "../components/seo/seo-head.js";
 import { useAutoResizeTextarea } from "../hooks/use-auto-resize-textarea.js";
 import { useCardHoverAnimation } from "../hooks/use-card-parallax.js";
 import { copyTextToClipboard, dispatchPrompt } from "../lib/dispatch.js";
-import { orpcClient } from "../lib/orpc.js";
+import { OrpcClientError, orpcClient } from "../lib/orpc.js";
+import { queryKeys } from "../lib/query-client.js";
 import { STATIC_ROUTE_SEO } from "../lib/seo.js";
+import { trackEvent } from "../lib/telemetry.js";
+import { openAuthDialog } from "../state/auth-dialog-store.js";
 import { composerActions } from "../state/composer-store.js";
+
+const TARGET_MODEL_OPTIONS = [
+  { id: "openai-text", label: "OpenAI (ChatGPT / GPT)" },
+  { id: "anthropic-text", label: "Anthropic (Claude)" },
+  { id: "google-text", label: "Google (Gemini)" },
+  { id: "deepseek-text", label: "DeepSeek" },
+  { id: "alibaba-text", label: "Alibaba (Qwen)" },
+  { id: "xai-text", label: "xAI (Grok)" },
+] as const;
+
+const AUTOPSY_SYMPTOMS = [
+  "Hallucinated facts",
+  "Wrong format",
+  "Ignored constraints",
+  "Too verbose",
+  "Wrong tone",
+] as const;
+
+const IMPROVE_EXAMPLES = [
+  {
+    label: "Vague Architecture Doc",
+    prompt:
+      "Write a technical architecture doc for our payment service for [Target_Audience] using [Payment_Provider].",
+  },
+  {
+    label: "Generic Cold Outreach",
+    prompt:
+      "Write a cold email to [Prospect_Role] pitching our DevOps monitoring tool and ask for a 15 minute call.",
+  },
+] as const;
+
+const AUTOPSY_EXAMPLES = [
+  {
+    label: "Hallucinated API Citation",
+    prompt: "Give me a migration guide to move our Node.js app from Stripe v12 to v14.",
+    failedOutput:
+      "Run `stripe.autoMigrate({ zeroDowntime: true })` and call the new `POST /v2/instant-upgrade` endpoint introduced in v14 to automatically convert all webhook schemas.",
+    symptoms: ["Hallucinated facts"] as readonly string[],
+  },
+  {
+    label: "Broken JSON Format",
+    prompt: "Summarize these customer support tickets into JSON with severity and owner.",
+    failedOutput:
+      "Sure! Here is a helpful summary of your tickets:\n1. Billing timeout (High priority) - assign to payments team.\n2. Login issue - probably auth team.\nLet me know if you want me to format this differently!",
+    symptoms: ["Wrong format", "Too verbose"] as readonly string[],
+  },
+  {
+    label: "Scope & Tone Drift",
+    prompt: "Write a concise 3-bullet executive update on our Q3 Postgres latency incident.",
+    failedOutput:
+      "Database performance is a fascinating topic in modern distributed systems! Before diving into Q3, let's explore how B-tree indexes work in PostgreSQL and why write-ahead logging matters...",
+    symptoms: ["Too verbose", "Wrong tone", "Ignored constraints"] as readonly string[],
+  },
+] as const;
 
 export function ImproveAutopsyPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const animateCard = useCardHoverAnimation();
   const preload = (location.state as { preloadPrompt?: string } | null)?.preloadPrompt ?? "";
 
@@ -35,9 +103,15 @@ export function ImproveAutopsyPage() {
   );
   const [failedOutput, setFailedOutput] = React.useState("");
   const [targetLength, setTargetLength] = React.useState<PromptLength>("balanced");
+  const [targetModelId, setTargetModelId] = React.useState<string>("openai-text");
+  const [selectedSymptoms, setSelectedSymptoms] = React.useState<string[]>([]);
   const [validationError, setValidationError] = React.useState<string | null>(null);
   const [result, setResult] = React.useState<RefinePromptOutput | null>(null);
+  const [analyzedPrompt, setAnalyzedPrompt] = React.useState<string>("");
+  const [outputView, setOutputView] = React.useState<"optimized" | "diff">("optimized");
   const [mobilePane, setMobilePane] = React.useState<"input" | "diagnosis">("input");
+  const [copied, setCopied] = React.useState(false);
+  const [savedKey, setSavedKey] = React.useState<string | null>(null);
 
   const promptRef = useAutoResizeTextarea(originalPrompt, { minHeightPx: 120, maxHeightPx: 280 });
   const failedRef = useAutoResizeTextarea(failedOutput, { minHeightPx: 100, maxHeightPx: 240 });
@@ -46,25 +120,104 @@ export function ImproveAutopsyPage() {
     () => analyzePromptVariables(originalPrompt),
     [originalPrompt],
   );
+  const liveHealth = React.useMemo(
+    () => computePromptHealthScore(originalPrompt),
+    [originalPrompt],
+  );
+  const beforeHealth = React.useMemo(
+    () => computePromptHealthScore(analyzedPrompt || originalPrompt),
+    [analyzedPrompt, originalPrompt],
+  );
+  const afterHealth = React.useMemo(
+    () => (result ? computePromptHealthScore(result.optimizedPrompt) : null),
+    [result],
+  );
+  const diffLines = React.useMemo(
+    () => (result ? computeLineDiff(analyzedPrompt, result.optimizedPrompt) : []),
+    [analyzedPrompt, result],
+  );
+
+  const currentResultKey = result ? `${result.requestId}:${result.optimizedPrompt}` : null;
+  const isSaved = Boolean(currentResultKey && savedKey === currentResultKey);
 
   const refineMutation = useMutation({
     mutationFn: async () => {
-      return orpcClient.prompts.refine({
+      const symptomTone =
+        mode === "autopsy" && selectedSymptoms.length > 0
+          ? `Address observed failure symptoms: ${selectedSymptoms.join(", ")}`
+          : undefined;
+      const payload = {
         originalPrompt,
         mode,
         failedOutput: mode === "autopsy" ? failedOutput : undefined,
         targetLength,
+        targetModelId,
+        targetTone: symptomTone,
+      };
+      const snapshotPrompt = originalPrompt;
+      const data =
+        mode === "autopsy"
+          ? await orpcClient.prompts.autopsy(payload)
+          : await orpcClient.prompts.refine(payload);
+      return { data, snapshotPrompt };
+    },
+    onSuccess: ({ data, snapshotPrompt }) => {
+      setAnalyzedPrompt(snapshotPrompt);
+      setResult(data);
+      setOutputView("optimized");
+      setMobilePane("diagnosis");
+      qc.invalidateQueries({ queryKey: queryKeys.billing.status() });
+    },
+    onError: (err) => {
+      if (err instanceof OrpcClientError && err.code === "QUOTA_EXCEEDED") {
+        openAuthDialog({ reason: "quota_limit" });
+      }
+    },
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      if (!result) throw new Error("No optimized prompt to save.");
+      const targetKey = `${result.requestId}:${result.optimizedPrompt}`;
+      const rawInput = (analyzedPrompt || originalPrompt).trim().slice(0, 8000);
+      const compiledPrompt = result.optimizedPrompt.trim().slice(0, 16000);
+      const saved = await orpcClient.prompts.save({
+        title: rawInput.slice(0, 80) || "Optimized Prompt Specification",
+        rawInput: rawInput || compiledPrompt.slice(0, 8000),
+        compiledPrompt,
+        mode: "text",
+        framework: "costar",
+        modelId: result.modelId || targetModelId || "gpt-4.1",
+        category: mode === "autopsy" ? "Autopsy Remediation" : "Optimized Prompts",
+        tags: [mode, "optimized"],
+      });
+      return { saved, targetKey };
+    },
+    onSuccess: ({ targetKey }) => {
+      setSavedKey(targetKey);
+      trackEvent("prompt_saved", { mode: "text" });
+      qc.invalidateQueries({ queryKey: queryKeys.prompts.all });
+      toast({
+        title: "Saved to My Library",
+        description: "Your optimized prompt is now saved in your workspace.",
       });
     },
-    onSuccess: (data) => {
-      setResult(data);
-      setMobilePane("diagnosis");
+    onError: (err) => {
+      toast({
+        title: "Could not save prompt",
+        description: err instanceof Error ? err.message : "Please try again.",
+      });
     },
   });
 
   const handleRun = () => {
     if (!originalPrompt.trim()) {
       setValidationError("Enter the original prompt to analyze.");
+      return;
+    }
+    const quality = evaluatePromptQuality(originalPrompt);
+    if (!quality.ok) {
+      setValidationError(quality.message);
       return;
     }
     if (mode === "autopsy" && !failedOutput.trim()) {
@@ -77,7 +230,23 @@ export function ImproveAutopsyPage() {
     refineMutation.mutate();
   };
 
+  const toggleSymptom = (symptom: string) => {
+    setSelectedSymptoms((prev) =>
+      prev.includes(symptom) ? prev.filter((item) => item !== symptom) : [...prev, symptom],
+    );
+  };
+
+  const handleCopy = async (text: string) => {
+    const ok = await copyTextToClipboard(text);
+    if (ok) {
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+      toast({ title: "Copied optimized prompt" });
+    }
+  };
+
   const seoMeta = React.useMemo(() => STATIC_ROUTE_SEO.improve(), []);
+  const healthDelta = afterHealth ? afterHealth.score - beforeHealth.score : 0;
 
   return (
     <div className="space-y-6">
@@ -110,6 +279,43 @@ export function ImproveAutopsyPage() {
         />
       </div>
 
+      {/* One-Click Example Presets */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)]">
+          <Sparkles className="w-3.5 h-3.5 text-[var(--accent-text)]" />
+          <span>{mode === "autopsy" ? "Try an Autopsy example:" : "Examples:"}</span>
+        </span>
+        {mode === "autopsy"
+          ? AUTOPSY_EXAMPLES.map((example) => (
+              <button
+                key={example.label}
+                type="button"
+                onClick={() => {
+                  setValidationError(null);
+                  setOriginalPrompt(example.prompt);
+                  setFailedOutput(example.failedOutput);
+                  setSelectedSymptoms([...example.symptoms]);
+                }}
+                className="text-xs px-2.5 py-1 rounded-lg bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--separator-subtle)] transition-colors cursor-pointer"
+              >
+                {example.label}
+              </button>
+            ))
+          : IMPROVE_EXAMPLES.map((example) => (
+              <button
+                key={example.label}
+                type="button"
+                onClick={() => {
+                  setValidationError(null);
+                  setOriginalPrompt(example.prompt);
+                }}
+                className="text-xs px-2.5 py-1 rounded-lg bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--separator-subtle)] transition-colors cursor-pointer"
+              >
+                {example.label}
+              </button>
+            ))}
+      </div>
+
       {/* Mobile Step Switcher (Section 12.1, 21) */}
       <div className="lg:hidden">
         <Tabs
@@ -138,16 +344,20 @@ export function ImproveAutopsyPage() {
           }`}
         >
           <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <label
                 htmlFor="autopsy-original-prompt"
                 className="text-xs font-semibold uppercase tracking-wider"
               >
                 Original Prompt
               </label>
-              <span className="text-xs text-[var(--text-secondary)] tabular-nums">
-                {liveVarAnalysis.detectedVariables.length} variable(s)
-              </span>
+              <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)] tabular-nums">
+                <span>{liveVarAnalysis.detectedVariables.length} variable(s)</span>
+                <span aria-hidden="true">·</span>
+                <span className="font-mono font-medium text-[var(--text-primary)]">
+                  Health {liveHealth.score}/100
+                </span>
+              </div>
             </div>
             <div className="rounded-lg bg-[var(--surface-2)] border border-[var(--separator-subtle)] p-2">
               <Textarea
@@ -160,11 +370,10 @@ export function ImproveAutopsyPage() {
             </div>
           </div>
 
-          {/* Live Variable Inventory & Unresolved/Duplicate Flags (Section 12.3) */}
+          {/* Live Variable Inventory & Unresolved/Duplicate Flags */}
           <div className="p-3 rounded-lg bg-[var(--surface-2)] border border-[var(--separator-subtle)] space-y-2">
             <div className="text-xs font-medium text-[var(--text-secondary)]">
-              Variable Inventory (parsed via <code className="font-mono">@open-prompt-os/core</code>
-              )
+              Detected <code className="font-mono">[Variable]</code> Slots
             </div>
             {liveVarAnalysis.detectedVariables.length > 0 ? (
               <div className="flex flex-wrap gap-1.5">
@@ -195,9 +404,9 @@ export function ImproveAutopsyPage() {
             ) : null}
           </div>
 
-          {/* Failed Output Input for Autopsy Mode (Section 12.2) */}
+          {/* Failed Output Input + Quick Symptom Tags for Autopsy Mode */}
           {mode === "autopsy" ? (
-            <div className="space-y-1.5 rounded-xl p-3.5 bg-[var(--danger-bg)] border border-[var(--danger-text)]/30">
+            <div className="space-y-3 rounded-xl p-3.5 bg-[var(--danger-bg)] border border-[var(--danger-text)]/30">
               <div className="flex items-center justify-between gap-2">
                 <label
                   htmlFor="autopsy-failed-output"
@@ -215,41 +424,92 @@ export function ImproveAutopsyPage() {
                 placeholder="Paste the bad response, hallucination, or broken format that the model produced..."
                 className="bg-[var(--surface-1)] text-[var(--text-primary)]"
               />
+              <div className="space-y-1.5">
+                <span className="text-[11px] font-medium text-[var(--text-secondary)]">
+                  What went wrong? (optional)
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {AUTOPSY_SYMPTOMS.map((symptom) => {
+                    const active = selectedSymptoms.includes(symptom);
+                    return (
+                      <button
+                        key={symptom}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() => toggleSymptom(symptom)}
+                        className={`text-xs px-2.5 py-1 rounded-lg border transition-colors cursor-pointer ${
+                          active
+                            ? "bg-[var(--accent-subtle-bg)] text-[var(--accent-text)] border-[var(--separator-strong)] font-medium"
+                            : "bg-[var(--surface-1)] text-[var(--text-secondary)] border-[var(--separator-subtle)] hover:text-[var(--text-primary)]"
+                        }`}
+                      >
+                        {symptom}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           ) : null}
 
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-[var(--separator-subtle)]">
-            <div className="flex flex-wrap items-center gap-2 max-w-full">
-              <span className="text-xs text-[var(--text-secondary)]">Target density:</span>
-              <Tabs
-                ariaLabel="Target prompt length"
-                value={targetLength}
-                onValueChange={setTargetLength}
-                options={[
-                  { value: "short", label: "Short" },
-                  { value: "balanced", label: "Balanced" },
-                  { value: "detailed", label: "Detailed" },
-                ]}
-              />
+          {/* Target Model & Density Controls */}
+          <div className="space-y-3 pt-2 border-t border-[var(--separator-subtle)]">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <label
+                  htmlFor="autopsy-target-model"
+                  className="text-xs text-[var(--text-secondary)] whitespace-nowrap"
+                >
+                  Target model:
+                </label>
+                <select
+                  id="autopsy-target-model"
+                  value={targetModelId}
+                  onChange={(e) => setTargetModelId(e.target.value)}
+                  className="text-xs px-2.5 py-1.5 rounded-lg bg-[var(--surface-2)] text-[var(--text-primary)] border border-[var(--separator-subtle)] focus-ring"
+                >
+                  {TARGET_MODEL_OPTIONS.map((opt) => (
+                    <option key={opt.id} value={opt.id}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 max-w-full">
+                <span className="text-xs text-[var(--text-secondary)]">Target density:</span>
+                <Tabs
+                  ariaLabel="Target prompt length"
+                  value={targetLength}
+                  onValueChange={setTargetLength}
+                  options={[
+                    { value: "short", label: "Short" },
+                    { value: "balanced", label: "Balanced" },
+                    { value: "detailed", label: "Detailed" },
+                  ]}
+                />
+              </div>
             </div>
 
-            <Button
-              variant="primary-inverse"
-              onClick={handleRun}
-              disabled={refineMutation.isPending}
-            >
-              {mode === "autopsy" ? (
-                <>
-                  <Stethoscope className="w-4 h-4" />
-                  <span>{refineMutation.isPending ? "Running Autopsy..." : "Run Autopsy"}</span>
-                </>
-              ) : (
-                <>
-                  <Wrench className="w-4 h-4" />
-                  <span>{refineMutation.isPending ? "Optimizing..." : "Optimize Prompt"}</span>
-                </>
-              )}
-            </Button>
+            <div className="flex justify-end">
+              <Button
+                variant="primary-inverse"
+                onClick={handleRun}
+                disabled={refineMutation.isPending}
+              >
+                {mode === "autopsy" ? (
+                  <>
+                    <Stethoscope className="w-4 h-4" />
+                    <span>{refineMutation.isPending ? "Running Autopsy..." : "Run Autopsy"}</span>
+                  </>
+                ) : (
+                  <>
+                    <Wrench className="w-4 h-4" />
+                    <span>{refineMutation.isPending ? "Optimizing..." : "Optimize Prompt"}</span>
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
 
           {validationError ? (
@@ -262,7 +522,7 @@ export function ImproveAutopsyPage() {
           ) : null}
         </section>
 
-        {/* Right Pane: Diagnosis & Optimized Prompt (Section 12.4) */}
+        {/* Right Pane: Diagnosis & Optimized Prompt */}
         <section
           aria-label="Diagnostic findings and optimized prompt"
           data-animate={animateCard("improveOutput")}
@@ -270,7 +530,38 @@ export function ImproveAutopsyPage() {
             mobilePane === "input" ? "hidden lg:block" : "block"
           }`}
         >
-          {!result ? (
+          {refineMutation.isPending ? (
+            <div aria-busy="true" className="space-y-4 py-4">
+              <div className="flex items-center gap-2.5">
+                <span className="h-2.5 w-2.5 rounded-full bg-[var(--accent-primary)] animate-ping" />
+                <span className="text-sm font-medium text-[var(--text-secondary)]">
+                  {mode === "autopsy"
+                    ? "Running forensic autopsy on failed output..."
+                    : "Auditing prompt structure & guardrails..."}
+                </span>
+              </div>
+              <div className="space-y-3 animate-pulse">
+                <div className="h-16 w-full rounded-lg bg-[var(--surface-2)]" />
+                <div className="h-16 w-full rounded-lg bg-[var(--surface-2)]" />
+                <div className="h-32 w-full rounded-xl bg-[var(--surface-2)]" />
+              </div>
+            </div>
+          ) : refineMutation.error ? (
+            <div
+              role="alert"
+              className="rounded-xl p-4 bg-[var(--danger-bg)] text-[var(--danger-text)] border border-[var(--danger-text)]/40 space-y-3"
+            >
+              <div className="flex items-center gap-2 font-semibold text-sm">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>Could not complete analysis</span>
+              </div>
+              <p className="text-xs opacity-90">{refineMutation.error.message}</p>
+              <Button variant="solid" size="sm" onClick={handleRun}>
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Retry</span>
+              </Button>
+            </div>
+          ) : !result ? (
             <div className="py-12 text-center space-y-2 text-[var(--text-secondary)]">
               <Stethoscope className="w-8 h-8 mx-auto opacity-60" />
               <div className="text-sm font-medium text-[var(--text-primary)]">
@@ -284,10 +575,25 @@ export function ImproveAutopsyPage() {
           ) : (
             <>
               <div className="space-y-3">
-                <div className="flex items-center justify-between gap-2">
-                  <Badge variant="framework">{result.findings.length} Diagnostic Finding(s)</Badge>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="framework">
+                      {result.findings.length} Diagnostic Finding(s)
+                    </Badge>
+                    {afterHealth ? (
+                      <span
+                        aria-label="Prompt health score change"
+                        className="inline-flex items-center gap-1 font-mono text-xs px-2.5 py-0.5 rounded-full bg-[var(--success-subtle-bg)] text-[var(--success-text)] border border-[var(--separator-subtle)] font-semibold tabular-nums"
+                      >
+                        <span>
+                          Health {beforeHealth.score} → {afterHealth.score}
+                        </span>
+                        {healthDelta > 0 ? <span>(+{healthDelta})</span> : null}
+                      </span>
+                    ) : null}
+                  </div>
                   <span className="font-mono text-xs text-[var(--text-secondary)] tabular-nums">
-                    {result.providerId}/{result.modelId} · {result.latencyMs}ms
+                    {result.latencyMs}ms
                   </span>
                 </div>
                 <p className="text-xs sm:text-sm text-[var(--text-secondary)]">{result.summary}</p>
@@ -318,26 +624,107 @@ export function ImproveAutopsyPage() {
                 </div>
               </div>
 
-              <div className="space-y-2 pt-3 border-t border-[var(--separator-subtle)]">
-                <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
-                  Optimized Specification
-                </div>
-                <div className="p-4 rounded-xl bg-[var(--surface-2)] border border-[var(--separator-subtle)]">
-                  <SanitizedPromptRenderer content={result.optimizedPrompt} />
+              <div className="space-y-3 pt-3 border-t border-[var(--separator-subtle)]">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+                    Optimized Specification
+                  </div>
+                  <Tabs
+                    ariaLabel="Output view mode"
+                    value={outputView}
+                    onValueChange={setOutputView}
+                    options={[
+                      { value: "optimized", label: "Optimized" },
+                      { value: "diff", label: "Before / After Diff" },
+                    ]}
+                  />
                 </div>
 
-                <div className="pt-2 flex flex-wrap items-center justify-between gap-2">
+                {outputView === "diff" ? (
+                  <div
+                    aria-label="Prompt diff comparison"
+                    className="p-4 rounded-xl bg-[var(--surface-2)] border border-[var(--separator-subtle)] font-mono text-xs leading-relaxed overflow-x-auto space-y-0.5"
+                  >
+                    {diffLines.map((entry, idx) => (
+                      <div
+                        key={`${entry.type}-${idx}`}
+                        className={`px-2 py-0.5 rounded whitespace-pre-wrap break-words ${
+                          entry.type === "added"
+                            ? "bg-[var(--success-subtle-bg)] text-[var(--success-text)]"
+                            : entry.type === "removed"
+                              ? "bg-[var(--danger-bg)] text-[var(--danger-text)] line-through opacity-85"
+                              : "text-[var(--text-secondary)]"
+                        }`}
+                      >
+                        <span className="select-none mr-2 opacity-70">
+                          {entry.type === "added" ? "+" : entry.type === "removed" ? "-" : " "}
+                        </span>
+                        {entry.line || " "}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-xl bg-[var(--surface-2)] border border-[var(--separator-subtle)] overflow-x-auto">
+                    <SanitizedPromptRenderer content={result.optimizedPrompt} />
+                  </div>
+                )}
+
+                {/* Action & Dispatch Bar */}
+                <div className="pt-2 flex flex-wrap items-center justify-between gap-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <Button
                       variant="solid"
                       size="sm"
-                      onClick={async () => {
-                        const ok = await copyTextToClipboard(result.optimizedPrompt);
-                        if (ok) toast({ title: "Copied optimized prompt" });
+                      onClick={() => handleCopy(result.optimizedPrompt)}
+                    >
+                      {copied ? (
+                        <Check className="w-3.5 h-3.5" />
+                      ) : (
+                        <Copy className="w-3.5 h-3.5" />
+                      )}
+                      <span>{copied ? "Copied" : "Copy"}</span>
+                    </Button>
+
+                    <AuthGate
+                      reason="save_prompt"
+                      onSafeReplay={() => saveMutation.mutate()}
+                      onAuthenticatedAction={() => saveMutation.mutate()}
+                    >
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={saveMutation.isPending || isSaved}
+                        aria-pressed={isSaved}
+                      >
+                        <Bookmark
+                          className={`w-3.5 h-3.5 text-[var(--accent-text)] ${isSaved ? "fill-current" : ""}`}
+                          fill={isSaved ? "currentColor" : "none"}
+                        />
+                        <span>
+                          {saveMutation.isPending
+                            ? "Saving..."
+                            : isSaved
+                              ? "Saved"
+                              : "Save to Library"}
+                        </span>
+                      </Button>
+                    </AuthGate>
+
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => {
+                        setOriginalPrompt(result.optimizedPrompt);
+                        setValidationError(null);
+                        setMobilePane("input");
+                        toast({
+                          title: "Loaded into input",
+                          description: "You can now run another optimization or autopsy pass.",
+                        });
                       }}
                     >
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>Copy</span>
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Re-run on Optimized</span>
                     </Button>
 
                     <Button
@@ -358,14 +745,32 @@ export function ImproveAutopsyPage() {
                     </Button>
                   </div>
 
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => dispatchPrompt("chatgpt", result.optimizedPrompt)}
-                  >
-                    <span>Send to ChatGPT</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </Button>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => dispatchPrompt("chatgpt", result.optimizedPrompt)}
+                    >
+                      <span>ChatGPT</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => dispatchPrompt("claude", result.optimizedPrompt)}
+                    >
+                      <span>Claude</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => dispatchPrompt("gemini", result.optimizedPrompt)}
+                    >
+                      <span>Gemini</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             </>
