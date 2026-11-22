@@ -17,6 +17,7 @@
     "@open-prompt-os/core": "workspace:*"
   },
   "devDependencies": {
+    "fast-check": "^4.10.3",
     "vitest": "^3.0.5"
   }
 }

@@ -9,8 +9,10 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:e2e": "playwright test",
-    "test:resolution": "playwright test e2e/resolution-audit.spec.ts"
+    "test:e2e": "playwright test --project=chromium",
+    "test:e2e:smoke": "playwright test --project=chromium --grep @smoke",
+    "test:e2e:ui": "playwright test --project=chromium --ui",
+    "test:resolution": "playwright test --project=layout-audit"
   },
   "dependencies": {
     "@better-auth/passkey": "^1.4.0",

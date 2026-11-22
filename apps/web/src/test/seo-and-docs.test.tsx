@@ -449,7 +449,7 @@ describe("Navigation Placement, Docs Hub, SEO Metadata & AEO Assets", () => {
       fireEvent.click(screen.getByRole("button", { name: "Copy" }));
       await waitFor(() => {
         expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
-          expect.stringContaining("# OPERATIONAL PROMPT SPECIFICATION"),
+          expect.stringContaining("Principal Distributed Systems Architect"),
         );
       });
 

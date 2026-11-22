@@ -88,6 +88,85 @@ describe("remote compose client", () => {
     });
   });
 
+  it("parses SSE stage and done events from the remote video reverse engineer endpoint", async () => {
+    vi.stubEnv("VITE_API_URL", "http://127.0.0.1:3001");
+    const stages: Array<{ stage: string; message: string }> = [];
+    const payload = {
+      overview: {
+        durationSeconds: 10,
+        aspectRatio: "16:9",
+        pacingStyle: "Measured 2-shot documentary",
+        isSingleTake: false,
+        timestampsAreEstimated: true,
+      },
+      continuityBible: {
+        subjects: ["Presenter at zoo enclosure"],
+        wardrobeAndProps: ["Dark jacket"],
+        environment: "Daylight zoo elephant enclosure",
+        lightingAndPalette: ["Natural overcast daylight"],
+        cameraRigAndLens: "Handheld 35mm",
+        audioSignature: "Ambient crowd noise and spoken narration",
+      },
+      shots: [
+        {
+          shotIndex: 1,
+          startTime: "00:00",
+          endTime: "00:10",
+          durationSeconds: 10,
+          shotSize: "Medium Shot",
+          cameraMovement: "Slight handheld sway",
+          action: "Subject turns toward elephants and speaks",
+          dialogueOrAudio: "Spoken narration",
+          transitionOut: "Cut",
+          shotPrompt: "Medium handheld shot at zoo enclosure",
+        },
+      ],
+      targetGenerator: "veo",
+      masterPrompt: "A 10-second handheld clip in daylight...",
+      detectedVariables: [],
+      suggestedDraft: {
+        mode: "video",
+        rawInput: "A 10-second handheld clip in daylight...",
+        title: "Zoo Clip",
+        context: "Recreated clip",
+        constraints: ["16:9"],
+      },
+      providerId: "gemini",
+      model: "gemini-3.6-flash",
+      usage: { inputTokens: 916, outputTokens: 200, totalTokens: 1116 },
+    };
+
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(
+          `event: stage\ndata: ${JSON.stringify({ stage: "analyzing", message: "Analyzing timeline & audio" })}\n\nevent: done\ndata: ${JSON.stringify(payload)}\n\n`,
+          { status: 200, headers: { "content-type": "text/event-stream" } },
+        ),
+      );
+
+    const result = await orpcClient.prompts.reverseEngineerVideo(
+      {
+        sourceType: "youtube",
+        youtubeUrl: "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+        startOffsetSec: 0,
+        endOffsetSec: 10,
+        targetGenerator: "veo",
+      },
+      {
+        onStage: (stage, message) => stages.push({ stage, message }),
+      },
+    );
+
+    expect(fetchSpy).toHaveBeenCalledOnce();
+    expect(String(fetchSpy.mock.calls[0]?.[0])).toContain(
+      "/api/prompts/reverse-engineer-video/stream",
+    );
+    expect(stages).toEqual([{ stage: "analyzing", message: "Analyzing timeline & audio" }]);
+    expect(result.masterPrompt).toBe("A 10-second handheld clip in daylight...");
+    expect(result.shots).toHaveLength(1);
+  });
+
   it("dispatches remote RPC calls with auth headers for library operations", async () => {
     vi.stubEnv("VITE_API_URL", "http://127.0.0.1:3001");
     setAuthSessionForTest({

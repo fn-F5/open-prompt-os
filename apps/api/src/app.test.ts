@@ -1,5 +1,5 @@
 import type { PromptOrchestrator } from "@open-prompt-os/adapter-kit";
-import type { ComposePromptOutput } from "@open-prompt-os/contracts";
+import type { ComposePromptOutput, VideoReverseEngineerOutput } from "@open-prompt-os/contracts";
 import { describe, expect, it } from "vitest";
 import { createApp } from "./app.js";
 import { loadConfig } from "./config.js";
@@ -77,6 +77,7 @@ describe("api", () => {
       composeStream: runtime.orchestrator.composeStream.bind(runtime.orchestrator),
       refine: runtime.orchestrator.refine.bind(runtime.orchestrator),
       reverseEngineer: runtime.orchestrator.reverseEngineer.bind(runtime.orchestrator),
+      reverseEngineerVideo: runtime.orchestrator.reverseEngineerVideo.bind(runtime.orchestrator),
       healthSnapshot: () => runtime.orchestrator.healthSnapshot(),
     };
     const logs: string[] = [];
@@ -154,6 +155,9 @@ describe("compose stream", () => {
         };
       },
       reverseEngineer: runtimePlaceholderReverseEngineer(),
+      reverseEngineerVideo: async () => {
+        throw new Error("unused");
+      },
       healthSnapshot: () => [],
     };
     const app = buildApp(20, orchestrator);
@@ -198,6 +202,7 @@ describe("compose stream", () => {
         return runtime.orchestrator.refine(input, ctx);
       },
       reverseEngineer: runtimePlaceholderReverseEngineer(),
+      reverseEngineerVideo: runtime.orchestrator.reverseEngineerVideo,
       healthSnapshot: () => [],
     };
     const app = buildApp(20, orchestrator);
@@ -289,6 +294,9 @@ describe("compose stream", () => {
         };
       },
       reverseEngineer: runtimePlaceholderReverseEngineer(),
+      reverseEngineerVideo: async () => {
+        throw new Error("unused");
+      },
       healthSnapshot: () => [],
     };
     const app = buildApp(20, orchestrator);
@@ -389,5 +397,150 @@ describe("runtime, config, rate-limiter, and clientKey helpers", () => {
     expect(xml).toContain('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">');
     expect(xml).toContain("/docs/prompt-frameworks-costar-rise-care-cot</loc>");
     expect(xml).toContain("/templates/staff-architecture-rfc-review</loc>");
+  });
+});
+
+describe("video reverse engineer stream", () => {
+  it("validates URLs, MIME types, and trim caps before quota/LLM and streams stage + done events", async () => {
+    const sampleVideoOut: VideoReverseEngineerOutput = {
+      overview: {
+        durationSeconds: 10,
+        aspectRatio: "16:9",
+        pacingStyle: "Steady 24fps",
+        isSingleTake: true,
+        timestampsAreEstimated: true,
+      },
+      continuityBible: {
+        subjectAndWardrobe: "Person at zoo in gray jacket",
+        environmentAndSet: "Outdoor elephant enclosure",
+        lightingAndColorGrade: "Overcast daylight",
+        lensAndOpticalDna: "35mm handheld",
+        audioAndMusicDna: "Direct speech with outdoor ambience",
+        negativeGuardrails: "morphing faces, jittery background",
+      },
+      shots: [
+        {
+          shotNumber: 1,
+          startTime: "00:00",
+          endTime: "00:10",
+          transitionIn: "Fade in",
+          firstFramePrompt: "Medium shot of [Subject] before elephants.",
+          motionAndCamera: "Static handheld shot.",
+          audioCue: "Speaker explains elephants' trunks.",
+          shotPrompt: "Generate video following the specification.\nMedium shot of [Subject].",
+        },
+      ],
+      targetGenerator: "veo",
+      masterPrompt:
+        "Generate video following the specification.\nRole: Director.\n\n# MOTION & TEMPORAL PROMPT SPECIFICATION\nMedium shot of [Subject].",
+      detectedVariables: ["Subject"],
+      suggestedDraft: {
+        rawInput: "Generate video following the specification.",
+        mode: "video",
+        modelId: "google-video",
+        constraints: [],
+        guardrails: [],
+        framework: "costar",
+        advanced: { length: "detailed", creativity: 0.4 },
+      },
+      providerId: "gemini",
+      modelId: "gemini-3.6-flash",
+      latencyMs: 120,
+      remainingDailyRuns: null,
+      requestId: "req_vid_1",
+    };
+
+    const baseRuntime = createRuntime(loadConfig({}));
+    let sawYoutubeUrl = "";
+    const orchestrator: PromptOrchestrator = {
+      ...baseRuntime.orchestrator,
+      async reverseEngineerVideo(input, ctx) {
+        sawYoutubeUrl = input.youtubeUrl ?? "";
+        ctx.onStage?.("preparing");
+        ctx.onStage?.("analyzing");
+        ctx.onStage?.("finalizing");
+        return sampleVideoOut;
+      },
+    };
+    const app = buildApp(20, orchestrator);
+
+    // 1. Unsupported social link returns helpful 400 guidance
+    const socialRes = await app.request(
+      "http://localhost/api/prompts/reverse-engineer-video/stream",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-client-key": `vid_social_${Date.now()}` },
+        body: JSON.stringify({
+          sourceType: "youtube",
+          youtubeUrl: "https://www.tiktok.com/@creator/video/123456",
+          startOffsetSec: 0,
+          endOffsetSec: 10,
+        }),
+      },
+    );
+    expect(socialRes.status).toBe(400);
+    expect(await socialRes.json()).toMatchObject({
+      code: "VALIDATION_ERROR",
+      message: expect.stringMatching(/Download the clip as an MP4/i),
+    });
+
+    // 2. Guest trim window > 15s returns 400
+    const longTrimRes = await app.request(
+      "http://localhost/api/prompts/reverse-engineer-video/stream",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-client-key": `vid_trim_${Date.now()}` },
+        body: JSON.stringify({
+          sourceType: "youtube",
+          youtubeUrl: "https://youtu.be/jNQXAC9IVRw",
+          startOffsetSec: 0,
+          endOffsetSec: 25,
+        }),
+      },
+    );
+    expect(longTrimRes.status).toBe(400);
+    expect(await longTrimRes.json()).toMatchObject({
+      code: "VALIDATION_ERROR",
+      message: expect.stringMatching(/15s limit/i),
+    });
+
+    // 3. Invalid MIME upload returns 400
+    const badForm = new FormData();
+    badForm.append(
+      "file",
+      new File([new Uint8Array([1, 2, 3])], "clip.avi", { type: "video/x-msvideo" }),
+    );
+    const badMimeRes = await app.request(
+      "http://localhost/api/prompts/reverse-engineer-video/stream",
+      {
+        method: "POST",
+        headers: { "x-client-key": `vid_mime_${Date.now()}` },
+        body: badForm,
+      },
+    );
+    expect(badMimeRes.status).toBe(400);
+    expect(await badMimeRes.json()).toMatchObject({ code: "VALIDATION_ERROR" });
+
+    // 4. Valid YouTube Shorts link canonicalizes and streams stage -> done
+    const okKey = `vid_ok_${Date.now()}`;
+    const okRes = await app.request("http://localhost/api/prompts/reverse-engineer-video/stream", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-client-key": okKey },
+      body: JSON.stringify({
+        sourceType: "youtube",
+        youtubeUrl: "https://youtube.com/shorts/jNQXAC9IVRw",
+        startOffsetSec: 0,
+        endOffsetSec: 10,
+        targetGenerator: "veo",
+      }),
+    });
+    expect(okRes.status).toBe(200);
+    expect(okRes.headers.get("content-type")).toContain("text/event-stream");
+    const sseBody = await okRes.text();
+    expect(sawYoutubeUrl).toBe("https://www.youtube.com/watch?v=jNQXAC9IVRw");
+    expect(sseBody).toContain("event: stage");
+    expect(sseBody).toContain('"stage":"analyzing"');
+    expect(sseBody).toContain("event: done");
+    expect(sseBody).toContain('"timestampsAreEstimated":true');
   });
 });

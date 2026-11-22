@@ -18,6 +18,8 @@ import type {
   RefinePromptOutput,
   ReverseEngineerInput,
   ReverseEngineerOutput,
+  VideoReverseEngineerInput,
+  VideoReverseEngineerOutput,
 } from "@open-prompt-os/contracts";
 import {
   DiagnosticCategorySchema,
@@ -26,9 +28,12 @@ import {
   RefinePromptOutputSchema,
   ReverseEngineerBreakdownSchema,
   ReverseEngineerOutputSchema,
+  VideoContinuityBibleSchema,
+  VideoShotSchema,
 } from "@open-prompt-os/contracts";
 import type { CircuitMemory } from "@open-prompt-os/core";
 import {
+  InputGuardError,
   analyzePromptVariables,
   assertMeaningfulPrompt,
   assertNoClientSystemPrompt,
@@ -52,6 +57,7 @@ import {
   buildComposeSystemPrompt,
   buildRefineSystemPrompt,
   buildReverseEngineerSystemPrompt,
+  buildVideoReverseEngineerSystemPrompt,
 } from "./instructions.js";
 import type { ProviderRegistry } from "./registry.js";
 import type { SynthesizerTask } from "./synthesizer.js";
@@ -298,7 +304,9 @@ function parseReverseEngineer(
     }
 
     const reconstructedPrompt =
-      typeof raw.reconstructedPrompt === "string" ? raw.reconstructedPrompt.trim() : "";
+      typeof raw.reconstructedPrompt === "string"
+        ? stripVideoSpecWrapper(raw.reconstructedPrompt)
+        : "";
     const breakdownParsed = ReverseEngineerBreakdownSchema.safeParse(raw.breakdown);
     if (!reconstructedPrompt || !breakdownParsed.success) {
       return null;
@@ -315,13 +323,183 @@ function parseReverseEngineer(
         rawInput: reconstructedPrompt,
         mode: input.targetMode,
         modelId: result.modelId,
-        goal: "Reproduce the visual style, lighting, and composition while customizing detected variables",
+        goal: "Reproduce the reference image's visual style, lighting, lens optics, and composition",
         format: breakdown.cameraAndComposition,
         tone: breakdown.lightingAndColor,
         constraints: [breakdown.styleAndMedium],
         guardrails: [breakdown.negativePrompt],
         framework: "costar",
         advanced: { length: "detailed", creativity: 0.5 },
+      },
+      providerId: result.providerId,
+      modelId: result.modelId,
+      latencyMs: result.latencyMs,
+      remainingDailyRuns: null,
+      requestId: ctx.requestId,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Strip accidental meta-directive / specification headers so visual & video prompts are ready to paste. */
+function stripVideoSpecWrapper(text: string): string {
+  return text
+    .replace(/^Generate (?:video|image) following the specification\.\s*\n?/i, "")
+    .replace(/^Role:\s*You are [^\n]*\n+/i, "")
+    .replace(
+      /^#\s*(?:MOTION\s*&\s*TEMPORAL\s*PROMPT|VISUAL\s*GENERATION|RECONSTRUCTED\s+(?:VISUAL|VIDEO\s+MOTION))\s*(?:SPECIFICATION|PROMPT)?[^\n]*\n+/i,
+      "",
+    )
+    .trim();
+}
+
+/** Merge non-overlapping visual, motion, and audio fields for a rich shot block. */
+function formatDetailedShotBlock(shot: VideoReverseEngineerOutput["shots"][number]): string {
+  const transition = shot.transitionIn ? `, ${shot.transitionIn}` : "";
+  const parts = [shot.shotPrompt.trim()];
+  const lowerBase = shot.shotPrompt.toLowerCase();
+  if (
+    shot.firstFramePrompt &&
+    !lowerBase.includes(shot.firstFramePrompt.slice(0, 24).toLowerCase())
+  ) {
+    parts.push(`Opening frame: ${shot.firstFramePrompt.trim()}`);
+  }
+  if (
+    shot.motionAndCamera &&
+    !lowerBase.includes(shot.motionAndCamera.slice(0, 24).toLowerCase())
+  ) {
+    parts.push(`Motion & camera: ${shot.motionAndCamera.trim()}`);
+  }
+  if (shot.audioCue && !lowerBase.includes(shot.audioCue.slice(0, 20).toLowerCase())) {
+    parts.push(`Audio: ${shot.audioCue.trim()}`);
+  }
+  return `Shot ${shot.shotNumber} (${shot.startTime}–${shot.endTime}${transition}): ${parts.join(" ")}`;
+}
+
+/** Guarantee multi-shot videos retain deep, un-compressed shot-by-shot detail in masterPrompt. */
+function ensureShotByShotMasterPrompt(
+  masterPrompt: string,
+  bible: VideoReverseEngineerOutput["continuityBible"],
+  shots: VideoReverseEngineerOutput["shots"],
+): string {
+  if (shots.length < 2) return masterPrompt;
+
+  const wordCount = masterPrompt.trim().split(/\s+/).filter(Boolean).length;
+  const hasEveryShotLabel = shots.every((shot) =>
+    new RegExp(`shot\\s*${shot.shotNumber}\\b`, "i").test(masterPrompt),
+  );
+  const firstShotStart = shots[0]?.startTime;
+  const hasStartTimestamp = !firstShotStart || masterPrompt.includes(firstShotStart);
+  const hasRichDensity = wordCount >= shots.length * 65;
+
+  if (hasEveryShotLabel && hasStartTimestamp && hasRichDensity) {
+    return masterPrompt;
+  }
+
+  // Extract the opening visual/style anchor before any brief "Shot 1" list if present.
+  const openingAnchor = masterPrompt.split(/\n+\s*Shot\s*1\b/i)[0]?.trim() || masterPrompt.trim();
+  const shotBlocks = shots.map(formatDetailedShotBlock);
+
+  return [
+    openingAnchor,
+    `Visual & Optical Locks: ${bible.subjectAndWardrobe} Set & Props: ${bible.environmentAndSet} Lighting & Palette: ${bible.lightingAndColorGrade} Lens & Optics: ${bible.lensAndOpticalDna}`,
+    shotBlocks.join("\n\n"),
+    `Audio & Soundscape: ${bible.audioAndMusicDna}`,
+    `Avoid ${bible.negativeGuardrails}.`,
+  ].join("\n\n");
+}
+
+function parseVideoReverseEngineer(
+  text: string,
+  input: VideoReverseEngineerInput,
+  result: LlmCompletionResult,
+  ctx: OrchestratorContext,
+): VideoReverseEngineerOutput | null {
+  try {
+    const raw = JSON.parse(unfenceJson(text)) as Record<string, unknown>;
+    const overviewRaw = raw.overview as Record<string, unknown> | undefined;
+    const bibleParsed = VideoContinuityBibleSchema.safeParse(raw.continuityBible);
+    const rawShots = Array.isArray(raw.shots) ? raw.shots.slice(0, 8) : [];
+    const shotsParsed = rawShots
+      .map((item, idx) =>
+        VideoShotSchema.safeParse({
+          ...(item && typeof item === "object" ? item : {}),
+          shotNumber:
+            item &&
+            typeof item === "object" &&
+            typeof (item as { shotNumber?: unknown }).shotNumber === "number"
+              ? (item as { shotNumber: number }).shotNumber
+              : idx + 1,
+        }),
+      )
+      .filter(
+        (parsed): parsed is { success: true; data: VideoReverseEngineerOutput["shots"][number] } =>
+          parsed.success,
+      )
+      .map((parsed) => ({
+        ...parsed.data,
+        firstFramePrompt: stripVideoSpecWrapper(parsed.data.firstFramePrompt),
+        shotPrompt: stripVideoSpecWrapper(parsed.data.shotPrompt),
+      }));
+
+    const rawMasterPrompt =
+      typeof raw.masterPrompt === "string" ? stripVideoSpecWrapper(raw.masterPrompt) : "";
+    if (!overviewRaw || !bibleParsed.success || shotsParsed.length === 0 || !rawMasterPrompt) {
+      return null;
+    }
+
+    const durationSeconds =
+      typeof overviewRaw.durationSeconds === "number" &&
+      Number.isFinite(overviewRaw.durationSeconds)
+        ? Math.max(0, overviewRaw.durationSeconds)
+        : (input.endOffsetSec ?? input.durationSeconds ?? 15) - input.startOffsetSec;
+    const aspectRatio =
+      typeof overviewRaw.aspectRatio === "string" && overviewRaw.aspectRatio.trim().length > 0
+        ? overviewRaw.aspectRatio.trim()
+        : "16:9";
+    const pacingStyle =
+      typeof overviewRaw.pacingStyle === "string" && overviewRaw.pacingStyle.trim().length > 0
+        ? overviewRaw.pacingStyle.trim()
+        : "24fps cinematic";
+    const isSingleTake =
+      typeof overviewRaw.isSingleTake === "boolean"
+        ? overviewRaw.isSingleTake
+        : shotsParsed.length === 1;
+
+    const bible = bibleParsed.data;
+    const masterPrompt = ensureShotByShotMasterPrompt(rawMasterPrompt, bible, shotsParsed);
+    const draftModelId =
+      input.targetGenerator === "runway"
+        ? "runway-video"
+        : input.targetGenerator === "sora"
+          ? "sora-turbo"
+          : "google-video";
+
+    return {
+      overview: {
+        durationSeconds,
+        aspectRatio,
+        pacingStyle,
+        isSingleTake,
+        timestampsAreEstimated: true,
+      },
+      continuityBible: bible,
+      shots: shotsParsed,
+      targetGenerator: input.targetGenerator,
+      masterPrompt,
+      detectedVariables: [],
+      suggestedDraft: {
+        rawInput: masterPrompt,
+        mode: "video",
+        modelId: draftModelId,
+        goal: "Recreate the reference video's visual continuity, camera choreography, lighting, and audio pacing.",
+        format: bible.lensAndOpticalDna,
+        tone: bible.lightingAndColorGrade,
+        constraints: [bible.subjectAndWardrobe, bible.audioAndMusicDna].filter(Boolean),
+        guardrails: [bible.negativeGuardrails],
+        framework: "costar",
+        advanced: { length: "detailed", creativity: 0.4 },
       },
       providerId: result.providerId,
       modelId: result.modelId,
@@ -636,6 +814,93 @@ export function createOrchestrator(options: OrchestratorOptions): PromptOrchestr
         if (isInputGuardError(error)) throw error;
         return fallbackReverseEngineer(sanitized, ctx, 0);
       }
+    },
+    async reverseEngineerVideo(input, ctx) {
+      assertNoClientSystemPrompt(input);
+      const focusNotes = sanitizeOptionalUserText(input.focusNotes, 500);
+      const gemini = options.registry
+        .list()
+        .find((adapter) => adapter.id === "gemini" && adapter.isConfigured());
+      if (!gemini) {
+        throw new LlmProviderError(
+          "not_configured",
+          "Video reverse engineering requires a configured Gemini provider.",
+        );
+      }
+      if (!acquire("gemini", clock())) {
+        throw new LlmProviderError(
+          "provider_error",
+          "Gemini video analyzer is temporarily cooling down. Please try again shortly.",
+        );
+      }
+
+      const videoTimeoutMs = Math.max(options.timeoutMs, 120_000);
+      ctx.onStage?.("preparing");
+
+      const videoAttachment =
+        input.sourceType === "youtube"
+          ? {
+              fileUri: input.youtubeUrl,
+              mimeType: "video/mp4" as const,
+              startOffsetSec: input.startOffsetSec,
+              endOffsetSec: input.endOffsetSec,
+            }
+          : {
+              bytes: input.fileBytes,
+              mimeType: input.mimeType ?? ("video/mp4" as const),
+              startOffsetSec: input.startOffsetSec > 0 ? input.startOffsetSec : undefined,
+              endOffsetSec: input.endOffsetSec,
+            };
+
+      if (input.sourceType === "youtube" && !videoAttachment.fileUri) {
+        throw new InputGuardError("A valid YouTube URL is required.");
+      }
+      if (
+        input.sourceType === "upload" &&
+        (!videoAttachment.bytes || videoAttachment.bytes.length === 0)
+      ) {
+        throw new InputGuardError("A video file is required.");
+      }
+
+      ctx.onStage?.("analyzing");
+      let result: LlmCompletionResult;
+      try {
+        result = await gemini.complete({
+          requestId: ctx.requestId,
+          systemPrompt: buildVideoReverseEngineerSystemPrompt(input.targetGenerator),
+          userPrompt: JSON.stringify({
+            sourceType: input.sourceType,
+            targetGenerator: input.targetGenerator,
+            startOffsetSec: input.startOffsetSec,
+            endOffsetSec: input.endOffsetSec,
+            durationSeconds: input.durationSeconds,
+            focusNotes,
+          }),
+          video: videoAttachment,
+          responseMimeType: "application/json",
+          modelId: "gemini-3.6-flash",
+          temperature: 0.25,
+          maxOutputTokens: 8192,
+          timeoutMs: videoTimeoutMs,
+          signal: ctx.signal,
+        });
+        succeed("gemini");
+      } catch (error) {
+        if (isInputGuardError(error)) throw error;
+        const providerError = asProviderError(error);
+        fail("gemini", clock(), providerError);
+        throw providerError;
+      }
+
+      ctx.onStage?.("finalizing");
+      const parsed = parseVideoReverseEngineer(result.text, input, result, ctx);
+      if (!parsed) {
+        throw new LlmProviderError(
+          "provider_error",
+          "Could not parse structured video analysis. Please retry.",
+        );
+      }
+      return parsed;
     },
     healthSnapshot(): readonly ProviderHealthSnapshot[] {
       return options.registry.list().map((adapter) => {

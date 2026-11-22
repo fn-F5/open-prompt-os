@@ -6,6 +6,7 @@ import {
   evaluatePromptQuality,
   extractDraftSupplementalText,
   isInputGuardError,
+  parsePublicVideoUrl,
   redactSecrets,
   sanitizeOptionalUserText,
   sanitizeUserText,
@@ -56,6 +57,52 @@ describe("redactSecrets", () => {
     expect(cleaned).toContain("__Secure-better-auth.session_token=[redacted]");
     expect(cleaned).toContain("[redacted]");
     expect(cleaned).toContain("Bearer [redacted]");
+  });
+});
+
+describe("parsePublicVideoUrl", () => {
+  it("canonicalizes YouTube watch, short, and youtu.be links", () => {
+    expect(parsePublicVideoUrl("https://www.youtube.com/watch?v=jNQXAC9IVRw&t=5s")).toEqual({
+      ok: true,
+      kind: "youtube",
+      canonicalUrl: "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+      videoId: "jNQXAC9IVRw",
+    });
+    expect(parsePublicVideoUrl("https://youtu.be/jNQXAC9IVRw?si=abc")).toEqual({
+      ok: true,
+      kind: "youtube",
+      canonicalUrl: "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+      videoId: "jNQXAC9IVRw",
+    });
+    expect(parsePublicVideoUrl("https://m.youtube.com/shorts/jNQXAC9IVRw")).toEqual({
+      ok: true,
+      kind: "youtube",
+      canonicalUrl: "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+      videoId: "jNQXAC9IVRw",
+    });
+  });
+
+  it("guides users to upload MP4 for unsupported social platforms and rejects non-HTTPS/invalid URLs", () => {
+    expect(parsePublicVideoUrl("https://www.tiktok.com/@user/video/123")).toMatchObject({
+      ok: false,
+      reason: "unsupported_social",
+    });
+    expect(parsePublicVideoUrl("https://www.instagram.com/reel/abc123/")).toMatchObject({
+      ok: false,
+      reason: "unsupported_social",
+    });
+    expect(parsePublicVideoUrl("http://www.youtube.com/watch?v=jNQXAC9IVRw")).toMatchObject({
+      ok: false,
+      reason: "invalid_url",
+    });
+    expect(parsePublicVideoUrl("http://127.0.0.1:8080/video.mp4")).toMatchObject({
+      ok: false,
+      reason: "invalid_url",
+    });
+    expect(parsePublicVideoUrl("not a url")).toMatchObject({
+      ok: false,
+      reason: "invalid_url",
+    });
   });
 });
 

@@ -68,8 +68,9 @@ describe("synthesizeCompiledPrompt", () => {
     expect(out.compiledPrompt).toContain("Platform SREs");
     expect(out.compiledPrompt).toContain("under 250 words");
     expect(out.compiledPrompt).toContain("MUST adhere to: Keep under 10 bullets");
-    expect(out.compiledPrompt).toContain("GUARDRAIL: No fabricated metrics");
-    expect(out.detectedVariables).toEqual(["Project_Context", "Target_Constraint"]);
+    expect(out.compiledPrompt).toContain("MUST NOT violate: No fabricated metrics");
+    expect(out.compiledPrompt).not.toContain("# OPERATIONAL PROMPT SPECIFICATION");
+    expect(out.detectedVariables).toEqual([]);
   });
 
   it("synthesizes image and video prompts with appropriate defaults and provider mapping", () => {
@@ -84,10 +85,11 @@ describe("synthesizeCompiledPrompt", () => {
     );
     expect(img.providerId).toBe("gemini");
     expect(img.modelId).toBe("imagen-3-pro");
-    expect(img.compiledPrompt).toContain("Generate image following the specification.");
-    expect(img.compiledPrompt).toContain("Generate an image of");
-    expect(img.compiledPrompt).toContain("VISUAL GENERATION SPECIFICATION");
-    expect(img.detectedVariables).toEqual(["Primary_Subject", "Key_Detail_Focus", "Variable"]);
+    expect(img.compiledPrompt).toContain("Brushed steel watch on slate");
+    expect(img.compiledPrompt).toContain("Framing & Optics:");
+    expect(img.compiledPrompt).not.toContain("Generate image following the specification.");
+    expect(img.compiledPrompt).not.toContain("VISUAL GENERATION SPECIFICATION");
+    expect(img.detectedVariables).toEqual([]);
 
     const vid = synthesizeCompiledPrompt(
       makeDraft({
@@ -98,10 +100,11 @@ describe("synthesizeCompiledPrompt", () => {
       "int_vid",
     );
     expect(vid.providerId).toBe("rule-synthesizer");
-    expect(vid.compiledPrompt).toContain("Generate video following the specification.");
-    expect(vid.compiledPrompt).toContain("Generate a continuous 24fps video");
-    expect(vid.compiledPrompt).toContain("MOTION & TEMPORAL PROMPT SPECIFICATION");
-    expect(vid.detectedVariables).toEqual(["Opening_Frame", "Closing_Beat", "Variable"]);
+    expect(vid.compiledPrompt).toContain("Continuous 24fps shot");
+    expect(vid.compiledPrompt).toContain("camera sweeps across a misty valley");
+    expect(vid.compiledPrompt).not.toContain("Generate video following the specification.");
+    expect(vid.compiledPrompt).not.toContain("MOTION & TEMPORAL PROMPT SPECIFICATION");
+    expect(vid.detectedVariables).toEqual([]);
   });
 });
 
@@ -133,7 +136,9 @@ describe("diagnoseAndRefinePrompt", () => {
 
     expect(autopsy.findings).toHaveLength(1);
     expect(autopsy.findings[0]?.category).toBe("unsafe_guardrail");
-    expect(autopsy.optimizedPrompt).toContain("REJECT prior failure pattern");
+    expect(autopsy.optimizedPrompt).toContain("MUST NOT repeat prior failure pattern");
+    expect(autopsy.optimizedPrompt).not.toContain("# OPTIMIZED PROMPT SPECIFICATION");
+    expect(autopsy.detectedVariables).toEqual([]);
     expect(autopsy.modelId).toBe("gpt-4.1");
     expect(autopsy.summary).toContain("Diagnosed 1 structural failure vectors");
   });
@@ -153,10 +158,12 @@ describe("synthesizeReverseEngineeredPrompt", () => {
     });
     expect(imageOut.providerId).toBe("rule-synthesizer");
     expect(imageOut.modelId).toBe("imagen-3-pro");
-    expect(imageOut.reconstructedPrompt).toContain("RECONSTRUCTED VISUAL PROMPT");
+    expect(imageOut.reconstructedPrompt).toContain("High-detail editorial photography");
     expect(imageOut.reconstructedPrompt).toContain("Emphasize chiaroscuro shadows");
-    expect(imageOut.detectedVariables).toEqual(["Primary_Subject", "Color_Palette"]);
-    expect(imageOut.breakdown.subject).toContain("[Primary_Subject]");
+    expect(imageOut.reconstructedPrompt).not.toContain("RECONSTRUCTED VISUAL PROMPT");
+    expect(imageOut.reconstructedPrompt).not.toContain("[Primary_Subject]");
+    expect(imageOut.detectedVariables).toEqual([]);
+    expect(imageOut.breakdown.subject).not.toContain("[Primary_Subject]");
     expect(imageOut.breakdown.negativePrompt.length).toBeGreaterThan(0);
     expect(imageOut.suggestedDraft.mode).toBe("image");
     expect(imageOut.suggestedDraft.rawInput).toBe(imageOut.reconstructedPrompt);
@@ -167,7 +174,8 @@ describe("synthesizeReverseEngineeredPrompt", () => {
       targetModelId: "sora-turbo",
     });
     expect(videoOut.modelId).toBe("sora-turbo");
-    expect(videoOut.reconstructedPrompt).toContain("RECONSTRUCTED VIDEO MOTION PROMPT");
+    expect(videoOut.reconstructedPrompt).toContain("Continuous 24fps shot");
+    expect(videoOut.reconstructedPrompt).not.toContain("RECONSTRUCTED VIDEO MOTION PROMPT");
     expect(videoOut.suggestedDraft.mode).toBe("video");
     expect(videoOut.suggestedDraft.modelId).toBe("sora-turbo");
   });

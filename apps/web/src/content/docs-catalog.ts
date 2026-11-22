@@ -49,7 +49,7 @@ export const HOME_AEO_FAQS: readonly DocFaqItem[] = [
   {
     question: "What is Open Prompt OS and how is it different from a basic prompt generator?",
     answer:
-      "Open Prompt OS is a full-lifecycle prompt engineering workbench rather than a one-shot generator. It combines a guided multi-modal Prompt Compiler (Text, Image, Video), a root-cause Prompt Autopsy debugger across 8 failure categories, an image-to-prompt Reverse Engineer tool, a reusable [Variable] library, and one-click dispatch to ChatGPT, Claude, and Gemini.",
+      "Open Prompt OS is a full-lifecycle prompt engineering workbench rather than a one-shot generator. It combines a guided multi-modal Prompt Compiler (Text, Image, Video), a root-cause Prompt Autopsy debugger across 8 failure categories, an image and video Reverse Engineer tool, a private prompt library, and one-click dispatch to ChatGPT, Claude, and Gemini.",
   },
   {
     question: "Which prompt framework should I choose: CO-STAR, RISE, CARE, or Chain-of-Thought?",
@@ -59,7 +59,7 @@ export const HOME_AEO_FAQS: readonly DocFaqItem[] = [
   {
     question: "What is Prompt Autopsy and how does it stop AI hallucinations?",
     answer:
-      "Prompt Autopsy on /improve compares your original prompt against an actual failed or hallucinated AI response. It classifies defects across 8 categories—such as missing_context, conflicting_constraints, weak_output_format, and unsafe_guardrail—and produces a repaired prompt with explicit boundaries and reusable [Variables].",
+      "Prompt Autopsy on /improve compares your original prompt against an actual failed or hallucinated AI response. It classifies defects across 8 categories—such as missing_context, conflicting_constraints, weak_output_format, and unsafe_guardrail—and produces a detailed, copy-ready repaired prompt with explicit boundaries.",
   },
   {
     question: "Does Open Prompt OS train AI models on my prompts or uploaded images?",
@@ -101,7 +101,7 @@ export const DOCS_CATALOG: readonly DocArticle[] = [
         ],
         bullets: [
           "1. Select your studio mode: Text / Work (code, RFCs, memos), Image (optics, lighting, materials), or Video (24fps camera motion).",
-          "2. Write a plain-language draft and optionally parameterize changing parts using [Square_Bracket_Variables].",
+          "2. Write a plain-language draft—Open Prompt OS compiles it into a detailed, ready-to-paste prompt with zero fill-in-the-blank template boilerplate.",
           "3. Apply guided parameters (Goal, Audience, Constraints, Format, Persona, Tone, Guardrails) and a proven framework.",
           "4. Pick your target model provider so prompt structure matches ChatGPT, Claude, Gemini, FLUX, or Veo conventions.",
           "5. Click Compile structured prompt, then send directly via One-Click Send or copy to clipboard.",
@@ -229,12 +229,16 @@ export const DOCS_CATALOG: readonly DocArticle[] = [
         paragraphs: [
           "Notice how combining a concrete Role, Audience, Format, and anti-hallucination Guardrail produces predictable first-try output across Claude, GPT, and Gemini:",
         ],
-        codeBlock: `# OPERATIONAL PROMPT SPECIFICATION (Inspired by COSTAR)
-Role: Principal Distributed Systems Architect
-Audience: Staff Infrastructure Reviewers
-Objective: Evaluate [System_Proposal] at [Scale_Target] under [Compliance_Regime]
-Format: Executive Verdict, Failure Mode Matrix, Hardening Plan
-Guardrail: Do not recommend unverified managed services without fallback options.`,
+        codeBlock: `You are a Principal Distributed Systems Architect reviewing a payment gateway proposal for Staff Infrastructure Reviewers.
+
+## Objective
+Evaluate the proposed multi-region payment ledger handling 25,000 requests/sec under PCI-DSS compliance.
+
+## Output Format
+Provide an Executive Verdict, Failure Mode Matrix, and step-by-step Hardening Plan.
+
+## Constraints & Guardrails
+- MUST NOT recommend unverified managed services without concrete fallback options.`,
       },
     ],
     faqs: [
@@ -299,7 +303,7 @@ Guardrail: Do not recommend unverified managed services without fallback options
             [
               "missing_context",
               "Generic advice ignoring your stack or domain",
-              "Adds explicit environment & system [Variables]",
+              "Adds concrete environment & system context",
             ],
             [
               "ambiguous_goal",
@@ -439,13 +443,13 @@ Guardrail: Do not recommend unverified managed services without fallback options
   },
   {
     slug: "reverse-engineering-prompts",
-    title: "Reverse Engineering Reference Images into Prompt Blueprints",
+    title: "Reverse Engineering Reference Images & Videos into Copy-Ready Prompts",
     shortTitle: "Reverse Engineer Guide",
     category: "Image & Video Studio",
     description:
-      "Turn any PNG, JPEG, or WebP reference image into a 6-axis visual breakdown and parameterized prompt draft for Imagen, FLUX, Veo, or Sora.",
+      "Turn any reference image or video clip into a detailed visual/temporal breakdown and copy-pasteable prompt for Imagen, FLUX, Veo, Sora, or Runway.",
     tldrAnswer:
-      "Upload any PNG, JPEG, or WebP image (up to 4 MB) at /reverse-engineer to extract a structured 6-axis breakdown—Subject, Style & Medium, Lighting & Color, Camera & Composition, Mood & Atmosphere, and Negative Guardrails—alongside a parameterized prompt ready to swap with your own [Variables].",
+      "Upload a PNG, JPEG, or WebP image (or an MP4/WebM/MOV clip or public YouTube link) at /reverse-engineer to extract lighting, lens optics, motion choreography, and audio DNA alongside a detailed, copy-pasteable prompt ready to run immediately.",
     readingTimeMinutes: 3,
     updatedAt: "2026-11-15T10:00:00.000Z",
     keywords: [
@@ -491,7 +495,7 @@ Guardrail: Do not recommend unverified managed services without fallback options
     description:
       "Parameterize prompts with [Square_Bracket_Variables], catch unresolved placeholders automatically, and share specs via /share/:shareId.",
     tldrAnswer:
-      "Wrap changing inputs in [Square_Brackets] (such as [System_Proposal] or [Target_Audience]) to turn one-off prompts into reusable templates. Open Prompt OS automatically parses variable inventories, warns on duplicates or [TODO]/[TBD] placeholders, and lets you share read-only prompt links that teammates can fork in one click.",
+      "Generated prompts in Open Prompt OS are detailed and directly copy-pasteable by default with zero unrequested placeholders. If you intentionally add [Square_Brackets] in your own drafts or curated templates, Open Prompt OS still detects them automatically, warns on [TODO]/[TBD] slips, and lets you share read-only links via /share/:shareId.",
     readingTimeMinutes: 3,
     updatedAt: "2026-11-15T10:00:00.000Z",
     keywords: [

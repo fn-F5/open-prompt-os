@@ -11,6 +11,7 @@ import { z } from "zod";
 import type { ApiEnv } from "./app-env.js";
 import { resolveActor } from "./auth/session-resolver.js";
 import { clientKey } from "./client-key.js";
+import { type E2eHarnessOptions, registerE2eRoutes } from "./e2e-harness.js";
 import {
   createLogger,
   enrichRequestContext,
@@ -20,6 +21,7 @@ import {
 } from "./logger.js";
 import { createRouter } from "./router.js";
 import { registerComposeStream } from "./routes/compose-stream.js";
+import { registerVideoReverseEngineerStream } from "./routes/reverse-engineer-video-stream.js";
 import { registerSeoRoutes } from "./routes/seo-routes.js";
 import { registerStripeWebhook } from "./routes/stripe-webhook.js";
 
@@ -31,6 +33,7 @@ export interface AppOptions {
   allowRequest: (key: string) => boolean;
   auth?: Auth;
   oauthProviders?: { google: boolean; github: boolean };
+  e2eHarness?: E2eHarnessOptions;
   log?: (line: string) => void;
 }
 
@@ -136,11 +139,15 @@ export function createApp(options: AppOptions) {
     }),
   );
   const reverseEngineerBodyLimit = bodyLimit({ maxSize: 6 * 1024 * 1024 });
+  const videoReverseEngineerBodyLimit = bodyLimit({ maxSize: 105 * 1024 * 1024 });
   const defaultBodyLimit = bodyLimit({ maxSize: 32 * 1024 });
   const stripeWebhookBodyLimit = bodyLimit({ maxSize: 256 * 1024 });
   app.use("*", async (c, next) => {
     if (c.req.path === "/rpc/prompts/reverseEngineer") {
       return reverseEngineerBodyLimit(c, next);
+    }
+    if (c.req.path === "/api/prompts/reverse-engineer-video/stream") {
+      return videoReverseEngineerBodyLimit(c, next);
     }
     if (c.req.path === "/api/webhooks/stripe") {
       return stripeWebhookBodyLimit(c, next);
@@ -251,6 +258,16 @@ export function createApp(options: AppOptions) {
     trustProxy: options.trustProxy,
     auth: options.auth,
   });
+
+  registerVideoReverseEngineerStream(app, {
+    orchestrator: options.orchestrator,
+    trustProxy: options.trustProxy,
+    auth: options.auth,
+  });
+
+  if (options.e2eHarness) {
+    registerE2eRoutes(app, options.e2eHarness);
+  }
 
   app.use("/rpc/*", async (c) => {
     const requestId = c.get("requestId");

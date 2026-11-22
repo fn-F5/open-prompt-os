@@ -5,6 +5,7 @@ import {
   ComposePromptOutputSchema,
   RefinePromptOutputSchema,
   ReverseEngineerOutputSchema,
+  VideoReverseEngineerOutputSchema,
 } from "@open-prompt-os/contracts";
 import { InputGuardError } from "@open-prompt-os/core";
 import { describe, expect, it } from "vitest";
@@ -442,7 +443,9 @@ describe("createOrchestrator", () => {
 
     expect(gemini.lastRequest?.systemPrompt).toContain(COMPOSE_MODE_PROMPTS.video);
     expect(gemini.lastRequest?.systemPrompt).toContain("Runway (Gen models) (runway-video)");
-    expect(gemini.lastRequest?.systemPrompt).toContain(describeTargetModel("runway-video", "video"));
+    expect(gemini.lastRequest?.systemPrompt).toContain(
+      describeTargetModel("runway-video", "video"),
+    );
     expect(JSON.parse(gemini.lastRequest?.userPrompt ?? "{}")).toMatchObject({
       mode: "video",
       modelId: "runway-video",
@@ -534,6 +537,198 @@ describe("createOrchestrator", () => {
       { requestId: "req_rev_vid_prompt" },
     );
     expect(gemini.lastRequest?.systemPrompt).toContain(REVERSE_ENGINEER_MODE_PROMPTS.video);
+  });
+
+  it("reverseEngineers videos into Continuity Bible + <=8 estimated shots and errors cleanly on malformed JSON", async () => {
+    const validVideoJson = JSON.stringify({
+      overview: {
+        durationSeconds: 12,
+        aspectRatio: "9:16",
+        pacingStyle: "Fast-cut 24fps product reel",
+        isSingleTake: false,
+      },
+      continuityBible: {
+        subjectAndWardrobe: "Matte-black espresso machine on walnut counter",
+        environmentAndSet: "Warm sunlit minimalist kitchen",
+        lightingAndColorGrade: "Golden morning side-light, warm amber highlights",
+        lensAndOpticalDna: "50mm f/1.8 shallow depth of field, subtle 35mm grain",
+        audioAndMusicDna: "Crisp espresso extraction hiss + upbeat lo-fi beat",
+        negativeGuardrails: "morphing portafilter, flickering steam, distorted steam wand",
+      },
+      shots: [
+        {
+          shotNumber: 1,
+          startTime: "00:00",
+          endTime: "00:04",
+          transitionIn: "Fade in",
+          firstFramePrompt: "Macro close-up of a matte-black espresso portafilter locking in.",
+          motionAndCamera: "Slow 24fps push-in with rising steam curls.",
+          audioCue: "Mechanical click followed by espresso pump hum.",
+          shotPrompt:
+            "Continuous 50mm f/1.8 macro push-in on a matte-black espresso machine portafilter locking in under golden morning side-light, steam rising, crisp click and pump hum.",
+        },
+      ],
+      masterPrompt:
+        "Continuous 12-second 24fps reel in a sunlit minimalist kitchen: macro push-in on a matte-black espresso machine portafilter locking into place on a walnut counter under warm golden morning side-light, rich crema pouring cleanly with rising steam curls and crisp mechanical extraction SFX.",
+    });
+
+    const gemini = createFakeAdapter({ id: "gemini", text: validVideoJson });
+    const orchestrator = createOrchestrator({
+      registry: createRegistry([createSynthesizerAdapter(), gemini]),
+      timeoutMs: 1000,
+    });
+    const stages: string[] = [];
+
+    const out = await orchestrator.reverseEngineerVideo(
+      {
+        sourceType: "youtube",
+        youtubeUrl: "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+        startOffsetSec: 0,
+        endOffsetSec: 12,
+        targetGenerator: "veo",
+        focusNotes: "Match steam lighting",
+      },
+      {
+        requestId: "req_rev_video_1",
+        onStage: (stage) => stages.push(stage),
+      },
+    );
+
+    expect(stages).toEqual(["preparing", "analyzing", "finalizing"]);
+    expect(VideoReverseEngineerOutputSchema.parse(out)).toMatchObject({
+      providerId: "gemini",
+      targetGenerator: "veo",
+      detectedVariables: [],
+      overview: { timestampsAreEstimated: true },
+    });
+    expect(out.shots).toHaveLength(1);
+    expect(out.suggestedDraft.mode).toBe("video");
+    expect(gemini.lastRequest?.responseMimeType).toBe("application/json");
+    expect(gemini.lastRequest?.video?.fileUri).toBe("https://www.youtube.com/watch?v=jNQXAC9IVRw");
+
+    const wrappedGemini = createFakeAdapter({
+      id: "gemini",
+      text: JSON.stringify({
+        ...JSON.parse(validVideoJson),
+        masterPrompt:
+          "Generate video following the specification.\nRole: You are a Cinematographer.\n\n# MOTION & TEMPORAL PROMPT SPECIFICATION\nDirect espresso extraction shot.",
+      }),
+    });
+    const wrappedOrchestrator = createOrchestrator({
+      registry: createRegistry([createSynthesizerAdapter(), wrappedGemini]),
+      timeoutMs: 1000,
+    });
+    const strippedOut = await wrappedOrchestrator.reverseEngineerVideo(
+      {
+        sourceType: "youtube",
+        youtubeUrl: "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+        startOffsetSec: 0,
+        targetGenerator: "veo",
+      },
+      { requestId: "req_rev_video_strip" },
+    );
+    expect(strippedOut.masterPrompt).toBe("Direct espresso extraction shot.");
+
+    const baseJson = JSON.parse(validVideoJson) as {
+      overview: Record<string, unknown>;
+      continuityBible: Record<string, unknown>;
+      shots: Array<Record<string, unknown>>;
+      masterPrompt: string;
+    };
+    const multiShotGemini = createFakeAdapter({
+      id: "gemini",
+      text: JSON.stringify({
+        ...baseJson,
+        shots: [
+          baseJson.shots[0],
+          {
+            shotNumber: 2,
+            startTime: "00:04",
+            endTime: "00:10",
+            transitionIn: "Hard Cut",
+            firstFramePrompt: "Close-up pouring latte art into ceramic cup.",
+            motionAndCamera: "Overhead locked-off shot as microfoam swirls.",
+            audioCue: "Soft ceramic clink.",
+            shotPrompt: "Overhead locked-off 50mm shot pouring silky latte art.",
+          },
+        ],
+        masterPrompt: "Short summary paragraph without shot timecodes.",
+      }),
+    });
+    const multiShotOrchestrator = createOrchestrator({
+      registry: createRegistry([createSynthesizerAdapter(), multiShotGemini]),
+      timeoutMs: 1000,
+    });
+    const enrichedOut = await multiShotOrchestrator.reverseEngineerVideo(
+      {
+        sourceType: "youtube",
+        youtubeUrl: "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+        startOffsetSec: 0,
+        targetGenerator: "veo",
+      },
+      { requestId: "req_rev_video_multishot" },
+    );
+    expect(enrichedOut.masterPrompt).toContain("Shot 1 (00:00–00:04, Fade in):");
+    expect(enrichedOut.masterPrompt).toContain("Shot 2 (00:04–00:10, Hard Cut):");
+    expect(enrichedOut.masterPrompt).toContain("Visual & Optical Locks:");
+
+    const compressedShotsGemini = createFakeAdapter({
+      id: "gemini",
+      text: JSON.stringify({
+        ...baseJson,
+        shots: [
+          baseJson.shots[0],
+          {
+            shotNumber: 2,
+            startTime: "00:04",
+            endTime: "00:10",
+            transitionIn: "Hard Cut",
+            firstFramePrompt: "Close-up pouring latte art into ceramic cup.",
+            motionAndCamera: "Overhead locked-off shot as microfoam swirls.",
+            audioCue: "Soft ceramic clink.",
+            shotPrompt: "Overhead locked-off 50mm shot pouring silky latte art.",
+          },
+        ],
+        masterPrompt: [
+          "Sunny kitchen espresso reel with crisp contrast.",
+          "Shot 1 (00:00–00:04, Fade in): Wide shot of espresso machine.",
+          "Shot 2 (00:04–00:10, Hard Cut): Overhead pour.",
+        ].join("\n\n"),
+      }),
+    });
+    const compressedOrchestrator = createOrchestrator({
+      registry: createRegistry([createSynthesizerAdapter(), compressedShotsGemini]),
+      timeoutMs: 1000,
+    });
+    const expandedOut = await compressedOrchestrator.reverseEngineerVideo(
+      {
+        sourceType: "youtube",
+        youtubeUrl: "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+        startOffsetSec: 0,
+        targetGenerator: "veo",
+      },
+      { requestId: "req_rev_video_expand" },
+    );
+    expect(expandedOut.masterPrompt).toContain("Opening frame: Close-up pouring latte art");
+    expect(expandedOut.masterPrompt).toContain("Motion & camera: Overhead locked-off shot");
+    expect(expandedOut.masterPrompt).toContain("Audio: Soft ceramic clink.");
+
+    const badGemini = createFakeAdapter({ id: "gemini", text: "not-valid-json" });
+    const badOrchestrator = createOrchestrator({
+      registry: createRegistry([createSynthesizerAdapter(), badGemini]),
+      timeoutMs: 1000,
+    });
+    await expect(
+      badOrchestrator.reverseEngineerVideo(
+        {
+          sourceType: "youtube",
+          youtubeUrl: "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+          startOffsetSec: 0,
+          targetGenerator: "sora",
+        },
+        { requestId: "req_rev_video_bad" },
+      ),
+    ).rejects.toMatchObject({ code: "provider_error" });
   });
 
   it("parses live LLM JSON for improve and autopsy modes without falling back to rule-synthesizer", async () => {

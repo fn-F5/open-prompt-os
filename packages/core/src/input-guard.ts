@@ -440,3 +440,100 @@ export function redactSecrets(text: string): string {
     .replace(SESSION_COOKIE, "$1=[redacted]")
     .replace(BEARER, "Bearer [redacted]");
 }
+
+const YOUTUBE_VIDEO_ID_REGEX = /^[A-Za-z0-9_-]{11}$/;
+const SOCIAL_VIDEO_HOSTS = new Set([
+  "tiktok.com",
+  "vm.tiktok.com",
+  "vt.tiktok.com",
+  "instagram.com",
+  "instagr.am",
+  "x.com",
+  "twitter.com",
+  "t.co",
+  "vimeo.com",
+  "player.vimeo.com",
+]);
+
+export type PublicVideoUrlParseResult =
+  | {
+      readonly ok: true;
+      readonly kind: "youtube";
+      readonly canonicalUrl: string;
+      readonly videoId: string;
+    }
+  | {
+      readonly ok: false;
+      readonly reason: "unsupported_social" | "invalid_url";
+      readonly message: string;
+    };
+
+export function parsePublicVideoUrl(rawUrl: string): PublicVideoUrlParseResult {
+  const trimmed = stripUnsafe(rawUrl);
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmed);
+  } catch {
+    return {
+      ok: false,
+      reason: "invalid_url",
+      message:
+        "Paste a valid public YouTube or YouTube Shorts link, or upload an MP4/WebM/MOV file.",
+    };
+  }
+
+  if (parsed.protocol !== "https:") {
+    return {
+      ok: false,
+      reason: "invalid_url",
+      message: "Only HTTPS YouTube or YouTube Shorts links are supported.",
+    };
+  }
+
+  const host = parsed.hostname
+    .toLowerCase()
+    .replace(/^www\./, "")
+    .replace(/^m\./, "");
+
+  if (SOCIAL_VIDEO_HOSTS.has(host)) {
+    return {
+      ok: false,
+      reason: "unsupported_social",
+      message:
+        "Direct links from this platform aren't supported yet. Download the clip as an MP4 and drop it into the Upload tab for instant analysis.",
+    };
+  }
+
+  let videoId: string | null = null;
+  if (host === "youtu.be") {
+    const candidate = parsed.pathname.split("/").filter(Boolean)[0] ?? "";
+    if (YOUTUBE_VIDEO_ID_REGEX.test(candidate)) videoId = candidate;
+  } else if (host === "youtube.com" || host === "youtube-nocookie.com") {
+    const pathParts = parsed.pathname.split("/").filter(Boolean);
+    if (parsed.pathname === "/watch") {
+      const candidate = parsed.searchParams.get("v") ?? "";
+      if (YOUTUBE_VIDEO_ID_REGEX.test(candidate)) videoId = candidate;
+    } else if (
+      (pathParts[0] === "shorts" || pathParts[0] === "embed" || pathParts[0] === "live") &&
+      pathParts[1] &&
+      YOUTUBE_VIDEO_ID_REGEX.test(pathParts[1])
+    ) {
+      videoId = pathParts[1];
+    }
+  }
+
+  if (!videoId) {
+    return {
+      ok: false,
+      reason: "invalid_url",
+      message: "Paste a public YouTube or YouTube Shorts link, or upload an MP4/WebM/MOV file.",
+    };
+  }
+
+  return {
+    ok: true,
+    kind: "youtube",
+    canonicalUrl: `https://www.youtube.com/watch?v=${videoId}`,
+    videoId,
+  };
+}

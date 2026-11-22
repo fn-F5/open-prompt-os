@@ -100,7 +100,7 @@ export function synthesizeCompiledPrompt(
       ? draft.constraints
       : [
           "Avoid generic filler, hedging language, or unverified assumptions",
-          "Surface all configurable inputs as explicit [Variable] tokens",
+          "Use concrete, immediately actionable specifics throughout the response",
         ];
 
   const guardrails =
@@ -128,52 +128,30 @@ export function synthesizeCompiledPrompt(
 
   if (draft.mode === "image") {
     sections = [
-      "Generate image following the specification.",
-      `Role: ${persona.trim()}`,
+      `${draft.rawInput.trim()} — rendered with crisp physical materiality, clean foreground-to-background separation, and studio-grade detail.`,
       "",
-      `# VISUAL GENERATION SPECIFICATION (${FRAMEWORK_LABELS[framework]})`,
+      `Framing & Optics: ${format}. Tonal Palette & Lighting: ${tone}. Visual Focus: ${goal}.`,
       "",
-      "## 1. Ready-to-Dispatch Master Prompt",
-      `Generate an image of ${draft.rawInput.trim()} — anchored on [Primary_Subject] with [Key_Detail_Focus].`,
-      "",
-      "## 2. Camera, Lens & Lighting",
-      `- **Framing & Optics**: ${format}`,
-      `- **Tonal Palette**: ${tone}`,
-      `- **Objective**: ${goal}`,
-      "",
-      "## 3. Compositional Constraints",
-      ...constraints.map((c) => `- MUST enforce: ${c}`),
-      ...guardrails.map((g) => `- NEGATIVE PROMPT / GUARDRAIL: ${g}`),
+      `Requirements: ${constraints.join("; ")}.`,
+      `Avoid ${guardrails.join("; ")}.`,
     ];
   } else if (draft.mode === "video") {
     sections = [
-      "Generate video following the specification.",
-      `Role: ${persona.trim()}`,
+      `Continuous 24fps shot capturing ${draft.rawInput.trim()} with smooth natural camera movement, grounded environmental physics, and steady lighting continuity from opening settle to closing beat.`,
       "",
-      `# MOTION & TEMPORAL PROMPT SPECIFICATION (${FRAMEWORK_LABELS[framework]})`,
+      `Camera & Format: ${format}. Atmosphere & Tone: ${tone}. Director Focus: ${goal}.`,
       "",
-      "## 1. Scene & Temporal Arc",
-      `Generate a continuous 24fps video where [Opening_Frame] transitions smoothly as ${draft.rawInput.trim()} toward [Closing_Beat].`,
-      "",
-      "## 2. Cinematography & Pacing",
-      `- **Camera & Format**: ${format}`,
-      `- **Atmosphere & Tone**: ${tone}`,
-      `- **Director Objective**: ${goal}`,
-      "",
-      "## 3. Continuity & Physics Guardrails",
-      ...constraints.map((c) => `- MUST maintain: ${c}`),
-      ...guardrails.map((g) => `- GUARDRAIL: ${g}`),
+      `Continuity: ${constraints.join("; ")}.`,
+      `Avoid ${guardrails.join("; ")}.`,
     ];
   } else {
     sections = [
-      `# OPERATIONAL PROMPT SPECIFICATION (${FRAMEWORK_LABELS[framework]})`,
-      `Role: You are a ${persona.trim()}.`,
+      `You are a ${persona.trim()}.`,
       "",
       "## Context & Objective",
       `- **Primary Objective**: ${goal}`,
       `- **Target Audience**: ${audience}`,
       `- **Core Task**: ${draft.rawInput.trim()}`,
-      `- **Target Input Scope**: [Project_Context] and [Target_Constraint]`,
       ...(answerLines.length > 0 ? ["", "## Clarified Context", ...answerLines] : []),
       "",
       "## Execution Constraints",
@@ -181,7 +159,7 @@ export function synthesizeCompiledPrompt(
       `- **Length & Density**: ${lengthDirective}`,
       "",
       "## Safety & Quality Guardrails",
-      ...guardrails.map((g) => `- GUARDRAIL: ${g}`),
+      ...guardrails.map((g) => `- MUST NOT violate: ${g}`),
       "",
       "## Output Format & Tone",
       `- **Tone**: ${tone}`,
@@ -276,22 +254,20 @@ export function diagnoseAndRefinePrompt(input: RefinePromptInput): RefinePromptO
   }
 
   const optimizedSections = [
-    "# OPTIMIZED PROMPT SPECIFICATION",
-    "Role: You are a Senior Domain Specialist operating under strict verification constraints.",
+    "You are a Senior Domain Specialist operating under strict verification constraints.",
     "",
-    "## Role & Operational Context",
-    `Execute the following request for [Target_Audience] within [System_Context]:`,
+    "## Task & Operational Context",
     `${raw}`,
     "",
     "## Objective & Acceptance Criteria",
-    "- Deliver direct, verifiable output tailored to [Primary_Objective].",
+    "- Deliver direct, verifiable, ready-to-use output addressing every explicit requirement above.",
     `- Maintain a ${input.targetTone || "precise, analytical"} tone and ${input.targetLength} density.`,
     "",
     "## Hard Guardrails (Autopsy Remediation)",
     "- MUST NOT invent unsupported facts, placeholder APIs, or generic filler.",
     ...(input.failedOutput?.trim()
       ? [
-          `- REJECT prior failure pattern: Avoid producing output resembling "${input.failedOutput
+          `- MUST NOT repeat prior failure pattern: Avoid producing output resembling "${input.failedOutput
             .trim()
             .slice(0, 70)}..."`,
         ]
@@ -331,12 +307,13 @@ export function synthesizeReverseEngineeredPrompt(
     : "";
 
   const breakdown = {
-    subject: "Primary focal subject [Primary_Subject] positioned with clear foreground separation",
+    subject:
+      "Primary focal subject positioned with crisp foreground separation, authentic surface textures, and natural proportions",
     styleAndMedium: isVideo
       ? "Cinematic 24fps digital film capture, anamorphic lens characteristics, subtle film grain"
       : "High-detail editorial photography / digital concept render with crisp micro-textures",
     lightingAndColor:
-      "Directional volumetric key light, soft rim lighting, balanced warm-to-cool color contrast in [Color_Palette]",
+      "Directional volumetric key light, soft rim lighting, and balanced warm-to-cool color contrast",
     cameraAndComposition: isVideo
       ? "Smooth dolly push-in, 35mm prime lens, f/2.8 shallow depth of field, rule-of-thirds framing"
       : "50mm prime lens, f/2.8 aperture, eye-level perspective, balanced negative space",
@@ -347,48 +324,18 @@ export function synthesizeReverseEngineeredPrompt(
 
   const reconstructedPrompt = isVideo
     ? [
-        "Generate video following the specification.",
-        "Role: You are a Senior Cinematographer and Temporal Motion Director.",
+        `Continuous 24fps shot anchored on the ${breakdown.subject.toLowerCase()}, captured as ${breakdown.styleAndMedium.toLowerCase()} with ${breakdown.cameraAndComposition.toLowerCase()}.`,
         "",
-        "# RECONSTRUCTED VIDEO MOTION PROMPT",
+        `Lighting & Atmosphere: ${breakdown.lightingAndColor}. ${breakdown.moodAndAtmosphere}`,
         "",
-        "## 1. Ready-to-Dispatch Temporal Master Prompt",
-        `Generate a continuous 24fps video anchored on ${breakdown.subject}, captured with ${breakdown.cameraAndComposition}, under ${breakdown.lightingAndColor}, with ${breakdown.styleAndMedium.toLowerCase()}.`,
-        "",
-        "## 2. Subject, Style & Atmosphere",
-        `- **Focal Subject**: ${breakdown.subject}`,
-        `- **Style & Medium**: ${breakdown.styleAndMedium}`,
-        `- **Atmosphere**: ${breakdown.moodAndAtmosphere}`,
-        "",
-        "## 3. Camera Rig, Lighting & Color Grade",
-        `- **Camera & Composition**: ${breakdown.cameraAndComposition}`,
-        `- **Lighting & Color Grade**: ${breakdown.lightingAndColor}`,
-        "",
-        "## 4. Continuity & Negative Guardrails",
-        "- MUST preserve subject geometry, lighting continuity, and physical motion stability across all frames.",
-        `- MUST NOT include: ${breakdown.negativePrompt}.`,
+        `Preserve subject geometry, lighting continuity, and physical motion stability across all frames. Avoid ${breakdown.negativePrompt}.`,
       ].join("\n")
     : [
-        "Generate image following the specification.",
-        "Role: You are a Principal Visual Director and Computational Photography Specialist.",
+        `${breakdown.styleAndMedium} of the ${breakdown.subject.toLowerCase()}, framed with ${breakdown.cameraAndComposition.toLowerCase()}.`,
         "",
-        "# RECONSTRUCTED VISUAL PROMPT",
+        `Lighting & Atmosphere: ${breakdown.lightingAndColor}. ${breakdown.moodAndAtmosphere}`,
         "",
-        "## 1. Ready-to-Dispatch Master Prompt",
-        `Generate an image of ${breakdown.subject}, rendered as ${breakdown.styleAndMedium.toLowerCase()}, framed with ${breakdown.cameraAndComposition}, illuminated by ${breakdown.lightingAndColor}.`,
-        "",
-        "## 2. Subject, Style & Atmosphere",
-        `- **Focal Subject**: ${breakdown.subject}`,
-        `- **Style & Medium**: ${breakdown.styleAndMedium}`,
-        `- **Atmosphere**: ${breakdown.moodAndAtmosphere}`,
-        "",
-        "## 3. Camera Optics, Lighting & Color Grade",
-        `- **Camera & Composition**: ${breakdown.cameraAndComposition}`,
-        `- **Lighting & Color Grade**: ${breakdown.lightingAndColor}`,
-        "",
-        "## 4. Compositional Constraints & Negative Guardrails",
-        "- MUST keep lighting physics, surface materiality, and perspective geometry coherent.",
-        `- MUST NOT include: ${breakdown.negativePrompt}.`,
+        `Maintain physically coherent lighting, surface materiality, and perspective geometry. Avoid ${breakdown.negativePrompt}.`,
       ].join("\n");
 
   const { detectedVariables } = analyzePromptVariables(reconstructedPrompt);
@@ -402,7 +349,7 @@ export function synthesizeReverseEngineeredPrompt(
       rawInput: reconstructedPrompt,
       mode: input.targetMode,
       modelId,
-      goal: "Reproduce the visual style, lighting, and composition while customizing [Primary_Subject]",
+      goal: "Reproduce the reference image's visual style, lighting, lens optics, and composition",
       format: breakdown.cameraAndComposition,
       tone: breakdown.lightingAndColor,
       constraints: [breakdown.styleAndMedium],

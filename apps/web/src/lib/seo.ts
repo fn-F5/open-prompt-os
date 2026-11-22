@@ -430,8 +430,8 @@ export const STATIC_ROUTE_SEO = {
             text: "Drop an image up to 4 MB and optionally specify focus notes like focal length or color grading.",
           },
           {
-            name: "Accept the reconstructed [Variable] draft into Composer",
-            text: "Swap the detected [Subject] or [Material_Finish] variables to generate matching variations.",
+            name: "Copy or load the reconstructed prompt into Composer",
+            text: "Paste the copy-ready prompt directly into your generator or refine it further in Composer.",
           },
         ],
       }),

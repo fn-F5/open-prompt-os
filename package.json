@@ -12,6 +12,11 @@
     "db:seed": "pnpm --filter @open-prompt-os/db db:seed",
     "build": "turbo run build",
     "test": "turbo run test",
+    "test:e2e": "pnpm --filter @open-prompt-os/web test:e2e",
+    "test:e2e:smoke": "pnpm --filter @open-prompt-os/web test:e2e:smoke",
+    "test:e2e:ui": "pnpm --filter @open-prompt-os/web test:e2e:ui",
+    "verify:e2e-integrity": "node scripts/check-e2e-integrity.mjs",
+    "verify": "pnpm verify:e2e-integrity && pnpm typecheck && pnpm test && pnpm test:e2e",
     "typecheck": "turbo run typecheck",
     "lint": "biome check ."
   },
