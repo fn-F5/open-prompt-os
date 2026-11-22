@@ -349,6 +349,62 @@ function stripVideoSpecWrapper(text: string): string {
     .trim();
 }
 
+/** Merge non-overlapping visual, motion, and audio fields for a rich shot block. */
+function formatDetailedShotBlock(shot: VideoReverseEngineerOutput["shots"][number]): string {
+  const transition = shot.transitionIn ? `, ${shot.transitionIn}` : "";
+  const parts = [shot.shotPrompt.trim()];
+  const lowerBase = shot.shotPrompt.toLowerCase();
+  if (
+    shot.firstFramePrompt &&
+    !lowerBase.includes(shot.firstFramePrompt.slice(0, 24).toLowerCase())
+  ) {
+    parts.push(`Opening frame: ${shot.firstFramePrompt.trim()}`);
+  }
+  if (
+    shot.motionAndCamera &&
+    !lowerBase.includes(shot.motionAndCamera.slice(0, 24).toLowerCase())
+  ) {
+    parts.push(`Motion & camera: ${shot.motionAndCamera.trim()}`);
+  }
+  if (shot.audioCue && !lowerBase.includes(shot.audioCue.slice(0, 20).toLowerCase())) {
+    parts.push(`Audio: ${shot.audioCue.trim()}`);
+  }
+  return `Shot ${shot.shotNumber} (${shot.startTime}–${shot.endTime}${transition}): ${parts.join(" ")}`;
+}
+
+/** Guarantee multi-shot videos retain deep, un-compressed shot-by-shot detail in masterPrompt. */
+function ensureShotByShotMasterPrompt(
+  masterPrompt: string,
+  bible: VideoReverseEngineerOutput["continuityBible"],
+  shots: VideoReverseEngineerOutput["shots"],
+): string {
+  if (shots.length < 2) return masterPrompt;
+
+  const wordCount = masterPrompt.trim().split(/\s+/).filter(Boolean).length;
+  const hasEveryShotLabel = shots.every((shot) =>
+    new RegExp(`shot\\s*${shot.shotNumber}\\b`, "i").test(masterPrompt),
+  );
+  const firstShotStart = shots[0]?.startTime;
+  const hasStartTimestamp = !firstShotStart || masterPrompt.includes(firstShotStart);
+  const hasRichDensity = wordCount >= shots.length * 65;
+
+  if (hasEveryShotLabel && hasStartTimestamp && hasRichDensity) {
+    return masterPrompt;
+  }
+
+  // Extract the opening visual/style anchor before any brief "Shot 1" list if present.
+  const openingAnchor = masterPrompt.split(/\n+\s*Shot\s*1\b/i)[0]?.trim() || masterPrompt.trim();
+  const shotBlocks = shots.map(formatDetailedShotBlock);
+
+  return [
+    openingAnchor,
+    `Visual & Optical Locks: ${bible.subjectAndWardrobe} Set & Props: ${bible.environmentAndSet} Lighting & Palette: ${bible.lightingAndColorGrade} Lens & Optics: ${bible.lensAndOpticalDna}`,
+    shotBlocks.join("\n\n"),
+    `Audio & Soundscape: ${bible.audioAndMusicDna}`,
+    `Avoid ${bible.negativeGuardrails}.`,
+  ].join("\n\n");
+}
+
 function parseVideoReverseEngineer(
   text: string,
   input: VideoReverseEngineerInput,
@@ -382,9 +438,9 @@ function parseVideoReverseEngineer(
         shotPrompt: stripVideoSpecWrapper(parsed.data.shotPrompt),
       }));
 
-    const masterPrompt =
+    const rawMasterPrompt =
       typeof raw.masterPrompt === "string" ? stripVideoSpecWrapper(raw.masterPrompt) : "";
-    if (!overviewRaw || !bibleParsed.success || shotsParsed.length === 0 || !masterPrompt) {
+    if (!overviewRaw || !bibleParsed.success || shotsParsed.length === 0 || !rawMasterPrompt) {
       return null;
     }
 
@@ -407,6 +463,7 @@ function parseVideoReverseEngineer(
         : shotsParsed.length === 1;
 
     const bible = bibleParsed.data;
+    const masterPrompt = ensureShotByShotMasterPrompt(rawMasterPrompt, bible, shotsParsed);
     const draftModelId =
       input.targetGenerator === "runway"
         ? "runway-video"
@@ -817,6 +874,8 @@ export function createOrchestrator(options: OrchestratorOptions): PromptOrchestr
           video: videoAttachment,
           responseMimeType: "application/json",
           modelId: "gemini-3.6-flash",
+          temperature: 0.25,
+          maxOutputTokens: 8192,
           timeoutMs: videoTimeoutMs,
           signal: ctx.signal,
         });

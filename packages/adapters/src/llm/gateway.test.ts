@@ -629,6 +629,90 @@ describe("createOrchestrator", () => {
     );
     expect(strippedOut.masterPrompt).toBe("Direct espresso extraction shot.");
 
+    const baseJson = JSON.parse(validVideoJson) as {
+      overview: Record<string, unknown>;
+      continuityBible: Record<string, unknown>;
+      shots: Array<Record<string, unknown>>;
+      masterPrompt: string;
+    };
+    const multiShotGemini = createFakeAdapter({
+      id: "gemini",
+      text: JSON.stringify({
+        ...baseJson,
+        shots: [
+          baseJson.shots[0],
+          {
+            shotNumber: 2,
+            startTime: "00:04",
+            endTime: "00:10",
+            transitionIn: "Hard Cut",
+            firstFramePrompt: "Close-up pouring latte art into ceramic cup.",
+            motionAndCamera: "Overhead locked-off shot as microfoam swirls.",
+            audioCue: "Soft ceramic clink.",
+            shotPrompt: "Overhead locked-off 50mm shot pouring silky latte art.",
+          },
+        ],
+        masterPrompt: "Short summary paragraph without shot timecodes.",
+      }),
+    });
+    const multiShotOrchestrator = createOrchestrator({
+      registry: createRegistry([createSynthesizerAdapter(), multiShotGemini]),
+      timeoutMs: 1000,
+    });
+    const enrichedOut = await multiShotOrchestrator.reverseEngineerVideo(
+      {
+        sourceType: "youtube",
+        youtubeUrl: "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+        startOffsetSec: 0,
+        targetGenerator: "veo",
+      },
+      { requestId: "req_rev_video_multishot" },
+    );
+    expect(enrichedOut.masterPrompt).toContain("Shot 1 (00:00–00:04, Fade in):");
+    expect(enrichedOut.masterPrompt).toContain("Shot 2 (00:04–00:10, Hard Cut):");
+    expect(enrichedOut.masterPrompt).toContain("Visual & Optical Locks:");
+
+    const compressedShotsGemini = createFakeAdapter({
+      id: "gemini",
+      text: JSON.stringify({
+        ...baseJson,
+        shots: [
+          baseJson.shots[0],
+          {
+            shotNumber: 2,
+            startTime: "00:04",
+            endTime: "00:10",
+            transitionIn: "Hard Cut",
+            firstFramePrompt: "Close-up pouring latte art into ceramic cup.",
+            motionAndCamera: "Overhead locked-off shot as microfoam swirls.",
+            audioCue: "Soft ceramic clink.",
+            shotPrompt: "Overhead locked-off 50mm shot pouring silky latte art.",
+          },
+        ],
+        masterPrompt: [
+          "Sunny kitchen espresso reel with crisp contrast.",
+          "Shot 1 (00:00–00:04, Fade in): Wide shot of espresso machine.",
+          "Shot 2 (00:04–00:10, Hard Cut): Overhead pour.",
+        ].join("\n\n"),
+      }),
+    });
+    const compressedOrchestrator = createOrchestrator({
+      registry: createRegistry([createSynthesizerAdapter(), compressedShotsGemini]),
+      timeoutMs: 1000,
+    });
+    const expandedOut = await compressedOrchestrator.reverseEngineerVideo(
+      {
+        sourceType: "youtube",
+        youtubeUrl: "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+        startOffsetSec: 0,
+        targetGenerator: "veo",
+      },
+      { requestId: "req_rev_video_expand" },
+    );
+    expect(expandedOut.masterPrompt).toContain("Opening frame: Close-up pouring latte art");
+    expect(expandedOut.masterPrompt).toContain("Motion & camera: Overhead locked-off shot");
+    expect(expandedOut.masterPrompt).toContain("Audio: Soft ceramic clink.");
+
     const badGemini = createFakeAdapter({ id: "gemini", text: "not-valid-json" });
     const badOrchestrator = createOrchestrator({
       registry: createRegistry([createSynthesizerAdapter(), badGemini]),

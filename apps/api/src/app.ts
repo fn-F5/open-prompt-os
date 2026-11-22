@@ -11,6 +11,7 @@ import { z } from "zod";
 import type { ApiEnv } from "./app-env.js";
 import { resolveActor } from "./auth/session-resolver.js";
 import { clientKey } from "./client-key.js";
+import { type E2eHarnessOptions, registerE2eRoutes } from "./e2e-harness.js";
 import {
   createLogger,
   enrichRequestContext,
@@ -32,6 +33,7 @@ export interface AppOptions {
   allowRequest: (key: string) => boolean;
   auth?: Auth;
   oauthProviders?: { google: boolean; github: boolean };
+  e2eHarness?: E2eHarnessOptions;
   log?: (line: string) => void;
 }
 
@@ -262,6 +264,10 @@ export function createApp(options: AppOptions) {
     trustProxy: options.trustProxy,
     auth: options.auth,
   });
+
+  if (options.e2eHarness) {
+    registerE2eRoutes(app, options.e2eHarness);
+  }
 
   app.use("/rpc/*", async (c) => {
     const requestId = c.get("requestId");

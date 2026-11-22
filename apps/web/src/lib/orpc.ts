@@ -925,12 +925,15 @@ export const orpcClient = {
         input.sourceType === "upload"
           ? `the uploaded clip "${input.file.name}"`
           : "the reference YouTube clip";
+      const clippedEndSec = Math.min(59, Math.max(1, duration));
+      const endTimeStr = `00:${String(clippedEndSec).padStart(2, "0")}`;
       const masterPrompt = [
-        `A continuous ${Math.max(1, duration)}-second 24fps shot capturing the exact visual framing, lighting, camera trajectory, and audio atmosphere of ${sourceDescriptor}${input.focusNotes?.trim() ? `, emphasizing ${input.focusNotes.trim()}` : ""}.`,
-        "Shot on a 35mm prime lens at f/2.8 with natural 24fps motion blur, directional volumetric key lighting with clean rim separation, and balanced color contrast.",
-        "Smooth dolly push-in keeping the primary subject and surrounding environment physically grounded with natural secondary motion, paired with synchronized ambient room tone and subtle foley.",
-        "Avoid morphing geometry, temporal flicker, or sudden exposure shifts.",
-      ].join(" ");
+        `A continuous ${Math.max(1, duration)}-second 24fps shot recreating the exact visual style, lighting, optical framing, camera trajectory, and audio atmosphere of ${sourceDescriptor}${input.focusNotes?.trim() ? `, emphasizing ${input.focusNotes.trim()}` : ""}.`,
+        "Visual & Optical Lock: Shot on a 35mm prime lens at f/2.8 with natural 24fps motion blur, directional volumetric key lighting with clean rim highlights, sharp foreground materiality, and gently separated background depth.",
+        `Shot 1 (00:00–${endTimeStr}, Fade in): Smooth 24fps dolly push-in keeping the primary subject and surrounding environment physically grounded with natural secondary motion and stable exposure throughout the beat.`,
+        "Audio & Soundscape: Natural ambient room tone paired with subtle synchronized foley matching subject and camera movement.",
+        "Avoid morphing geometry, temporal flicker, melted textures, or sudden exposure shifts.",
+      ].join("\n\n");
 
       const output: VideoReverseEngineerOutput = {
         overview: {

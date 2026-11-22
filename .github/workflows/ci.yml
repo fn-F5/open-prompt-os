@@ -76,3 +76,75 @@ jobs:
 
       - name: Run all test suites
         run: pnpm test
+
+  e2e:
+    name: Full-Stack E2E Verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: ci_password
+          POSTGRES_DB: open_prompt_os
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U admin -d open_prompt_os"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      NODE_ENV: test
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: ci_password
+      POSTGRES_DB: open_prompt_os
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify E2E suite integrity (no skips or .only)
+        run: pnpm verify:e2e-integrity
+
+      - name: Install Playwright Chromium
+        run: pnpm --filter @open-prompt-os/web exec playwright install --with-deps chromium
+
+      - name: Generate Prisma client
+        run: pnpm --filter @open-prompt-os/db db:generate
+
+      - name: Prepare PostgreSQL schema, RLS, and seed data
+        run: |
+          pnpm --filter @open-prompt-os/db exec tsx scripts/prisma.ts migrate deploy
+          pnpm --filter @open-prompt-os/db db:rls
+          pnpm --filter @open-prompt-os/db db:seed
+
+      - name: Run Playwright Full-Stack E2E suite
+        run: pnpm test:e2e
+
+      - name: Upload Playwright report and traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-e2e-evidence
+          path: |
+            reports/playwright-report
+            reports/playwright-results
+          retention-days: 7

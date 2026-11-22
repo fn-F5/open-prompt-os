@@ -327,7 +327,7 @@ export function VideoReverseEngineerPanel() {
               setIsDragging(false);
               handleVideoFile(e.dataTransfer.files?.[0]);
             }}
-            className={`rounded-xl border-2 border-dashed p-5 text-center transition-colors ${
+            className={`rounded-xl border-2 border-dashed p-6 text-center transition-colors ${
               isDragging
                 ? "border-[var(--accent-primary)] bg-[var(--accent-subtle-bg)]"
                 : "border-[var(--separator-strong)] bg-[var(--surface-2)]"
@@ -754,8 +754,13 @@ export function VideoReverseEngineerPanel() {
 
             {/* Master Prompt */}
             <div className="space-y-2 pt-3 border-t border-[var(--separator-subtle)]">
-              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
-                Master Video Prompt Specification
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+                  Master Video Prompt
+                </span>
+                <span className="text-[11px] text-[var(--text-secondary)]">
+                  Shot-by-shot recreation · Ready to paste
+                </span>
               </div>
               <div className="p-4 rounded-xl bg-[var(--surface-2)] border border-[var(--separator-subtle)] overflow-x-auto">
                 <SanitizedPromptRenderer content={result.masterPrompt} />

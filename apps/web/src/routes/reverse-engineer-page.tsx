@@ -176,33 +176,20 @@ export function ReverseEngineerPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Reverse Engineer</h1>
           <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
             {sourceModality === "video"
-              ? "Upload a video clip or paste a public YouTube link to extract camera motion, audio DNA, and shot-by-shot prompts."
+              ? "Upload a video clip or paste a YouTube link to extract motion, audio, and shot prompts."
               : "Upload any reference image to extract lighting, lens, style, and a reusable prompt."}
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Tabs
-            ariaLabel="Source media type"
-            value={sourceModality}
-            onValueChange={setSourceModality}
-            options={[
-              { value: "image", label: "Image" },
-              { value: "video", label: "Video" },
-            ]}
-          />
-          {sourceModality === "image" ? (
-            <Tabs
-              ariaLabel="Target modality"
-              value={targetMode}
-              onValueChange={setTargetMode}
-              options={[
-                { value: "image", label: "Image Prompt" },
-                { value: "video", label: "Video Motion Prompt" },
-              ]}
-            />
-          ) : null}
-        </div>
+        <Tabs
+          ariaLabel="Source media type"
+          value={sourceModality}
+          onValueChange={setSourceModality}
+          options={[
+            { value: "image", label: "Image" },
+            { value: "video", label: "Video" },
+          ]}
+        />
       </div>
 
       {sourceModality === "video" ? (
@@ -214,6 +201,19 @@ export function ReverseEngineerPage() {
             data-animate={animateCard("reverseEngineerInput")}
             className="rounded-xl p-5 flat-surface space-y-4"
           >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Tabs
+                ariaLabel="Target modality"
+                value={targetMode}
+                onValueChange={setTargetMode}
+                options={[
+                  { value: "image", label: "Image Prompt" },
+                  { value: "video", label: "Video Motion Prompt" },
+                ]}
+              />
+              <span className="text-xs text-[var(--text-secondary)]">Max 4 MB</span>
+            </div>
+
             <div
               onDragOver={(e) => {
                 e.preventDefault();

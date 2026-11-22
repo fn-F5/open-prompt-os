@@ -521,7 +521,7 @@ describe("Web Route Pages & AuthGate", () => {
 
       expect(screen.getByText(/Continuity Bible/i)).toBeInTheDocument();
       expect(screen.getByText(/Shot-by-Shot Storyboard/i)).toBeInTheDocument();
-      expect(screen.getByText(/Master Video Prompt Specification/i)).toBeInTheDocument();
+      expect(screen.getByText(/Master Video Prompt/i)).toBeInTheDocument();
 
       const expandShot1 = screen.getByRole("button", { name: /Shot 1/i });
       expect(screen.getByText(/Motion & Camera/i)).toBeInTheDocument();
@@ -534,7 +534,7 @@ describe("Web Route Pages & AuthGate", () => {
       expect(screen.getByTestId("composer-dest")).toBeInTheDocument();
       expect(composerActions.getState().activeMode).toBe("video");
       const rawDraft = composerActions.getActiveDraft().rawInput;
-      expect(rawDraft).toContain("reference YouTube clip");
+      expect(rawDraft).toContain("Shot 1 (00:00");
       expect(rawDraft).not.toContain("Role:");
       expect(rawDraft).not.toContain("[Primary_Subject]");
     });
