@@ -95,7 +95,7 @@ const PARAMETER_DESCRIPTORS: readonly ParameterDescriptor[] = [
     placeholder: "Add a safety or quality rule",
     suggestions: [
       "Never invent facts or citations",
-      "Mark missing info as [Variable]",
+      "Use concrete details instead of blanks",
       "Ask before assuming edge cases",
     ],
   },
@@ -351,10 +351,7 @@ export function GuidedParameters({
                 type="button"
                 onClick={() => {
                   if (activeDescriptor.isMulti) {
-                    addMultiItem(
-                      activeDescriptor.key as "constraints" | "guardrails",
-                      suggestion,
-                    );
+                    addMultiItem(activeDescriptor.key as "constraints" | "guardrails", suggestion);
                   } else {
                     onUpdateDraft({ [activeDescriptor.key]: suggestion });
                   }

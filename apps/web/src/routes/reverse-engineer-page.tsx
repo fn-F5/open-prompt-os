@@ -304,7 +304,7 @@ export function ReverseEngineerPage() {
               <span className="text-xs text-[var(--text-secondary)]">
                 {result?.remainingDailyRuns !== null && result?.remainingDailyRuns !== undefined
                   ? `${result.remainingDailyRuns} reverse-engineer run(s) left today`
-                  : "Extracts structured [Variable] slots"}
+                  : "Extracts detailed copy-ready prompt"}
               </span>
               <Button variant="primary-inverse" onClick={handleRun} disabled={mutation.isPending}>
                 <Sparkles className="w-4 h-4" />

@@ -785,7 +785,8 @@ describe("API Routes & Database Integration", () => {
           breakdown: { subject: string; negativePrompt: string };
         };
       };
-      expect(json.reconstructedPrompt).toContain("RECONSTRUCTED VISUAL PROMPT");
+      expect(json.reconstructedPrompt).toContain("High-detail editorial photography");
+      expect(json.reconstructedPrompt).not.toContain("[Primary_Subject]");
       expect(json.remainingDailyRuns).toBe(2); // free tier reverse_engineer limit is 3
       expect(json.breakdown.subject.length).toBeGreaterThan(0);
 
@@ -820,7 +821,7 @@ describe("API Routes & Database Integration", () => {
       };
       expect(historyJson.items.length).toBeGreaterThanOrEqual(1);
       expect(historyJson.items[0]?.kind).toBe("reverse_engineer");
-      expect(historyJson.items[0]?.compiledPrompt).toContain("RECONSTRUCTED VISUAL PROMPT");
+      expect(historyJson.items[0]?.compiledPrompt).toContain("High-detail editorial photography");
       expect(historyJson.items[0]?.inputImageUrl).toMatch(/^data:image\/png;base64,/);
     });
 

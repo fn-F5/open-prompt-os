@@ -304,7 +304,9 @@ function parseReverseEngineer(
     }
 
     const reconstructedPrompt =
-      typeof raw.reconstructedPrompt === "string" ? raw.reconstructedPrompt.trim() : "";
+      typeof raw.reconstructedPrompt === "string"
+        ? stripVideoSpecWrapper(raw.reconstructedPrompt)
+        : "";
     const breakdownParsed = ReverseEngineerBreakdownSchema.safeParse(raw.breakdown);
     if (!reconstructedPrompt || !breakdownParsed.success) {
       return null;
@@ -321,7 +323,7 @@ function parseReverseEngineer(
         rawInput: reconstructedPrompt,
         mode: input.targetMode,
         modelId: result.modelId,
-        goal: "Reproduce the visual style, lighting, and composition while customizing detected variables",
+        goal: "Reproduce the reference image's visual style, lighting, lens optics, and composition",
         format: breakdown.cameraAndComposition,
         tone: breakdown.lightingAndColor,
         constraints: [breakdown.styleAndMedium],
@@ -340,12 +342,15 @@ function parseReverseEngineer(
   }
 }
 
-/** Strip accidental meta-directive / specification headers so video prompts are ready to paste. */
+/** Strip accidental meta-directive / specification headers so visual & video prompts are ready to paste. */
 function stripVideoSpecWrapper(text: string): string {
   return text
     .replace(/^Generate (?:video|image) following the specification\.\s*\n?/i, "")
     .replace(/^Role:\s*You are [^\n]*\n+/i, "")
-    .replace(/^#\s*MOTION\s*&\s*TEMPORAL\s*PROMPT\s*SPECIFICATION[^\n]*\n+/i, "")
+    .replace(
+      /^#\s*(?:MOTION\s*&\s*TEMPORAL\s*PROMPT|VISUAL\s*GENERATION|RECONSTRUCTED\s+(?:VISUAL|VIDEO\s+MOTION))\s*(?:SPECIFICATION|PROMPT)?[^\n]*\n+/i,
+      "",
+    )
     .trim();
 }
 

@@ -484,12 +484,15 @@ describe("Web Route Pages & AuthGate", () => {
       await waitFor(() => {
         expect(screen.getByText(/6-Axis Visual Breakdown/i)).toBeInTheDocument();
       });
-      expect(screen.getByText(/RECONSTRUCTED VISUAL PROMPT/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/High-detail editorial photography/i).length).toBeGreaterThan(0);
 
       fireEvent.click(screen.getByRole("button", { name: /Accept into Composer/i }));
       expect(screen.getByTestId("composer-dest")).toBeInTheDocument();
       expect(composerActions.getState().activeMode).toBe("image");
-      expect(composerActions.getActiveDraft().rawInput).toContain("RECONSTRUCTED VISUAL PROMPT");
+      expect(composerActions.getActiveDraft().rawInput).toContain(
+        "High-detail editorial photography",
+      );
+      expect(composerActions.getActiveDraft().rawInput).not.toContain("[Primary_Subject]");
     });
 
     it("switches to Video mode, validates social URLs, analyzes a YouTube clip, and loads draft into Composer", async () => {

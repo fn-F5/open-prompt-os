@@ -12,9 +12,9 @@ const TOUR_STEPS = [
   {
     step: 2,
     badge: "Step 2 of 3 · One-Click Send",
-    title: "Variables & instant dispatch",
+    title: "Copy-ready prompts & instant dispatch",
     description:
-      "Your compiled prompt highlights customizable [Variables] and opens directly in ChatGPT, Claude, or Gemini.",
+      "Your compiled prompt is detailed, ready to paste with zero placeholders, and opens directly in ChatGPT, Claude, or Gemini.",
   },
   {
     step: 3,
