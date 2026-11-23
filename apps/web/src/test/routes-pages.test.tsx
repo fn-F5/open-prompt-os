@@ -285,18 +285,18 @@ describe("Web Route Pages & AuthGate", () => {
       const headings = screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
       expect(headings).toEqual(["Free", "Pro Studio", "Team Space", "BYOK"]);
 
-      // Daily request limits per plan
-      expect(screen.getByText("5 Compile requests / day")).toBeInTheDocument();
-      expect(screen.getByText("2 Prompt Autopsy requests / day")).toBeInTheDocument();
-      expect(screen.getByText("2 Reverse Engineer requests / day")).toBeInTheDocument();
-      expect(screen.getByText("20 Compile requests / day")).toBeInTheDocument();
-      expect(screen.getByText("10 Prompt Autopsy requests / day")).toBeInTheDocument();
-      expect(screen.getByText("5 Reverse Engineer requests / day")).toBeInTheDocument();
-      expect(screen.getByText("30 Compile requests / day")).toBeInTheDocument();
-      expect(screen.getByText("20 Prompt Autopsy requests / day")).toBeInTheDocument();
-      expect(screen.getByText("10 Reverse Engineer requests / day")).toBeInTheDocument();
+      // Unified daily request limits per plan
       expect(
-        screen.getByText("Unlimited Compile, Autopsy & Reverse Engineer requests / day"),
+        screen.getByText("10 AI requests / day (Compile, Autopsy & Reverse Engineer)"),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText("35 AI requests / day (Compile, Autopsy & Reverse Engineer)"),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText("60 AI requests / day per seat (Compile, Autopsy & Reverse Engineer)"),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText("Unlimited AI requests / day (Compile, Autopsy & Reverse Engineer)"),
       ).toBeInTheDocument();
 
       // Monthly prices when switched to Monthly ($0, $8, $16, $5)
@@ -332,6 +332,24 @@ describe("Web Route Pages & AuthGate", () => {
       const restoredButtons = await screen.findAllByRole("button", { name: /Use template/i });
       const firstTemplateBtn = restoredButtons[0];
       if (!firstTemplateBtn) throw new Error("Expected a template button");
+
+      // Unauthenticated user clicking Use template sees the Sign In dialog
+      fireEvent.click(firstTemplateBtn);
+      expect(getAuthDialogState().isOpen).toBe(true);
+      expect(screen.queryByTestId("composer-dest")).toBeNull();
+
+      // Authenticated user clicking Use template loads it into Composer
+      act(() => {
+        setAuthSessionForTest({
+          id: "u_tpl",
+          email: "tpl@example.com",
+          name: "Template User",
+          plan: "free",
+          spaceId: "sp_tpl",
+          spaceName: "Template Space",
+          hasPasskey: false,
+        });
+      });
       fireEvent.click(firstTemplateBtn);
       expect(screen.getByTestId("composer-dest")).toBeInTheDocument();
     });
@@ -392,9 +410,10 @@ describe("Web Route Pages & AuthGate", () => {
         expect(screen.getByLabelText("Search saved prompts")).toBeInTheDocument();
       });
 
-      const listBtn = screen.getByRole("button", { name: /List view/i });
-      fireEvent.click(listBtn);
-      expect(safeGetItem("open-prompt-os:library-view:v1")).toBe("list");
+      expect(screen.queryByRole("button", { name: /List view/i })).toBeNull();
+      expect(screen.queryByRole("button", { name: /Grid view/i })).toBeNull();
+      expect(screen.getByRole("tab", { name: "Library" })).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: "History" })).toBeInTheDocument();
 
       const copyBtns = await screen.findAllByRole("button", { name: "Copy" });
       const firstCopyBtn = copyBtns[0];

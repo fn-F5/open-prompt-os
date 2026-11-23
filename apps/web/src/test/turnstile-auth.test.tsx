@@ -457,7 +457,9 @@ describe("Cloudflare Turnstile in AuthDialog", () => {
     const firstView = renderAuthDialog(null);
     expect(await screen.findByRole("button", { name: "Continue with Google" })).toBeInTheDocument();
     await waitFor(() => {
-      expect(screen.queryByRole("button", { name: "Continue with GitHub" })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Continue with GitHub" }),
+      ).not.toBeInTheDocument();
     });
     firstView.unmount();
 
@@ -471,7 +473,9 @@ describe("Cloudflare Turnstile in AuthDialog", () => {
 
     expect(await screen.findByRole("button", { name: "Continue with GitHub" })).toBeInTheDocument();
     await waitFor(() => {
-      expect(screen.queryByRole("button", { name: "Continue with Google" })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Continue with Google" }),
+      ).not.toBeInTheDocument();
     });
 
     fireEvent.change(screen.getByLabelText("Email address"), {
@@ -485,6 +489,54 @@ describe("Cloudflare Turnstile in AuthDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: "Verify code" }));
     await waitFor(() => {
       expect(screen.getByRole("alert")).toHaveTextContent("Invalid OTP");
+    });
+  });
+
+  it("blocks Google and GitHub sign-in until Turnstile verification completes", async () => {
+    let capturedOpts: TurnstileRenderOptions | undefined;
+    window.turnstile = {
+      render: vi.fn((_el: HTMLElement, opts: TurnstileRenderOptions) => {
+        capturedOpts = opts;
+        return "w-oauth";
+      }),
+      reset: vi.fn(),
+      remove: vi.fn(),
+    };
+    vi.spyOn(authClient, "getOAuthProviders").mockResolvedValue({
+      google: true,
+      github: true,
+    });
+    const googleSpy = vi.spyOn(authClient, "signInWithGoogle").mockResolvedValue();
+    const githubSpy = vi.spyOn(authClient, "signInWithGitHub").mockResolvedValue();
+
+    renderAuthDialog("site-key-oauth");
+
+    const googleBtn = await screen.findByRole("button", { name: "Continue with Google" });
+    const githubBtn = screen.getByRole("button", { name: "Continue with GitHub" });
+
+    expect(googleBtn).toBeDisabled();
+    expect(githubBtn).toBeDisabled();
+
+    fireEvent.click(googleBtn);
+    fireEvent.click(githubBtn);
+    expect(googleSpy).not.toHaveBeenCalled();
+    expect(githubSpy).not.toHaveBeenCalled();
+
+    await waitFor(() => {
+      expect(capturedOpts?.callback).toBeTypeOf("function");
+    });
+    act(() => {
+      capturedOpts?.callback?.("cf-oauth-token");
+    });
+
+    await waitFor(() => {
+      expect(googleBtn).toBeEnabled();
+      expect(githubBtn).toBeEnabled();
+    });
+
+    fireEvent.click(googleBtn);
+    await waitFor(() => {
+      expect(googleSpy).toHaveBeenCalledTimes(1);
     });
   });
 });

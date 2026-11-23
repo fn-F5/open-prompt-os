@@ -236,12 +236,12 @@ describe("createStripeBillingProvider", () => {
     expect(plans.find((p) => p.id === "pro")).toMatchObject({
       monthlyPriceUsd: 24,
       yearlyPriceUsd: 18,
-      dailyPromptLimit: 20,
+      dailyPromptLimit: 35,
     });
     expect(plans.find((p) => p.id === "team")).toMatchObject({
       monthlyPriceUsd: 59,
       yearlyPriceUsd: 45,
-      dailyPromptLimit: 30,
+      dailyPromptLimit: 60,
     });
     expect(plans.find((p) => p.id === "byok")).toMatchObject({
       monthlyPriceUsd: 5,

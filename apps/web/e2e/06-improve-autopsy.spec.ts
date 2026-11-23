@@ -28,7 +28,7 @@ test.describe("06 - Improve & Prompt Autopsy @full", () => {
     }
 
     const refinePromise = page.waitForResponse(
-      (res) => res.url().includes("/rpc/prompts/refine") && res.status() === 200,
+      (res) => /\/rpc\/prompts\/(refine|autopsy)/.test(res.url()) && res.status() === 200,
     );
     await page.getByRole("button", { name: /Optimize Prompt|Run Autopsy/i }).click();
     await refinePromise;

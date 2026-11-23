@@ -231,12 +231,12 @@ export function buildPrerenderRoutes(
     {
       path: "/reverse-engineer",
       meta: STATIC_ROUTE_SEO.reverseEngineer(origin),
-      staticBodyHtml: `<main class="mx-auto max-w-[1360px] px-4 py-10 space-y-4"><h1>Reverse Engineer Image to Prompt</h1><p>Upload any PNG, JPEG, or WebP reference image to extract a 6-axis visual breakdown and reusable prompt draft.</p></main>`,
+      staticBodyHtml: `<main class="mx-auto max-w-[1360px] px-4 py-10 space-y-4"><h1>Reverse Engineer Image to Prompt</h1><p>Upload any PNG, JPEG, or WebP reference image to extract a 6-axis visual breakdown and reusable prompt draft.</p><ol><li>Choose Image or Video Motion Prompt mode.</li><li>Upload a PNG, JPEG, or WebP reference image up to 4 MB.</li><li>Copy or load the reconstructed prompt into Composer.</li></ol></main>`,
     },
     {
       path: "/templates",
       meta: buildTemplateGallerySeo(templates, origin),
-      staticBodyHtml: `<main class="mx-auto max-w-[1360px] px-4 py-10 space-y-4"><h1>AI Prompt Template Gallery</h1><ul>${templates.map((t) => `<li><a href="/templates/${escapeHtml(t.slug)}">${escapeHtml(t.title)}</a> — ${escapeHtml(t.useCase)}</li>`).join("")}</ul><ol><li>Choose Image or Video Motion Prompt mode.</li><li>Upload a PNG, JPEG, or WebP reference image up to 4 MB.</li><li>Copy or load the reconstructed prompt into Composer.</li></ol></main>`,
+      staticBodyHtml: `<main class="mx-auto max-w-[1360px] px-4 py-10 space-y-4"><h1>AI Prompt Template Gallery</h1><ul>${templates.map((t) => `<li><a href="/templates/${escapeHtml(t.slug)}">${escapeHtml(t.title)}</a> — ${escapeHtml(t.useCase)}</li>`).join("")}</ul></main>`,
     },
     {
       path: "/pricing",
