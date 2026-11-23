@@ -1,4 +1,8 @@
 import "@testing-library/jest-dom/vitest";
+import { configure } from "@testing-library/react";
+
+// Give React.lazy route transitions enough headroom on contended 2-4 vCPU CI runners
+configure({ asyncUtilTimeout: 5000 });
 
 // Default VITE_API_URL, VITE_TURNSTILE_SITE_KEY, and POSTHOG_* to empty in component unit tests unless explicitly stubbed
 if (typeof import.meta.env === "object") {
