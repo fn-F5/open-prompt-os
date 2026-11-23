@@ -96,8 +96,8 @@ export function createRuntime(config: AppConfig) {
         streaming: event.streaming,
         maxOutputTokens: event.maxOutputTokens,
         timeoutMs: event.timeoutMs,
-        systemPrompt: event.systemPrompt,
-        userPrompt: event.userPrompt,
+        systemPromptChars: event.systemPrompt.length,
+        userPromptChars: event.userPrompt.length,
       });
     },
     onLlmResponse(event) {
@@ -109,7 +109,7 @@ export function createRuntime(config: AppConfig) {
         latencyMs: event.latencyMs,
         usage: event.usage,
         healed: event.healed,
-        responseText: event.text,
+        responseChars: event.text.length,
       });
     },
     onProviderFailure(event) {
