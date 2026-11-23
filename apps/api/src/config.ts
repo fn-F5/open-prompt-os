@@ -23,6 +23,7 @@ const optionalPositiveInt = (fallback: number) =>
     });
 
 const EnvSchema = z.object({
+  NODE_ENV: optionalSecret,
   PORT: optionalPositiveInt(3001),
   WEB_ORIGINS: z.string().optional(),
   GEMINI_API_KEY: optionalSecret,
@@ -53,6 +54,7 @@ const EnvSchema = z.object({
 });
 
 export interface AppConfig {
+  readonly nodeEnv: string;
   readonly port: number;
   readonly webOrigins: readonly string[];
   readonly geminiApiKey?: string;
@@ -88,6 +90,7 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     .map((origin) => origin.trim())
     .filter((origin) => origin.length > 0);
   return {
+    nodeEnv: parsed.NODE_ENV ?? process.env.NODE_ENV?.trim() ?? "",
     port: parsed.PORT,
     webOrigins: origins,
     geminiApiKey: parsed.GEMINI_API_KEY,

@@ -1,5 +1,8 @@
 import type { BillingProvider, PromptOrchestrator } from "@open-prompt-os/adapter-kit";
-import { createLocalBillingEmulator } from "@open-prompt-os/adapters";
+import {
+  createDisabledBillingProvider,
+  createLocalBillingEmulator,
+} from "@open-prompt-os/adapters";
 import type { Auth } from "@open-prompt-os/auth";
 import { redactSecrets } from "@open-prompt-os/core";
 import { prisma } from "@open-prompt-os/db";
@@ -42,7 +45,11 @@ export interface AppOptions {
 
 export function createApp(options: AppOptions) {
   const app = new Hono<ApiEnv>();
-  const billingProvider = options.billingProvider ?? createLocalBillingEmulator();
+  const isLocalDevOrTest =
+    process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test";
+  const billingProvider =
+    options.billingProvider ??
+    (isLocalDevOrTest ? createLocalBillingEmulator() : createDisabledBillingProvider());
   const router = createRouter({
     orchestrator: options.orchestrator,
     billingProvider,

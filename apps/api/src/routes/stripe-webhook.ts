@@ -6,6 +6,20 @@ import { reconcileCustomerSubscription } from "../services/billing-service.js";
 
 export function registerStripeWebhook(app: Hono<ApiEnv>, billingProvider: BillingProvider): void {
   app.post("/api/webhooks/stripe", async (c) => {
+    if (billingProvider.kind === "disabled") {
+      logger.warn("Rejected Stripe webhook while paid billing is disabled", {
+        event: "billing.webhook_disabled",
+      });
+      return c.json(
+        {
+          code: "BILLING_DISABLED",
+          message: "Billing webhooks are not enabled.",
+          requestId: c.get("requestId"),
+        },
+        503,
+      );
+    }
+
     const signature = c.req.header("stripe-signature") ?? null;
     const rawBody = await c.req.text();
     const parsed = billingProvider.parseWebhook(rawBody, signature);

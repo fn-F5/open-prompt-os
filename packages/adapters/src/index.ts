@@ -1,3 +1,4 @@
+export { createDisabledBillingProvider } from "./billing/disabled.js";
 export { createLocalBillingEmulator } from "./billing/emulator.js";
 export { createStripeBillingProvider } from "./billing/stripe.js";
 export { MODEL_CATALOG, lookupModel } from "./llm/catalog.js";

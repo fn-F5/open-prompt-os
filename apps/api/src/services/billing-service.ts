@@ -51,12 +51,25 @@ async function ensureStripeCustomerId(
   return { spaceId, customerId };
 }
 
+function assertPaidBillingEnabled(billingProvider: BillingProvider): void {
+  if (billingProvider.kind === "disabled") {
+    throw new ORPCError("FORBIDDEN", {
+      message: "Paid billing is currently unavailable.",
+    });
+  }
+}
+
+function isEmulatorAllowedEnv(): boolean {
+  return process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test";
+}
+
 export async function startCheckoutSession(
   actor: ResolvedActor,
   input: CheckoutInput,
   billingProvider: BillingProvider,
   webOrigin: string,
 ): Promise<{ url: string }> {
+  assertPaidBillingEnabled(billingProvider);
   const { spaceId, customerId } = await ensureStripeCustomerId(actor, billingProvider);
   const origin = webOrigin.replace(/\/$/, "");
   const checkout = await billingProvider.createCheckout({
@@ -101,6 +114,7 @@ export async function createCustomerPortalSession(
   billingProvider: BillingProvider,
   webOrigin: string,
 ): Promise<{ url: string }> {
+  assertPaidBillingEnabled(billingProvider);
   const { customerId } = await ensureStripeCustomerId(actor, billingProvider);
   const origin = webOrigin.replace(/\/$/, "");
   return billingProvider.createPortal({
@@ -228,9 +242,13 @@ export async function switchEmulatedPlan(
   input: EmulatePlanSwitchInput,
   billingProvider: BillingProvider,
 ): Promise<BillingStatus> {
-  if (billingProvider.kind !== "emulator" || !billingProvider.setEmulatedPlan) {
+  if (
+    !isEmulatorAllowedEnv() ||
+    billingProvider.kind !== "emulator" ||
+    !billingProvider.setEmulatedPlan
+  ) {
     throw new ORPCError("FORBIDDEN", {
-      message: "Emulated plan switching is only available in local emulator mode.",
+      message: "Emulated plan switching is only available in local development or test mode.",
     });
   }
 
