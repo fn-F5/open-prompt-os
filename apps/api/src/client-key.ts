@@ -19,9 +19,11 @@ export function clientKey(c: Context, trustProxy: TrustProxyMode): string {
   if (trustProxy === "cloudflare") {
     const cfIp = c.req.header("cf-connecting-ip")?.trim();
     if (cfIp) return cfIp;
-  } else if (trustProxy === "proxy") {
+  } else if (trustProxy === "proxy" || trustProxy === true) {
     // Behind a standard reverse proxy (Nginx/Railway/Render/ALB), ignore cf-connecting-ip
     // and use the rightmost X-Forwarded-For entry appended by the trusted proxy hop.
+    // Legacy TRUST_PROXY=true maps to this safe proxy behavior instead of trusting
+    // client-spoofable leftmost X-Forwarded-For or cf-connecting-ip headers.
     const rawXff = c.req.header("x-forwarded-for");
     if (rawXff) {
       const hops = rawXff
@@ -31,11 +33,6 @@ export function clientKey(c: Context, trustProxy: TrustProxyMode): string {
       const proxyAppended = hops.at(-1);
       if (proxyAppended) return proxyAppended;
     }
-  } else if (trustProxy === true) {
-    const cfIp = c.req.header("cf-connecting-ip")?.trim();
-    if (cfIp) return cfIp;
-    const forwarded = c.req.header("x-forwarded-for")?.split(",")[0]?.trim();
-    if (forwarded) return forwarded;
   }
   try {
     return getConnInfo(c).remote.address ?? "unknown";

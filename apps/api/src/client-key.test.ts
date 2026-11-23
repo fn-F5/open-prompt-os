@@ -61,4 +61,25 @@ describe("clientKey proxy spoofing protection", () => {
     });
     expect(await noneRes.text()).toBe("unknown");
   });
+
+  it("ignores spoofed cf-connecting-ip and leftmost X-Forwarded-For in legacy true mode", async () => {
+    const app = new Hono();
+    app.get("/legacy", (c) => c.text(clientKey(c, true)));
+
+    const res = await app.request("/legacy", {
+      headers: {
+        "cf-connecting-ip": "1.2.3.4",
+        "x-forwarded-for": "5.6.7.8, 198.51.100.10",
+      },
+    });
+    expect(await res.text()).toBe("198.51.100.10");
+
+    // Only spoofed cf-connecting-ip with no XFF does not get trusted in legacy true mode.
+    const cfOnlyRes = await app.request("/legacy", {
+      headers: {
+        "cf-connecting-ip": "1.2.3.4",
+      },
+    });
+    expect(await cfOnlyRes.text()).toBe("unknown");
+  });
 });

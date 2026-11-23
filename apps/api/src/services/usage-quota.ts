@@ -292,73 +292,49 @@ export async function reserveQuota(
       ? await lookupDailyLimit(plan, "compose").then((limit) => [limit, limit] as const)
       : await Promise.all([lookupDailyLimit(plan, action), lookupDailyLimit(plan, "compose")]);
 
-  let globalGuestRemaining = Number.POSITIVE_INFINITY;
-  if (isGuest) {
-    try {
-      const agg = await runAsSystem((tx) =>
-        tx.usageCounter.aggregate({
-          _sum: { count: true },
-          where: {
-            spaceId: null,
-            usageDate: today,
-          },
-        }),
-      );
-      const globalGuestUsage = agg._sum.count ?? 0;
-      const globalLimit = resolveGlobalGuestDailyLimit();
-      globalGuestRemaining = Math.max(0, globalLimit - globalGuestUsage);
-      if (globalGuestRemaining === 0) {
-        logger.warn("Global anonymous guest daily limit reached", {
-          event: "quota.global_guest_exhausted",
-          globalGuestUsage,
-          globalLimit,
-        });
-        return {
-          allowed: false,
-          remainingDaily: 0,
-          dailyLimit,
-          currentUsage: 0,
-          reserved: false,
-        };
-      }
-    } catch (error) {
-      logger.error("Global guest quota lookup failed", {
-        event: "quota.global_guest_lookup_failed",
-        err: error,
-      });
-      if (isProductionEnv()) {
-        throw new Error("Quota storage is temporarily unavailable.");
-      }
-    }
-  }
-
-  const lockKey = `quota:${actor.spaceId ?? actor.hashedClientKey}:${today.toISOString().slice(0, 10)}`;
+  const dateKey = today.toISOString().slice(0, 10);
 
   try {
-    return await runAsTenant(
-      {
-        spaceId: actor.spaceId,
-        userId: actor.userId,
-        clientKey: actor.spaceId ? undefined : actor.hashedClientKey,
-      },
-      async (tx) => {
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+    if (!actor.spaceId) {
+      // Serialize all guest reservations for the UTC day under a single global advisory lock
+      // inside one transaction so concurrent requests from different IPs cannot race past
+      // the global daily guest cap.
+      const globalGuestLockKey = `quota:global-guest:${dateKey}`;
+      const globalLimit = resolveGlobalGuestDailyLimit();
 
-        const rows = actor.spaceId
-          ? await tx.usageCounter.findMany({
-              where: { spaceId: actor.spaceId, usageDate: today },
-              select: { action: true, count: true },
-            })
-          : await tx.usageCounter.findMany({
-              where: { clientKey: actor.hashedClientKey, usageDate: today },
-              select: { action: true, count: true },
-            });
+      return await runAsSystem(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${globalGuestLockKey}))`;
+
+        const [agg, rows] = await Promise.all([
+          tx.usageCounter.aggregate({
+            _sum: { count: true },
+            where: {
+              spaceId: null,
+              usageDate: today,
+            },
+          }),
+          tx.usageCounter.findMany({
+            where: { clientKey: actor.hashedClientKey, usageDate: today },
+            select: { action: true, count: true },
+          }),
+        ]);
+
+        const globalGuestUsage = agg._sum.count ?? 0;
+        const globalGuestRemaining = Math.max(0, globalLimit - globalGuestUsage);
 
         let actionUsage = 0;
         let totalUsage = 0;
         for (const row of rows) {
           totalUsage += row.count;
           if (row.action === action) actionUsage += row.count;
+        }
+
+        if (globalGuestRemaining === 0) {
+          logger.warn("Global anonymous guest daily limit reached", {
+            event: "quota.global_guest_exhausted",
+            globalGuestUsage,
+            globalLimit,
+          });
         }
 
         const actionRemaining = Math.max(0, dailyLimit - actionUsage);
@@ -375,45 +351,90 @@ export async function reserveQuota(
           };
         }
 
-        if (actor.spaceId) {
-          await tx.usageCounter.upsert({
-            where: {
-              spaceId_usageDate_action: {
-                spaceId: actor.spaceId,
-                usageDate: today,
-                action,
-              },
-            },
-            create: {
-              spaceId: actor.spaceId,
-              usageDate: today,
-              action,
-              count: 1,
-            },
-            update: {
-              count: { increment: 1 },
-            },
-          });
-        } else {
-          await tx.usageCounter.upsert({
-            where: {
-              clientKey_usageDate_action: {
-                clientKey: actor.hashedClientKey,
-                usageDate: today,
-                action,
-              },
-            },
-            create: {
+        await tx.usageCounter.upsert({
+          where: {
+            clientKey_usageDate_action: {
               clientKey: actor.hashedClientKey,
               usageDate: today,
               action,
-              count: 1,
             },
-            update: {
-              count: { increment: 1 },
-            },
-          });
+          },
+          create: {
+            clientKey: actor.hashedClientKey,
+            usageDate: today,
+            action,
+            count: 1,
+          },
+          update: {
+            count: { increment: 1 },
+          },
+        });
+
+        return {
+          allowed: true,
+          remainingDaily: Math.max(0, minRemaining - 1),
+          dailyLimit,
+          currentUsage: actionUsage + 1,
+          reserved: true,
+        };
+      });
+    }
+
+    const spaceId = actor.spaceId;
+    const lockKey = `quota:${spaceId}:${dateKey}`;
+
+    return await runAsTenant(
+      {
+        spaceId,
+        userId: actor.userId,
+      },
+      async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+
+        const rows = await tx.usageCounter.findMany({
+          where: { spaceId, usageDate: today },
+          select: { action: true, count: true },
+        });
+
+        let actionUsage = 0;
+        let totalUsage = 0;
+        for (const row of rows) {
+          totalUsage += row.count;
+          if (row.action === action) actionUsage += row.count;
         }
+
+        const actionRemaining = Math.max(0, dailyLimit - actionUsage);
+        const totalRemaining = Math.max(0, totalDailyLimit - totalUsage);
+        const minRemaining = Math.min(actionRemaining, totalRemaining);
+
+        if (minRemaining <= 0) {
+          return {
+            allowed: false,
+            remainingDaily: 0,
+            dailyLimit,
+            currentUsage: actionUsage,
+            reserved: false,
+          };
+        }
+
+        await tx.usageCounter.upsert({
+          where: {
+            spaceId_usageDate_action: {
+              spaceId,
+              usageDate: today,
+              action,
+            },
+          },
+          create: {
+            spaceId,
+            usageDate: today,
+            action,
+            count: 1,
+          },
+          update: {
+            count: { increment: 1 },
+          },
+        });
 
         return {
           allowed: true,
