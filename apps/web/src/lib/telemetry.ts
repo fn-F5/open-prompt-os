@@ -1,4 +1,7 @@
+import { type AnalyticsEventName, trackAnalyticsEvent } from "./analytics-events.js";
+
 export type TelemetryEventName =
+  | "landing_page_loaded"
   | "composer_viewed"
   | "composer_mode_changed"
   | "prompt_generation_started"
@@ -85,14 +88,28 @@ export function sanitizeTelemetryProperties(
   return clean;
 }
 
+const TELEMETRY_TO_ANALYTICS_EVENT: Partial<Record<TelemetryEventName, AnalyticsEventName>> = {
+  composer_mode_changed: "composer:mode_button_click",
+  prompt_generation_started: "composer:compile_button_click",
+  advanced_controls_opened: "composer:advanced_controls_click",
+  dispatch_attempted: "output:dispatch_button_click",
+  prompt_saved: "output:save_button_click",
+  template_used: "templates:use_button_click",
+  feedback_submitted: "feedback:form_submit",
+  tour_started: "onboarding:tour_button_click",
+  tour_completed: "onboarding:tour_button_click",
+  hotspot_dismissed: "onboarding:hotspot_button_click",
+};
+
 export function trackEvent(
   event: TelemetryEventName,
   properties: Record<string, unknown> = {},
 ): TelemetryEventRecord {
   const headers = createCorrelationHeaders();
+  const cleanProperties = sanitizeTelemetryProperties(properties);
   const record: TelemetryEventRecord = {
     event,
-    properties: sanitizeTelemetryProperties(properties),
+    properties: cleanProperties,
     traceparent: headers.traceparent,
     requestId: headers["x-request-id"],
     timestamp: new Date().toISOString(),
@@ -101,6 +118,12 @@ export function trackEvent(
   if (telemetryHistory.length > 100) {
     telemetryHistory.shift();
   }
+
+  const mappedAnalyticsEvent = TELEMETRY_TO_ANALYTICS_EVENT[event];
+  if (mappedAnalyticsEvent) {
+    trackAnalyticsEvent(mappedAnalyticsEvent, cleanProperties);
+  }
+
   return record;
 }
 

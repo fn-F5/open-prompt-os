@@ -48,6 +48,8 @@ const EnvSchema = z.object({
   STRIPE_PRICE_PRO_YEARLY: optionalSecret,
   STRIPE_PRICE_TEAM_MONTHLY: optionalSecret,
   STRIPE_PRICE_TEAM_YEARLY: optionalSecret,
+  POSTHOG_KEY: optionalSecret,
+  POSTHOG_HOST: optionalSecret,
 });
 
 export interface AppConfig {
@@ -75,6 +77,8 @@ export interface AppConfig {
   readonly stripePriceProYearly?: string;
   readonly stripePriceTeamMonthly?: string;
   readonly stripePriceTeamYearly?: string;
+  readonly posthogKey?: string;
+  readonly posthogHost: string;
 }
 
 export function loadConfig(env: Record<string, string | undefined>): AppConfig {
@@ -108,5 +112,7 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     stripePriceProYearly: parsed.STRIPE_PRICE_PRO_YEARLY,
     stripePriceTeamMonthly: parsed.STRIPE_PRICE_TEAM_MONTHLY,
     stripePriceTeamYearly: parsed.STRIPE_PRICE_TEAM_YEARLY,
+    posthogKey: parsed.POSTHOG_KEY,
+    posthogHost: parsed.POSTHOG_HOST ?? "https://us.i.posthog.com",
   };
 }

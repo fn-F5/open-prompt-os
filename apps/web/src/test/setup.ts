@@ -1,9 +1,11 @@
 import "@testing-library/jest-dom/vitest";
 
-// Default VITE_API_URL and VITE_TURNSTILE_SITE_KEY to empty in component unit tests unless explicitly stubbed
+// Default VITE_API_URL, VITE_TURNSTILE_SITE_KEY, and POSTHOG_* to empty in component unit tests unless explicitly stubbed
 if (typeof import.meta.env === "object") {
   import.meta.env.VITE_API_URL = "";
   import.meta.env.VITE_TURNSTILE_SITE_KEY = "";
+  import.meta.env.POSTHOG_KEY = "";
+  import.meta.env.POSTHOG_HOST = "";
 }
 
 // Ensure standard Web Storage API methods exist in Node 26 + jsdom test environment

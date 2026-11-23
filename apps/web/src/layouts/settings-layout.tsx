@@ -3,6 +3,7 @@ import { Shield, User } from "lucide-react";
 import { Link, Outlet, useLocation } from "react-router";
 import { useAuthSession } from "../hooks/use-auth-session.js";
 import { CARD_HOVER_ANIMATION } from "../hooks/use-card-parallax.js";
+import { trackAnalyticsEvent } from "../lib/analytics-events.js";
 import { openAuthDialog } from "../state/auth-dialog-store.js";
 
 export function SettingsLayout() {
@@ -22,12 +23,17 @@ export function SettingsLayout() {
         </p>
         <Button
           variant="primary-inverse"
-          onClick={() =>
+          data-analytics-tracked="true"
+          onClick={() => {
+            trackAnalyticsEvent("auth:sign_in_button_click", {
+              source: "settings_auth_gate",
+              auth_mode: "signin",
+            });
             openAuthDialog({
               reason: "protected_route",
               intendedRoute: location.pathname,
-            })
-          }
+            });
+          }}
         >
           Sign in to continue
         </Button>
@@ -52,6 +58,13 @@ export function SettingsLayout() {
                 key={tab.to}
                 to={tab.to}
                 aria-current={active ? "page" : undefined}
+                data-analytics-tracked="true"
+                onClick={() =>
+                  trackAnalyticsEvent("navigation:settings_tab_click", {
+                    tab_name: tab.label.toLowerCase().replace(/[^a-z0-9]+/g, "_"),
+                    target_path: tab.to,
+                  })
+                }
                 className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-colors focus-ring ${
                   active
                     ? "bg-[var(--surface-inverse)] text-[var(--text-inverse)] font-medium"
