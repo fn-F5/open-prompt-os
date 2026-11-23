@@ -30,10 +30,14 @@ test.describe("07 - Quota Enforcement & PostgreSQL RLS Tenant Isolation @full", 
     await expect(page.getByText(/Estimated timestamps/i)).toBeVisible({ timeout: 10_000 });
 
     // Second run without resetting quota must be blocked by real Postgres usage_counters
+    // and prompt the guest to sign in via the auth dialog instead of showing a raw error banner
     await page.getByRole("button", { name: /Reverse Engineer Video/i }).click();
-    await expect(page.getByRole("dialog")).toContainText(/Daily Limit Reached/i, {
-      timeout: 10_000,
-    });
+    await expect(page.getByRole("dialog")).toContainText(
+      /Daily Limit Reached|Continue with a Free Workspace/i,
+      {
+        timeout: 10_000,
+      },
+    );
 
     // 2. RLS Tenant Isolation: Space A saves a secret prompt; Space B cannot see it
     await resetQuota(request);
