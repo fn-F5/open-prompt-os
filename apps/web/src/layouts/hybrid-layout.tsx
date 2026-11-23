@@ -141,8 +141,8 @@ export function HybridLayout() {
           isIndexRoute ? "min-h-[calc(100dvh-3.5rem)] sm:min-h-[calc(100dvh-4rem)] " : ""
         }${
           !isAuthenticated && isIndexRoute
-            ? "pt-4 pb-8 sm:pt-7 sm:pb-12"
-            : "pt-3 sm:pt-6 pb-8 sm:pb-12"
+            ? "pt-2.5 pb-8 sm:pt-4 sm:pb-12 [@media(max-height:640px)]:pt-2"
+            : "pt-2.5 sm:pt-5 pb-8 sm:pb-12 [@media(max-height:640px)]:pt-2"
         }`}
       >
         <div
@@ -242,7 +242,7 @@ export function HybridLayout() {
                     });
                     openFeedbackDialog({ defaultKind: "feature_request", source: "footer" });
                   }}
-                  className="hover:text-[var(--text-primary)] focus-ring rounded cursor-pointer text-left"
+                  className="hover:text-[var(--text-primary)] focus-ring rounded cursor-pointer text-left whitespace-nowrap"
                 >
                   Feedback &amp; Feature Requests
                 </button>

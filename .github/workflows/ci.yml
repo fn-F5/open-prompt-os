@@ -124,6 +124,9 @@ jobs:
     name: Full-Stack E2E Verification
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    container:
+      image: mcr.microsoft.com/playwright:v1.65.0-noble
+      options: --ipc=host
 
     services:
       postgres:
@@ -142,7 +145,7 @@ jobs:
 
     env:
       NODE_ENV: test
-      POSTGRES_HOST: localhost
+      POSTGRES_HOST: postgres
       POSTGRES_PORT: "5432"
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: ci_password
@@ -166,21 +169,6 @@ jobs:
 
       - name: Verify E2E suite integrity (no skips or .only)
         run: pnpm verify:e2e-integrity
-
-      - name: Cache Playwright Chromium
-        id: playwright-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-
-      - name: Install Playwright Chromium
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: pnpm --filter @open-prompt-os/web exec playwright install --with-deps chromium
-
-      - name: Install Playwright OS dependencies
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: pnpm --filter @open-prompt-os/web exec playwright install-deps chromium
 
       - name: Generate Prisma client
         run: pnpm --filter @open-prompt-os/db db:generate
@@ -208,6 +196,9 @@ jobs:
     name: Layout & Resolution Audit
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    container:
+      image: mcr.microsoft.com/playwright:v1.65.0-noble
+      options: --ipc=host
 
     services:
       postgres:
@@ -226,7 +217,7 @@ jobs:
 
     env:
       NODE_ENV: test
-      POSTGRES_HOST: localhost
+      POSTGRES_HOST: postgres
       POSTGRES_PORT: "5432"
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: ci_password
@@ -247,21 +238,6 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
-      - name: Cache Playwright Chromium
-        id: playwright-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-
-      - name: Install Playwright Chromium
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: pnpm --filter @open-prompt-os/web exec playwright install --with-deps chromium
-
-      - name: Install Playwright OS dependencies
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: pnpm --filter @open-prompt-os/web exec playwright install-deps chromium
 
       - name: Generate Prisma client
         run: pnpm --filter @open-prompt-os/db db:generate

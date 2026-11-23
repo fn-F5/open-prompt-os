@@ -114,7 +114,7 @@ export function MarketingNavbar() {
 
   return (
     <header className="sticky top-0 z-40 w-full glass-surface rounded-none border-t-0 border-x-0">
-      <div className="mx-auto max-w-[1360px] px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-3">
+      <div className="mx-auto max-w-[1360px] px-4 sm:px-6 lg:px-5 xl:px-8 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-3">
         <div className="flex items-center gap-2 xl:gap-5 min-w-0">
           <Link
             to="/"
@@ -125,9 +125,9 @@ export function MarketingNavbar() {
                 nav_surface: "marketing_navbar",
               })
             }
-            className="inline-flex items-center gap-2.5 sm:gap-3 font-bold tracking-tight text-base sm:text-lg whitespace-nowrap shrink-0 focus-ring rounded-xl py-1"
+            className="inline-flex items-center gap-2 xl:gap-3 font-bold tracking-tight text-sm sm:text-base xl:text-lg whitespace-nowrap shrink-0 focus-ring rounded-xl py-1"
           >
-            <BrandLogo className="w-9 h-9 shrink-0 shadow-sm" />
+            <BrandLogo className="w-8 h-8 xl:w-9 xl:h-9 shrink-0 shadow-sm" />
             <span>Open Prompt OS</span>
           </Link>
 
@@ -154,7 +154,7 @@ export function MarketingNavbar() {
                       is_authenticated: false,
                     })
                   }
-                  className={`inline-flex items-center gap-1.5 px-2 xl:px-2.5 py-1.5 rounded-xl text-xs xl:text-sm whitespace-nowrap shrink-0 transition-all focus-ring ${
+                  className={`inline-flex items-center gap-1.5 px-1.5 xl:px-2.5 py-1.5 rounded-xl text-xs xl:text-sm whitespace-nowrap shrink-0 transition-all focus-ring ${
                     isActive
                       ? "bg-[var(--accent-subtle-bg)] text-[var(--text-primary)] font-semibold border border-[var(--separator-strong)] shadow-sm"
                       : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)] font-medium border border-transparent"
@@ -173,12 +173,13 @@ export function MarketingNavbar() {
           </nav>
         </div>
 
-        <div className="hidden lg:flex items-center gap-2 xl:gap-3 shrink-0">
+        <div className="hidden lg:flex items-center gap-1.5 xl:gap-3 shrink-0">
           <Button
             variant="ghost"
             size="sm"
             aria-label="Send feedback or feature request"
-            className="whitespace-nowrap shrink-0"
+            title="Feedback & Feature Requests"
+            className="whitespace-nowrap shrink-0 px-2 xl:px-3"
             data-analytics-tracked="true"
             onClick={() => {
               trackAnalyticsEvent("feedback:open_button_click", {
@@ -189,7 +190,7 @@ export function MarketingNavbar() {
             }}
           >
             <MessageSquarePlus className="w-4 h-4 text-[var(--accent-text)]" aria-hidden="true" />
-            <span>Feedback</span>
+            <span className="hidden xl:inline">Feedback</span>
           </Button>
 
           <ThemeToggle theme={theme} onToggle={toggleTheme} />
