@@ -562,9 +562,16 @@ describe("Modern Web Guidance fixes", () => {
       expect(screen.getByText("Subin C")).toBeInTheDocument();
       expect(screen.queryByRole("link", { name: "Settings" })).toBeNull();
       expect(screen.queryByRole("button", { name: /Sign out/i })).toBeNull();
-      expect(screen.getByRole("link", { name: "Subin C" })).toHaveAttribute(
+
+      const profileButton = screen.getByRole("button", { name: "Subin C" });
+      fireEvent.click(profileButton);
+      expect(screen.getByRole("menuitem", { name: "Profile" })).toHaveAttribute(
         "href",
         "/settings/profile",
+      );
+      expect(screen.getByRole("menuitem", { name: "Plans & Pricing" })).toHaveAttribute(
+        "href",
+        "/pricing",
       );
 
       fireEvent.click(screen.getByRole("button", { name: "Open workspace menu" }));
