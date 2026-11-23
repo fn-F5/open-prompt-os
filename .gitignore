@@ -8,6 +8,7 @@ docs/internal/
 .env
 .stryker-tmp/
 reports/
+apps/web/e2e/resolution-report.json
 
 # Prisma generated client
 packages/db/src/generated/
