@@ -8,6 +8,7 @@ import { Badge, Button, Tabs, toast } from "@open-prompt-os/ui-web";
 import { useQuery } from "@tanstack/react-query";
 import { Check, ShieldCheck } from "lucide-react";
 import * as React from "react";
+import { useNavigate } from "react-router";
 import { useAuthSession } from "../../hooks/use-auth-session.js";
 import { shouldAnimateCard } from "../../hooks/use-card-parallax.js";
 import { orpcClient } from "../../lib/orpc.js";
@@ -32,6 +33,7 @@ export function PricingPlansSection({
   showPrivacyBanner = false,
 }: PricingPlansSectionProps) {
   const { isAuthenticated, user } = useAuthSession();
+  const navigate = useNavigate();
   const [interval, setInterval] = React.useState<BillingInterval>("yearly");
   const [loadingPlan, setLoadingPlan] = React.useState<UpgradeInterestPlan | null>(null);
   const [interestModalPlan, setInterestModalPlan] = React.useState<PricingPlanItem | null>(null);
@@ -57,7 +59,10 @@ export function PricingPlansSection({
   };
 
   const handlePlanSelect = async (plan: PricingPlanItem) => {
-    if (plan.id === "free") return;
+    if (plan.id === "free") {
+      navigate("/");
+      return;
+    }
     const upgradePlan: UpgradeInterestPlan = plan.id;
 
     setInterestError(null);
@@ -163,12 +168,12 @@ export function PricingPlansSection({
           onValueChange={setInterval}
           options={[
             { value: "monthly", label: "Monthly" },
-            { value: "yearly", label: "Yearly", badge: "Save 50%" },
+            { value: "yearly", label: "Yearly", badge: "Save More" },
           ]}
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6 items-stretch pt-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 items-stretch pt-2">
         {plans.map((plan) => {
           const displayedPrice = interval === "yearly" ? plan.yearlyPriceUsd : plan.monthlyPriceUsd;
           const isHighlighted = plan.highlighted;
@@ -177,7 +182,7 @@ export function PricingPlansSection({
             <div
               key={plan.id}
               data-animate={shouldAnimateCard("pricingPlanCard", isAuthenticated)}
-              className={`rounded-3xl p-6 sm:p-8 flex flex-col justify-between gap-6 sm:gap-8 ${
+              className={`rounded-3xl p-6 flex flex-col justify-between gap-6 ${
                 isHighlighted ? "glow-card overflow-hidden" : "flat-surface"
               }`}
             >

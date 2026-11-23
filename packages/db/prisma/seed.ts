@@ -10,22 +10,22 @@ const PLAN_LIMITS: Array<{
   {
     plan: "free",
     isGuest: true,
-    limits: { compose: 5, refine: 3, autopsy: 2, reverse_engineer: 1 },
+    limits: { compose: 5, refine: 5, autopsy: 2, reverse_engineer: 2 },
   },
   {
     plan: "free",
     isGuest: false,
-    limits: { compose: 20, refine: 10, autopsy: 5, reverse_engineer: 3 },
+    limits: { compose: 5, refine: 5, autopsy: 2, reverse_engineer: 2 },
   },
   {
     plan: "pro",
     isGuest: false,
-    limits: { compose: 500, refine: 250, autopsy: 100, reverse_engineer: 50 },
+    limits: { compose: 20, refine: 20, autopsy: 10, reverse_engineer: 5 },
   },
   {
     plan: "team",
     isGuest: false,
-    limits: { compose: 2000, refine: 1000, autopsy: 500, reverse_engineer: 200 },
+    limits: { compose: 30, refine: 30, autopsy: 20, reverse_engineer: 10 },
   },
 ];
 

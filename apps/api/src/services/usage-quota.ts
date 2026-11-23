@@ -26,16 +26,16 @@ export function getTomorrowUtcMidnight(): Date {
 }
 
 const DEFAULT_LIMITS: Record<PlanTier, Record<UsageAction, number>> = {
-  free: { compose: 20, refine: 10, autopsy: 5, reverse_engineer: 3 },
-  pro: { compose: 500, refine: 250, autopsy: 100, reverse_engineer: 50 },
-  team: { compose: 2000, refine: 1000, autopsy: 500, reverse_engineer: 200 },
+  free: { compose: 5, refine: 5, autopsy: 2, reverse_engineer: 2 },
+  pro: { compose: 20, refine: 20, autopsy: 10, reverse_engineer: 5 },
+  team: { compose: 30, refine: 30, autopsy: 20, reverse_engineer: 10 },
 };
 
 const GUEST_DEFAULT_LIMITS: Record<UsageAction, number> = {
   compose: 5,
-  refine: 3,
+  refine: 5,
   autopsy: 2,
-  reverse_engineer: 1,
+  reverse_engineer: 2,
 };
 
 export interface QuotaCheckResult {

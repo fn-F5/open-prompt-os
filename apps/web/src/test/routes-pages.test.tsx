@@ -264,32 +264,48 @@ describe("Web Route Pages & AuthGate", () => {
       expect(plansSpy).toHaveBeenCalledTimes(2);
     });
 
-    it("defaults to annual 50% savings with Pro Studio ($8/mo), Team Space ($16/mo), and BYOK as the final card", async () => {
+    it("defaults to annual Save More with Free, Pro Studio, Team Space, and BYOK as the final card", async () => {
       renderRoute(<PricingPage />, ["/pricing"], "/pricing");
 
       expect(screen.queryByText("Starter Workspace")).toBeNull();
-      expect(screen.queryByText("Power Users")).toBeNull();
+      expect(screen.getByText("Power Users")).toBeInTheDocument();
 
       const yearlyTab = screen.getByRole("tab", { name: /Yearly/i });
       expect(yearlyTab).toHaveAttribute("aria-selected", "true");
-      expect(yearlyTab).toHaveTextContent("Save 50%");
+      expect(yearlyTab).toHaveTextContent("Save More");
 
-      // Yearly prices by default (50% off $8, $16, and $2)
+      // Yearly prices by default ($0, $6, $12, $4)
       await waitFor(() => {
+        expect(screen.getByText("$0")).toBeInTheDocument();
+        expect(screen.getByText("$6")).toBeInTheDocument();
+        expect(screen.getByText("$12")).toBeInTheDocument();
         expect(screen.getByText("$4")).toBeInTheDocument();
-        expect(screen.getByText("$8")).toBeInTheDocument();
-        expect(screen.getByText("$1")).toBeInTheDocument();
       });
 
       const headings = screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
-      expect(headings).toEqual(["Pro Studio", "Team Space", "BYOK"]);
+      expect(headings).toEqual(["Free", "Pro Studio", "Team Space", "BYOK"]);
 
-      // Monthly prices when switched to Monthly
+      // Daily request limits per plan
+      expect(screen.getByText("5 Compile requests / day")).toBeInTheDocument();
+      expect(screen.getByText("2 Prompt Autopsy requests / day")).toBeInTheDocument();
+      expect(screen.getByText("2 Reverse Engineer requests / day")).toBeInTheDocument();
+      expect(screen.getByText("20 Compile requests / day")).toBeInTheDocument();
+      expect(screen.getByText("10 Prompt Autopsy requests / day")).toBeInTheDocument();
+      expect(screen.getByText("5 Reverse Engineer requests / day")).toBeInTheDocument();
+      expect(screen.getByText("30 Compile requests / day")).toBeInTheDocument();
+      expect(screen.getByText("20 Prompt Autopsy requests / day")).toBeInTheDocument();
+      expect(screen.getByText("10 Reverse Engineer requests / day")).toBeInTheDocument();
+      expect(
+        screen.getByText("Unlimited Compile, Autopsy & Reverse Engineer requests / day"),
+      ).toBeInTheDocument();
+
+      // Monthly prices when switched to Monthly ($0, $8, $16, $5)
       fireEvent.click(screen.getByRole("tab", { name: /Monthly/i }));
       await waitFor(() => {
+        expect(screen.getByText("$0")).toBeInTheDocument();
         expect(screen.getByText("$8")).toBeInTheDocument();
         expect(screen.getByText("$16")).toBeInTheDocument();
-        expect(screen.getByText("$2")).toBeInTheDocument();
+        expect(screen.getByText("$5")).toBeInTheDocument();
       });
     });
   });
