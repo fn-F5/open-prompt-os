@@ -111,6 +111,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react(), tailwindcss(), seoAndAeoPlugin(siteOrigin)],
     envDir: "../..",
+    envPrefix: ["VITE_", "POSTHOG_"],
     server: {
       port: 5173,
       proxy: {

@@ -15,20 +15,49 @@ import { useCardParallax } from "../hooks/use-card-parallax.js";
 import { useGuestHydration } from "../hooks/use-guest-hydration.js";
 import { useIdleTour } from "../hooks/use-idle-tour.js";
 import { useReducedEffects } from "../hooks/use-reduced-effects.js";
+import { trackAnalyticsEvent } from "../lib/analytics-events.js";
+import { identifyPostHogUser, resetPostHogUser } from "../lib/posthog.js";
 import { flushPendingSignupReferral } from "../lib/signup-referral.js";
 import { openAuthDialog, useAuthDialogStore } from "../state/auth-dialog-store.js";
 import { useComposerStore } from "../state/composer-store.js";
 import { openFeedbackDialog } from "../state/feedback-dialog-store.js";
 
 export function HybridLayout() {
-  const { isAuthenticated, isLoading } = useAuthSession();
+  const { isAuthenticated, isLoading, user } = useAuthSession();
   const { isOpen: isAuthDialogOpen } = useAuthDialogStore();
   const { streamingBuffer } = useComposerStore();
   const { prefersReducedMotion, shouldReduceEffects } = useReducedEffects();
   const location = useLocation();
+  const lastTrackedPathRef = React.useRef<string | null>(null);
+  const identifiedUserIdRef = React.useRef<string | null>(null);
 
   // Trigger post-authentication guest interaction migration
   useGuestHydration();
+
+  // Identify authenticated user in PostHog with internal UUID (no PII)
+  React.useEffect(() => {
+    if (isLoading) return;
+    if (isAuthenticated && user?.id) {
+      if (identifiedUserIdRef.current !== user.id) {
+        identifyPostHogUser(user.id);
+        identifiedUserIdRef.current = user.id;
+      }
+    } else if (identifiedUserIdRef.current !== null) {
+      resetPostHogUser();
+      identifiedUserIdRef.current = null;
+    }
+  }, [isAuthenticated, isLoading, user?.id]);
+
+  // Track route views across SPA navigation
+  React.useEffect(() => {
+    if (isLoading) return;
+    if (lastTrackedPathRef.current === location.pathname) return;
+    lastTrackedPathRef.current = location.pathname;
+    trackAnalyticsEvent("navigation:route_view", {
+      route_path: location.pathname,
+      is_authenticated: isAuthenticated,
+    });
+  }, [isAuthenticated, isLoading, location.pathname]);
 
   // Flush any pending OAuth signup attribution once authenticated
   React.useEffect(() => {
@@ -150,6 +179,14 @@ export function HybridLayout() {
                 href="https://github.com/fn-F5/open-prompt-os"
                 target="_blank"
                 rel="noopener noreferrer"
+                data-analytics-tracked="true"
+                onClick={() =>
+                  trackAnalyticsEvent("navigation:footer_link_click", {
+                    link_name: "github",
+                    target_path: "https://github.com/fn-F5/open-prompt-os",
+                    is_external: true,
+                  })
+                }
                 className="inline-flex items-center gap-2.5 text-base font-medium text-[var(--text-primary)] hover:text-[var(--accent-text)] transition-colors focus-ring rounded"
               >
                 <GitHubLogo className="w-5 h-5 shrink-0" />
@@ -187,9 +224,14 @@ export function HybridLayout() {
               <li>
                 <button
                   type="button"
-                  onClick={() =>
-                    openFeedbackDialog({ defaultKind: "feature_request", source: "footer" })
-                  }
+                  data-analytics-tracked="true"
+                  onClick={() => {
+                    trackAnalyticsEvent("feedback:open_button_click", {
+                      source: "footer",
+                      feedback_kind: "feature_request",
+                    });
+                    openFeedbackDialog({ defaultKind: "feature_request", source: "footer" });
+                  }}
                   className="hover:text-[var(--text-primary)] focus-ring rounded cursor-pointer text-left"
                 >
                   Feedback &amp; Feature Requests
@@ -285,7 +327,14 @@ export function HybridLayout() {
                 <Button
                   variant="solid"
                   size="sm"
-                  onClick={() => openAuthDialog({ reason: "navbar_signin", mode: "signup" })}
+                  data-analytics-tracked="true"
+                  onClick={() => {
+                    trackAnalyticsEvent("auth:get_started_button_click", {
+                      source: "footer",
+                      auth_mode: "signup",
+                    });
+                    openAuthDialog({ reason: "navbar_signin", mode: "signup" });
+                  }}
                 >
                   Sign in / Create Account
                 </Button>

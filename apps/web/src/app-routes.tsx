@@ -3,6 +3,7 @@ import * as React from "react";
 import { Navigate, Route, Routes } from "react-router";
 import { HybridLayout } from "./layouts/hybrid-layout.js";
 import { SettingsLayout } from "./layouts/settings-layout.js";
+import { capturePostHogException } from "./lib/posthog.js";
 import { ComposerPage } from "./routes/composer-page.js";
 import { NotFoundPage } from "./routes/not-found-page.js";
 
@@ -51,6 +52,13 @@ class RouteErrorBoundary extends React.Component<
       hasError: true,
       message: error instanceof Error ? error.message : "Failed to load application route.",
     };
+  }
+
+  override componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    capturePostHogException(error, {
+      source: "route_error_boundary",
+      componentStack: errorInfo.componentStack,
+    });
   }
 
   override render() {

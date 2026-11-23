@@ -20,6 +20,7 @@ import {
   resolveRequestId,
   runWithRequestContext,
 } from "./logger.js";
+import type { ApiErrorTracker } from "./posthog.js";
 import { createRouter } from "./router.js";
 import { registerComposeStream } from "./routes/compose-stream.js";
 import { registerVideoReverseEngineerStream } from "./routes/reverse-engineer-video-stream.js";
@@ -35,6 +36,7 @@ export interface AppOptions {
   auth?: Auth;
   oauthProviders?: { google: boolean; github: boolean };
   e2eHarness?: E2eHarnessOptions;
+  errorTracker?: ApiErrorTracker;
   log?: (line: string) => void;
 }
 
@@ -332,6 +334,18 @@ export function createApp(options: AppOptions) {
         status: response.status,
         errorBody: errorText.slice(0, 1000),
       });
+      options.errorTracker?.captureException(
+        new Error(
+          `oRPC server error (${response.status}): ${redactSecrets(errorText.slice(0, 500))}`,
+        ),
+        {
+          requestId,
+          path: c.req.path,
+          method: c.req.method,
+          status: response.status,
+          source: "rpc.error",
+        },
+      );
       const safe = toUserFacingServerError(new Error(errorText));
       const headers = new Headers(response.headers);
       headers.set("content-type", "application/json; charset=utf-8");
@@ -359,6 +373,13 @@ export function createApp(options: AppOptions) {
       event: "http.unhandled_error",
       path: c.req.path,
       err: error,
+    });
+    options.errorTracker?.captureException(error, {
+      requestId,
+      path: c.req.path,
+      method: c.req.method,
+      status: 500,
+      source: "http.unhandled_error",
     });
     const safe = toUserFacingServerError(error);
     return c.json(
