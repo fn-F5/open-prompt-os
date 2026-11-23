@@ -6,5 +6,6 @@
   "checkers": ["typescript"],
   "tsconfigFile": "tsconfig.json",
   "mutate": ["src/**/*.ts", "!src/**/*.test.ts"],
+  "ignoreStatic": true,
   "reporters": ["clear-text", "progress"]
 }
