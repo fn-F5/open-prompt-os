@@ -11,13 +11,14 @@ import { prisma } from "@open-prompt-os/db";
 import type { Context, Hono } from "hono";
 import type { ApiEnv } from "../app-env.js";
 import { type ResolvedActor, resolveActor } from "../auth/session-resolver.js";
+import type { TrustProxyMode } from "../client-key.js";
 import { toUserFacingServerError } from "../errors.js";
 import { enrichRequestContext, logger } from "../logger.js";
 import { checkQuota, recordPromptGeneration, recordUsage } from "../services/usage-quota.js";
 
 export interface VideoReverseEngineerStreamDeps {
   orchestrator: PromptOrchestrator;
-  trustProxy: boolean;
+  trustProxy: TrustProxyMode;
   auth?: Auth;
 }
 

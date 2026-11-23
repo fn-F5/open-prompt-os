@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import type { Auth } from "@open-prompt-os/auth";
 import { prisma, runAsSystem } from "@open-prompt-os/db";
 import type { Context } from "hono";
-import { clientKey } from "../client-key.js";
+import { type TrustProxyMode, clientKey } from "../client-key.js";
 import { logger } from "../logger.js";
 
 export interface ResolvedActor {
@@ -73,7 +73,7 @@ function parseCookie(cookieHeader: string | undefined, name: string): string | u
  */
 export async function resolveActor(
   c: Context,
-  trustProxy: boolean,
+  trustProxy: TrustProxyMode,
   auth?: Auth,
 ): Promise<ResolvedActor> {
   const rawKey = clientKey(c, trustProxy);

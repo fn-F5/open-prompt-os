@@ -5,6 +5,7 @@ import { evaluatePromptQuality, extractDraftSupplementalText } from "@open-promp
 import type { Context, Hono } from "hono";
 import type { ApiEnv } from "../app-env.js";
 import { resolveActor } from "../auth/session-resolver.js";
+import type { TrustProxyMode } from "../client-key.js";
 import { toUserFacingServerError } from "../errors.js";
 import { enrichRequestContext, logger } from "../logger.js";
 import { checkQuota, recordPromptGeneration, recordUsage } from "../services/usage-quota.js";
@@ -12,7 +13,7 @@ import { checkQuota, recordPromptGeneration, recordUsage } from "../services/usa
 export interface ComposeStreamDeps {
   orchestrator: PromptOrchestrator;
   allowRequest: (key: string) => boolean;
-  trustProxy: boolean;
+  trustProxy: TrustProxyMode;
   auth?: Auth;
 }
 

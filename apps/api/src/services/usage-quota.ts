@@ -10,6 +10,7 @@ import {
   Prisma,
   type UsageAction,
   prisma,
+  runAsSystem,
   runAsTenant,
 } from "@open-prompt-os/db";
 import type { ResolvedActor } from "../auth/session-resolver.js";
@@ -37,6 +38,15 @@ const GUEST_DEFAULT_LIMITS: Record<UsageAction, number> = {
   autopsy: 2,
   reverse_engineer: 1,
 };
+
+const DEFAULT_GLOBAL_GUEST_DAILY_LIMIT = 500;
+
+function resolveGlobalGuestDailyLimit(): number {
+  const raw = process.env.GLOBAL_GUEST_DAILY_LIMIT?.trim();
+  if (!raw) return DEFAULT_GLOBAL_GUEST_DAILY_LIMIT;
+  const parsed = Number(raw);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : DEFAULT_GLOBAL_GUEST_DAILY_LIMIT;
+}
 
 export interface QuotaCheckResult {
   readonly allowed: boolean;
@@ -125,8 +135,30 @@ export async function checkQuota(
     }
   };
 
+  const lookupGlobalGuestUsage = async (): Promise<number> => {
+    try {
+      const agg = await runAsSystem((tx) =>
+        tx.usageCounter.aggregate({
+          _sum: { count: true },
+          where: {
+            spaceId: null,
+            usageDate: today,
+          },
+        }),
+      );
+      return agg._sum.count ?? 0;
+    } catch (error) {
+      logger.error("Global guest quota lookup failed; falling back to per-IP quota", {
+        event: "quota.global_guest_lookup_failed",
+        err: error,
+      });
+      return 0;
+    }
+  };
+
   let plan: PlanTier = "free";
   let usage: { actionUsage: number; totalUsage: number };
+  let globalGuestRemaining = Number.POSITIVE_INFINITY;
 
   if (actor.spaceId) {
     const spaceId = actor.spaceId;
@@ -149,7 +181,20 @@ export async function checkQuota(
     plan = space?.plan ?? "free";
     usage = todayUsage;
   } else {
-    usage = await lookupTodayUsage();
+    const [todayUsage, globalGuestUsage] = await Promise.all([
+      lookupTodayUsage(),
+      lookupGlobalGuestUsage(),
+    ]);
+    usage = todayUsage;
+    const globalLimit = resolveGlobalGuestDailyLimit();
+    globalGuestRemaining = Math.max(0, globalLimit - globalGuestUsage);
+    if (globalGuestRemaining === 0) {
+      logger.warn("Global anonymous guest daily limit reached", {
+        event: "quota.global_guest_exhausted",
+        globalGuestUsage,
+        globalLimit,
+      });
+    }
   }
 
   const [dailyLimit, totalDailyLimit] =
@@ -159,7 +204,7 @@ export async function checkQuota(
 
   const actionRemaining = Math.max(0, dailyLimit - usage.actionUsage);
   const totalRemaining = Math.max(0, totalDailyLimit - usage.totalUsage);
-  const remainingDaily = Math.min(actionRemaining, totalRemaining);
+  const remainingDaily = Math.min(actionRemaining, totalRemaining, globalGuestRemaining);
   return {
     allowed: remainingDaily > 0,
     remainingDaily,

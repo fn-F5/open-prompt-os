@@ -13,7 +13,7 @@ import { cors } from "hono/cors";
 import { z } from "zod";
 import type { ApiEnv } from "./app-env.js";
 import { resolveActor } from "./auth/session-resolver.js";
-import { clientKey } from "./client-key.js";
+import { type TrustProxyMode, clientKey } from "./client-key.js";
 import { type E2eHarnessOptions, registerE2eRoutes } from "./e2e-harness.js";
 import { toUserFacingServerError } from "./errors.js";
 import {
@@ -34,7 +34,7 @@ export interface AppOptions {
   orchestrator: PromptOrchestrator;
   billingProvider?: BillingProvider;
   webOrigins: readonly string[];
-  trustProxy: boolean;
+  trustProxy: TrustProxyMode;
   allowRequest: (key: string) => boolean;
   auth?: Auth;
   oauthProviders?: { google: boolean; github: boolean };

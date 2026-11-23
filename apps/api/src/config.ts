@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { type TrustProxyMode, parseTrustProxyMode } from "./client-key.js";
 
 const optionalSecret = z
   .string()
@@ -42,6 +43,7 @@ const EnvSchema = z.object({
   OLLAMA_MODEL: optionalSecret,
   LLM_TIMEOUT_MS: optionalPositiveInt(30_000),
   RATE_LIMIT_PER_MINUTE: optionalPositiveInt(30),
+  GLOBAL_GUEST_DAILY_LIMIT: optionalPositiveInt(500),
   TRUST_PROXY: z.string().optional(),
   STRIPE_SECRET_KEY: optionalSecret,
   STRIPE_WEBHOOK_SECRET: optionalSecret,
@@ -72,7 +74,8 @@ export interface AppConfig {
   readonly ollamaModel?: string;
   readonly llmTimeoutMs: number;
   readonly rateLimitPerMinute: number;
-  readonly trustProxy: boolean;
+  readonly globalGuestDailyLimit: number;
+  readonly trustProxy: TrustProxyMode;
   readonly stripeSecretKey?: string;
   readonly stripeWebhookSecret?: string;
   readonly stripePriceProMonthly?: string;
@@ -108,7 +111,8 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     ollamaModel: parsed.OLLAMA_MODEL,
     llmTimeoutMs: parsed.LLM_TIMEOUT_MS,
     rateLimitPerMinute: parsed.RATE_LIMIT_PER_MINUTE,
-    trustProxy: parsed.TRUST_PROXY === "true",
+    globalGuestDailyLimit: parsed.GLOBAL_GUEST_DAILY_LIMIT,
+    trustProxy: parseTrustProxyMode(parsed.TRUST_PROXY),
     stripeSecretKey: parsed.STRIPE_SECRET_KEY,
     stripeWebhookSecret: parsed.STRIPE_WEBHOOK_SECRET,
     stripePriceProMonthly: parsed.STRIPE_PRICE_PRO_MONTHLY,
