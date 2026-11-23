@@ -163,10 +163,12 @@ export function AuthDialog({ turnstileSiteKey }: { turnstileSiteKey?: string | n
     }
   };
 
+  const isCaptchaRequired = step === "email" && Boolean(siteKey) && !captchaToken;
+
   const handleEmailSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
-    if (step === "email" && siteKey && !captchaToken) {
+    if (isCaptchaRequired) {
       setError("Please complete the verification check before continuing.");
       return;
     }
@@ -218,6 +220,10 @@ export function AuthDialog({ turnstileSiteKey }: { turnstileSiteKey?: string | n
 
   const handleSocialSignIn = async (provider: "google" | "github") => {
     setError(null);
+    if (isCaptchaRequired) {
+      setError("Please complete the verification check before continuing.");
+      return;
+    }
     setIsSubmitting(true);
     if (showSignupAttribution && referralSource) {
       savePendingSignupReferral({
@@ -280,7 +286,7 @@ export function AuthDialog({ turnstileSiteKey }: { turnstileSiteKey?: string | n
               <button
                 type="button"
                 className="w-full min-h-[40px] sm:min-h-[44px] px-4 py-2 rounded-xl inline-flex items-center justify-center gap-3 text-sm font-medium bg-white hover:bg-[#F8FAFC] text-[#1F1F1F] border border-[#D7DDE5] shadow-xs transition-all duration-150 focus-ring disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
-                disabled={isSubmitting}
+                disabled={isSubmitting || isCaptchaRequired}
                 onClick={() => void handleSocialSignIn("google")}
               >
                 <GoogleLogo />
@@ -291,7 +297,7 @@ export function AuthDialog({ turnstileSiteKey }: { turnstileSiteKey?: string | n
               <button
                 type="button"
                 className="w-full min-h-[40px] sm:min-h-[44px] px-4 py-2 rounded-xl inline-flex items-center justify-center gap-3 text-sm font-medium bg-[#24292F] hover:bg-[#1B1F24] text-white border border-white/12 shadow-xs transition-all duration-150 focus-ring disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
-                disabled={isSubmitting}
+                disabled={isSubmitting || isCaptchaRequired}
                 onClick={() => void handleSocialSignIn("github")}
               >
                 <GitHubLogo />
@@ -460,7 +466,7 @@ export function AuthDialog({ turnstileSiteKey }: { turnstileSiteKey?: string | n
             type="submit"
             variant="primary-inverse"
             size="sm"
-            disabled={isSubmitting || (step === "email" && Boolean(siteKey) && !captchaToken)}
+            disabled={isSubmitting || isCaptchaRequired}
           >
             {isSubmitting ? "Working..." : step === "code" ? "Verify code" : "Email me a code"}
           </Button>

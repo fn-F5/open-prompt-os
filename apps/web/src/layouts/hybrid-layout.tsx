@@ -314,7 +314,7 @@ export function HybridLayout() {
                 </li>
                 <li>
                   <Link
-                    to="/history"
+                    to="/library?tab=history"
                     className="hover:text-[var(--text-primary)] focus-ring rounded"
                   >
                     Prompt History

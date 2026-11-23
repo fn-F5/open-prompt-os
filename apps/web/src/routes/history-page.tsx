@@ -25,9 +25,8 @@ const KIND_LABELS: Record<GenerationKind, string> = {
 type KindFilter = "all" | GenerationKind;
 type ModeFilter = "all" | ComposerMode;
 
-export function HistoryPage() {
+export function HistoryPanel() {
   const { isAuthenticated } = useAuthSession();
-  const location = useLocation();
   const navigate = useNavigate();
   const qc = useQueryClient();
 
@@ -95,44 +94,6 @@ export function HistoryPage() {
     },
   });
 
-  const noindexMeta = React.useMemo(
-    () => ({
-      title: "Interaction History | Open Prompt OS",
-      description: "Private interaction history for Open Prompt OS workspace.",
-      canonicalPath: "/history",
-      noindex: true,
-    }),
-    [],
-  );
-
-  if (!isAuthenticated) {
-    return (
-      <section
-        data-animate={CARD_HOVER_ANIMATION.historyAuthGate}
-        className="rounded-2xl p-8 flat-surface text-center max-w-lg mx-auto my-8 space-y-4"
-      >
-        <SeoHead meta={noindexMeta} />
-        <Badge variant="framework">Activity Ledger</Badge>
-        <h1 className="text-2xl font-semibold">Sign in to access Interaction History</h1>
-        <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
-          Review all past prompt generations, improvements, autopsies, and reverse-engineered
-          prompts in your workspace.
-        </p>
-        <Button
-          variant="primary-inverse"
-          onClick={() =>
-            openAuthDialog({
-              reason: "protected_route",
-              intendedRoute: location.pathname,
-            })
-          }
-        >
-          Sign in to unlock History
-        </Button>
-      </section>
-    );
-  }
-
   const items: PromptGenerationItem[] =
     generationsQuery.data?.pages.flatMap((page) => page.items) ?? [];
   const hasFilters = kindFilter !== "all" || modeFilter !== "all" || Boolean(search.trim());
@@ -153,19 +114,6 @@ export function HistoryPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div>
-          <Badge variant="framework">Workspace Activity Ledger</Badge>
-          <h1 className="mt-2 text-2xl sm:text-3xl font-semibold tracking-tight">
-            Interaction History
-          </h1>
-          <p className="mt-1 text-xs sm:text-sm text-[var(--text-secondary)]">
-            Automatic chronological log of all Prompt Generation, Improve, Autopsy, and Reverse
-            Engineer runs.
-          </p>
-        </div>
-      </div>
-
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Tabs
@@ -257,9 +205,6 @@ export function HistoryPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="framework">{KIND_LABELS[item.kind]}</Badge>
                   <Badge variant="neutral">{item.mode.toUpperCase()}</Badge>
-                  <span className="font-mono text-xs text-[var(--text-secondary)]">
-                    {item.latencyMs}ms
-                  </span>
                 </div>
                 <time
                   dateTime={item.createdAt}
@@ -351,6 +296,69 @@ export function HistoryPage() {
           ) : null}
         </div>
       )}
+    </div>
+  );
+}
+
+export function HistoryPage() {
+  const { isAuthenticated } = useAuthSession();
+  const location = useLocation();
+
+  const noindexMeta = React.useMemo(
+    () => ({
+      title: "Interaction History | Open Prompt OS",
+      description: "Private interaction history for Open Prompt OS workspace.",
+      canonicalPath: "/history",
+      noindex: true,
+    }),
+    [],
+  );
+
+  if (!isAuthenticated) {
+    return (
+      <section
+        data-animate={CARD_HOVER_ANIMATION.historyAuthGate}
+        className="rounded-2xl p-8 flat-surface text-center max-w-lg mx-auto my-8 space-y-4"
+      >
+        <SeoHead meta={noindexMeta} />
+        <Badge variant="framework">Activity Ledger</Badge>
+        <h1 className="text-2xl font-semibold">Sign in to access Interaction History</h1>
+        <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
+          Review all past prompt generations, improvements, autopsies, and reverse-engineered
+          prompts in your workspace.
+        </p>
+        <Button
+          variant="primary-inverse"
+          onClick={() =>
+            openAuthDialog({
+              reason: "protected_route",
+              intendedRoute: location.pathname,
+            })
+          }
+        >
+          Sign in to unlock History
+        </Button>
+      </section>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <SeoHead meta={noindexMeta} />
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div>
+          <Badge variant="framework">Workspace Activity Ledger</Badge>
+          <h1 className="mt-2 text-2xl sm:text-3xl font-semibold tracking-tight">
+            Interaction History
+          </h1>
+          <p className="mt-1 text-xs sm:text-sm text-[var(--text-secondary)]">
+            Automatic chronological log of all Prompt Generation, Improve, Autopsy, and Reverse
+            Engineer runs.
+          </p>
+        </div>
+      </div>
+
+      <HistoryPanel />
     </div>
   );
 }

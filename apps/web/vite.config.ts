@@ -19,29 +19,52 @@ function seoAndAeoPlugin(siteOrigin: string): Plugin {
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
         const url = req.url?.split("?")[0];
-        if (url !== "/llms.txt" && url !== "/llms-full.txt" && url !== "/sitemap.xml") {
+        if (!url || req.method !== "GET") {
           next();
           return;
         }
+        const host = req.headers.host;
+        const devOrigin = host ? `http://${host}` : siteOrigin;
         try {
+          if (url === "/llms.txt" || url === "/llms-full.txt" || url === "/sitemap.xml") {
+            const gen = (await server.ssrLoadModule(
+              "/src/lib/seo-static-generator.ts",
+            )) as SeoStaticGeneratorModule;
+            if (url === "/llms.txt") {
+              res.setHeader("Content-Type", "text/plain; charset=utf-8");
+              res.end(gen.generateLlmsTxt(devOrigin));
+              return;
+            }
+            if (url === "/llms-full.txt") {
+              res.setHeader("Content-Type", "text/plain; charset=utf-8");
+              res.end(gen.generateLlmsFullTxt(devOrigin));
+              return;
+            }
+            if (url === "/sitemap.xml") {
+              res.setHeader("Content-Type", "application/xml; charset=utf-8");
+              res.end(gen.generateSitemapXml(devOrigin));
+              return;
+            }
+          }
+
           const gen = (await server.ssrLoadModule(
             "/src/lib/seo-static-generator.ts",
           )) as SeoStaticGeneratorModule;
-          if (url === "/llms.txt") {
-            res.setHeader("Content-Type", "text/plain; charset=utf-8");
-            res.end(gen.generateLlmsTxt(siteOrigin));
+          const routes = gen.buildPrerenderRoutes(devOrigin);
+          const matchedRoute = routes.find((route) => route.path === url);
+          if (matchedRoute) {
+            const rawHtml = await fs.readFile(
+              path.resolve(import.meta.dirname, "index.html"),
+              "utf8",
+            );
+            const transformed = await server.transformIndexHtml(req.url ?? url, rawHtml);
+            const rendered = gen.injectSeoIntoHtml(transformed, matchedRoute, devOrigin);
+            res.setHeader("Content-Type", "text/html; charset=utf-8");
+            res.end(rendered);
             return;
           }
-          if (url === "/llms-full.txt") {
-            res.setHeader("Content-Type", "text/plain; charset=utf-8");
-            res.end(gen.generateLlmsFullTxt(siteOrigin));
-            return;
-          }
-          if (url === "/sitemap.xml") {
-            res.setHeader("Content-Type", "application/xml; charset=utf-8");
-            res.end(gen.generateSitemapXml(siteOrigin));
-            return;
-          }
+
+          next();
         } catch (err) {
           next(err);
         }

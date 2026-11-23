@@ -5,15 +5,17 @@ import {
 } from "@open-prompt-os/contracts";
 import { Badge, Button, Input, Tabs, toast } from "@open-prompt-os/ui-web";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUpRight, Search, Sparkles } from "lucide-react";
+import { Search, Sparkles } from "lucide-react";
 import * as React from "react";
-import { Link, useNavigate, useSearchParams } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { SeoHead } from "../components/seo/seo-head.js";
+import { useAuthSession } from "../hooks/use-auth-session.js";
 import { CARD_HOVER_ANIMATION } from "../hooks/use-card-parallax.js";
 import { orpcClient } from "../lib/orpc.js";
 import { queryKeys } from "../lib/query-client.js";
 import { buildTemplateGallerySeo } from "../lib/seo.js";
 import { trackEvent } from "../lib/telemetry.js";
+import { openAuthDialog } from "../state/auth-dialog-store.js";
 import { composerActions } from "../state/composer-store.js";
 
 function parseModeParam(value: string | null): "all" | ComposerMode {
@@ -21,8 +23,29 @@ function parseModeParam(value: string | null): "all" | ComposerMode {
   return "all";
 }
 
+function renderTemplatePreview(preview: string): React.ReactNode {
+  const parts = preview.split(/(\[[A-Za-z0-9_]+\])/g);
+  let offset = 0;
+  return parts.map((part) => {
+    const key = `${offset}:${part}`;
+    offset += part.length;
+    if (/^\[[A-Za-z0-9_]+\]$/.test(part)) {
+      return (
+        <span
+          key={key}
+          className="inline-block px-1.5 py-0.5 mx-0.5 rounded bg-[var(--accent-subtle-bg)] text-[var(--accent-text)] font-medium"
+        >
+          {part}
+        </span>
+      );
+    }
+    return <React.Fragment key={key}>{part}</React.Fragment>;
+  });
+}
+
 export function TemplateGalleryPage() {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuthSession();
   const [searchParams, setSearchParams] = useSearchParams();
   const [modeFilter, setModeFilter] = React.useState<"all" | ComposerMode>(() =>
     parseModeParam(searchParams.get("mode")),
@@ -50,7 +73,7 @@ export function TemplateGalleryPage() {
       }),
   });
 
-  const handleUseTemplate = (template: PromptTemplate) => {
+  const applyTemplateAndNavigate = (template: PromptTemplate) => {
     composerActions.applyTemplateDraft(template.defaultDraft);
     trackEvent("template_used", {
       slug: template.slug,
@@ -62,6 +85,18 @@ export function TemplateGalleryPage() {
       description: "Template parameters and framework applied in composer.",
     });
     navigate("/");
+  };
+
+  const handleUseTemplate = (template: PromptTemplate) => {
+    if (!isAuthenticated) {
+      openAuthDialog({
+        reason: "navbar_signin",
+        mode: "signin",
+        safeReplayAction: () => applyTemplateAndNavigate(template),
+      });
+      return;
+    }
+    applyTemplateAndNavigate(template);
   };
 
   const templates = templatesQuery.data ?? [];
@@ -144,40 +179,23 @@ export function TemplateGalleryPage() {
                 </div>
 
                 <div>
-                  <Link
-                    to={`/templates/${tpl.slug}`}
-                    className="text-base sm:text-lg font-semibold hover:underline focus-ring rounded"
-                  >
-                    {tpl.title}
-                  </Link>
+                  <h2 className="text-base sm:text-lg font-semibold">{tpl.title}</h2>
                   <p className="mt-1 text-xs sm:text-sm text-[var(--text-secondary)]">
                     {tpl.useCase}
                   </p>
                 </div>
 
-                <div className="p-3 rounded-lg bg-[var(--surface-2)] border border-[var(--separator-subtle)] font-mono text-xs text-[var(--text-secondary)]">
-                  {tpl.preview}
-                </div>
-
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="text-xs text-[var(--text-secondary)]">Models:</span>
-                  {tpl.compatibleModels.map((m) => (
-                    <Badge key={m} variant="neutral">
-                      {m}
-                    </Badge>
-                  ))}
+                <div className="select-none rounded-xl bg-[var(--surface-2)]/80 border border-[var(--separator-subtle)] border-l-2 border-l-[var(--accent-primary)]/60 p-3.5 space-y-1.5">
+                  <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--text-muted)]">
+                    Blueprint Preview
+                  </div>
+                  <p className="font-mono text-xs leading-relaxed text-[var(--text-secondary)]">
+                    {renderTemplatePreview(tpl.preview)}
+                  </p>
                 </div>
               </div>
 
-              <div className="pt-2 border-t border-[var(--separator-subtle)] flex items-center justify-between gap-2">
-                <Link
-                  to={`/templates/${tpl.slug}`}
-                  className="inline-flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-ring rounded py-1"
-                >
-                  <span>Inspect specification</span>
-                  <ArrowUpRight className="w-3.5 h-3.5" />
-                </Link>
-
+              <div className="pt-2 border-t border-[var(--separator-subtle)] flex items-center justify-end gap-2">
                 <Button variant="solid" size="sm" onClick={() => handleUseTemplate(tpl)}>
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>Use template</span>
