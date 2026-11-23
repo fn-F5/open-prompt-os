@@ -787,7 +787,7 @@ describe("API Routes & Database Integration", () => {
       };
       expect(json.reconstructedPrompt).toContain("High-detail editorial photography");
       expect(json.reconstructedPrompt).not.toContain("[Primary_Subject]");
-      expect(json.remainingDailyRuns).toBe(9); // free tier unified daily limit is 10
+      expect(json.remainingDailyRuns).toBe(7); // 10 unified daily limit - 3 runs (compose, refine, reverseEngineer)
       expect(json.breakdown.subject.length).toBeGreaterThan(0);
 
       const gens = await runAsSystem((tx) =>
