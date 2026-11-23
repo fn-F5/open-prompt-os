@@ -5,7 +5,6 @@ import {
 } from "@open-prompt-os/adapters";
 import type { Auth } from "@open-prompt-os/auth";
 import { redactSecrets } from "@open-prompt-os/core";
-import { prisma } from "@open-prompt-os/db";
 import { RPCHandler } from "@orpc/server/fetch";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
@@ -224,29 +223,7 @@ export function createApp(options: AppOptions) {
         400,
       );
     }
-    const email = parsed.data.email.toLowerCase();
-    const timeoutSentinel = Symbol("signup-status-timeout");
-    try {
-      const existing = await Promise.race([
-        prisma.user.findUnique({
-          where: { email },
-          select: { id: true },
-        }),
-        new Promise<typeof timeoutSentinel>((resolve) =>
-          setTimeout(() => resolve(timeoutSentinel), 1500),
-        ),
-      ]);
-      if (existing === timeoutSentinel) {
-        return c.json({ isNewUser: null });
-      }
-      return c.json({ isNewUser: !existing });
-    } catch (error) {
-      appLogger.warn("Signup status lookup failed", {
-        event: "auth.signup_status_failed",
-        err: error,
-      });
-      return c.json({ isNewUser: null });
-    }
+    return c.json({ isNewUser: null });
   });
 
   app.on(["GET", "POST"], "/api/auth/*", (c) => {

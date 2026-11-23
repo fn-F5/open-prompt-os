@@ -347,28 +347,24 @@ describe("Feedback & Signup Attribution API (unit + HTTP contract)", () => {
   });
 
   describe("POST /api/auth/signup-status", () => {
-    it("identifies new vs existing users and validates email input", async () => {
-      mockPrisma.user.findUnique.mockResolvedValueOnce(null);
+    it("returns a constant response without querying users and validates email input", async () => {
       const newRes = await app.request("http://localhost/api/auth/signup-status", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ email: "  NewUser@Example.COM " }),
       });
       expect(newRes.status).toBe(200);
-      expect(await newRes.json()).toEqual({ isNewUser: true });
-      expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({
-        where: { email: "newuser@example.com" },
-        select: { id: true },
-      });
+      expect(await newRes.json()).toEqual({ isNewUser: null });
+      expect(mockPrisma.user.findUnique).not.toHaveBeenCalled();
 
-      mockPrisma.user.findUnique.mockResolvedValueOnce({ id: "usr_existing" });
       const existingRes = await app.request("http://localhost/api/auth/signup-status", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ email: "existing@example.com" }),
       });
       expect(existingRes.status).toBe(200);
-      expect(await existingRes.json()).toEqual({ isNewUser: false });
+      expect(await existingRes.json()).toEqual({ isNewUser: null });
+      expect(mockPrisma.user.findUnique).not.toHaveBeenCalled();
 
       const invalidEmailRes = await app.request("http://localhost/api/auth/signup-status", {
         method: "POST",
@@ -383,15 +379,6 @@ describe("Feedback & Signup Attribution API (unit + HTTP contract)", () => {
         body: "{bad-json",
       });
       expect(invalidJsonRes.status).toBe(400);
-
-      mockPrisma.user.findUnique.mockRejectedValueOnce(new Error("DB offline"));
-      const dbErrRes = await app.request("http://localhost/api/auth/signup-status", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email: "someone@example.com" }),
-      });
-      expect(dbErrRes.status).toBe(200);
-      expect(await dbErrRes.json()).toEqual({ isNewUser: null });
     });
   });
 
