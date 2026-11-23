@@ -123,7 +123,7 @@ export function createAuth(options: CreateAuthOptions): AuthServer {
     account: {
       accountLinking: {
         enabled: true,
-        trustedProviders: ["google", "github"],
+        trustedProviders: [],
       },
     },
     session: {
