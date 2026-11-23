@@ -332,6 +332,31 @@ describe("remote compose client", () => {
       code: "QUOTA_EXCEEDED",
       requestId: "req_quota_err",
     });
+
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          json: {
+            code: "FORBIDDEN",
+            status: 403,
+            message: "QUOTA_EXCEEDED: Daily limit reached for Reverse Engineer.",
+            data: { code: "QUOTA_EXCEEDED", requestId: "req_quota_err_2" },
+          },
+        }),
+        { status: 403, headers: { "content-type": "application/json" } },
+      ),
+    );
+
+    await expect(
+      orpcClient.prompts.reverseEngineer({
+        imageBase64: "AAAA",
+        mimeType: "image/png",
+        targetMode: "image",
+      }),
+    ).rejects.toMatchObject({
+      code: "QUOTA_EXCEEDED",
+      requestId: "req_quota_err_2",
+    });
   });
 
   it("dispatches remote RPC calls for feedback and signup referral attribution", async () => {

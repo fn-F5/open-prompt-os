@@ -5,6 +5,7 @@ import type { ComposerMode } from "@open-prompt-os/contracts";
 import { prisma } from "@open-prompt-os/db";
 import { implement } from "@orpc/server";
 import type { ResolvedActor } from "./auth/session-resolver.js";
+import { logger } from "./logger.js";
 import { executeCompose, executeRefine, executeReverseEngineer } from "./procedures/prompts.js";
 import {
   createCustomerPortalSession,
@@ -67,7 +68,11 @@ export function createRouter(deps: RouterDeps) {
       let dbHealthy = true;
       try {
         await prisma.$queryRaw`SELECT 1`;
-      } catch {
+      } catch (error) {
+        logger.error("Health check database ping failed", {
+          event: "health.db_failed",
+          err: error,
+        });
         dbHealthy = false;
       }
 

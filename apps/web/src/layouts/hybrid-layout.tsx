@@ -37,10 +37,8 @@ export function HybridLayout() {
     }
   }, [isAuthenticated]);
 
-  // Drive 3D tilt and cursor-following spotlight across cards on anonymous pages and Templates
-  const isTemplatesRoute =
-    location.pathname === "/templates" || location.pathname.startsWith("/templates/");
-  useCardParallax(!prefersReducedMotion && (!isAuthenticated || isTemplatesRoute));
+  // Drive 3D tilt and cursor-following spotlight across cards on anonymous pages
+  useCardParallax(!prefersReducedMotion && !isAuthenticated);
 
   const isIndexRoute = location.pathname === "/";
   const isStreaming = streamingBuffer !== null;
@@ -179,14 +177,6 @@ export function HybridLayout() {
                   className="hover:text-[var(--text-primary)] focus-ring rounded"
                 >
                   Reverse Engineer
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/templates"
-                  className="hover:text-[var(--text-primary)] focus-ring rounded"
-                >
-                  Template Gallery
                 </Link>
               </li>
               <li>

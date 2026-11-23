@@ -253,7 +253,7 @@ export function OutputCard({
       className="mt-6 rounded-3xl p-6 sm:p-8 glow-card space-y-5"
     >
       <div className="sr-only" aria-live="polite">
-        Prompt specification compiled with {output.detectedVariables.length} variables.
+        Prompt specification compiled.
       </div>
 
       {/* Header & Metadata Row */}
@@ -280,23 +280,6 @@ export function OutputCard({
           <span>New Prompt</span>
         </Button>
       </div>
-
-      {/* Detected Variables Bar */}
-      {output.detectedVariables.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-medium text-[var(--text-secondary)] mr-1">
-            Customizable variables:
-          </span>
-          {output.detectedVariables.map((v) => (
-            <code
-              key={v}
-              className="font-mono text-sm px-2.5 py-1 rounded-lg bg-[var(--accent-subtle-bg)] text-[var(--accent-text)] border border-[var(--separator-strong)] font-semibold"
-            >
-              [{v}]
-            </code>
-          ))}
-        </div>
-      ) : null}
 
       {/* Sanitized Specification Body */}
       <div className="p-5 sm:p-6 rounded-2xl bg-[var(--surface-2)] border border-[var(--separator-subtle)] overflow-x-auto">

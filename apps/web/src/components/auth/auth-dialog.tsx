@@ -85,7 +85,7 @@ const REASON_COPY: Record<
   navbar_signin: {
     title: "Sign In to Open Prompt OS",
     description:
-      "Sync your prompt history, organize templates, and sign in with email or a linked account.",
+      "Sync your prompt history, organize your prompt library, and sign in with email or a linked account.",
     badge: "Workspace Sign-In",
   },
 };
@@ -123,7 +123,7 @@ export function AuthDialog({ turnstileSiteKey }: { turnstileSiteKey?: string | n
       ? {
           title: "Create your Open Prompt OS Workspace",
           description:
-            "Set up a free workspace to sync your prompt history, organize templates, and save prompts.",
+            "Set up a free workspace to sync your prompt history, organize your library, and save prompts.",
           badge: "Free Workspace",
         }
       : baseCopy;

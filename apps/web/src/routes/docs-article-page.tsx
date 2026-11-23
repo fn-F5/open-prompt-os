@@ -1,4 +1,3 @@
-import { DEFAULT_CURATED_TEMPLATES } from "@open-prompt-os/contracts";
 import { Badge, Button, toast } from "@open-prompt-os/ui-web";
 import { ArrowLeft, ArrowRight, CheckCircle2, Copy, Sparkles } from "lucide-react";
 import * as React from "react";
@@ -45,9 +44,6 @@ export function DocsArticlePage() {
   }
 
   const seoMeta = React.useMemo(() => buildDocArticleSeo(doc), [doc]);
-  const relatedTemplates = DEFAULT_CURATED_TEMPLATES.filter((t) =>
-    doc.relatedTemplateSlugs.includes(t.slug),
-  );
   const otherDocs = DOCS_CATALOG.filter((d) => d.slug !== doc.slug).slice(0, 3);
 
   return (
@@ -251,54 +247,28 @@ export function DocsArticlePage() {
         </section>
       ) : null}
 
-      {/* Related Templates & Next Guides */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {relatedTemplates.length > 0 ? (
-          <section
-            data-animate={animateCard("docsArticleRelatedTemplates")}
-            className="rounded-2xl p-5 flat-surface space-y-3"
-          >
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
-              Related Prompt Blueprints
-            </h2>
-            <ul className="space-y-2">
-              {relatedTemplates.map((tpl) => (
-                <li key={tpl.slug}>
-                  <Link
-                    to={`/templates/${tpl.slug}`}
-                    className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-[var(--surface-2)] hover:border-[var(--separator-strong)] border border-[var(--separator-subtle)] text-xs font-medium focus-ring"
-                  >
-                    <span>{tpl.title}</span>
-                    <ArrowRight className="w-3.5 h-3.5 shrink-0 text-[var(--accent-text)]" />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-
-        <section
-          data-animate={animateCard("docsArticleContinueReading")}
-          className="rounded-2xl p-5 flat-surface space-y-3"
-        >
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
-            Continue Reading
-          </h2>
-          <ul className="space-y-2">
-            {otherDocs.map((other) => (
-              <li key={other.slug}>
-                <Link
-                  to={`/docs/${other.slug}`}
-                  className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-[var(--surface-2)] hover:border-[var(--separator-strong)] border border-[var(--separator-subtle)] text-xs font-medium focus-ring"
-                >
-                  <span>{other.title}</span>
-                  <ArrowRight className="w-3.5 h-3.5 shrink-0 text-[var(--accent-text)]" />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      </div>
+      {/* Next Guides */}
+      <section
+        data-animate={animateCard("docsArticleContinueReading")}
+        className="rounded-2xl p-5 flat-surface space-y-3"
+      >
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+          Continue Reading
+        </h2>
+        <ul className="space-y-2">
+          {otherDocs.map((other) => (
+            <li key={other.slug}>
+              <Link
+                to={`/docs/${other.slug}`}
+                className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-[var(--surface-2)] hover:border-[var(--separator-strong)] border border-[var(--separator-subtle)] text-xs font-medium focus-ring"
+              >
+                <span>{other.title}</span>
+                <ArrowRight className="w-3.5 h-3.5 shrink-0 text-[var(--accent-text)]" />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
     </article>
   );
 }

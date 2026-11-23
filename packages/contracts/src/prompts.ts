@@ -302,14 +302,30 @@ export const VideoContinuityBibleSchema = z.object({
 });
 export type VideoContinuityBible = z.infer<typeof VideoContinuityBibleSchema>;
 
+export const VIDEO_REVERSE_ENGINEER_MAX_DURATION_SEC = 30;
+
 export const VideoReverseEngineerInputSchema = z
   .object({
     sourceType: z.enum(["upload", "youtube"]),
     youtubeUrl: z.string().url().max(500).optional(),
     mimeType: VideoReverseEngineerMimeSchema.optional(),
     durationSeconds: z.number().positive().max(3600).optional(),
-    startOffsetSec: z.number().min(0).default(0),
-    endOffsetSec: z.number().positive().optional(),
+    startOffsetSec: z
+      .number()
+      .min(0)
+      .max(
+        VIDEO_REVERSE_ENGINEER_MAX_DURATION_SEC - 1,
+        `Start time must be less than ${VIDEO_REVERSE_ENGINEER_MAX_DURATION_SEC}s.`,
+      )
+      .default(0),
+    endOffsetSec: z
+      .number()
+      .positive()
+      .max(
+        VIDEO_REVERSE_ENGINEER_MAX_DURATION_SEC,
+        `End time cannot exceed the ${VIDEO_REVERSE_ENGINEER_MAX_DURATION_SEC}s limit.`,
+      )
+      .optional(),
     targetGenerator: VideoGeneratorTargetSchema.default("veo"),
     focusNotes: z.string().max(500).optional(),
   })
@@ -342,8 +358,8 @@ export const VideoReverseEngineerOutputSchema = z.object({
 export type VideoReverseEngineerOutput = z.infer<typeof VideoReverseEngineerOutputSchema>;
 
 export const VIDEO_REVERSE_ENGINEER_LIMITS = {
-  guest: { maxDurationSec: 15, maxBytes: 20 * 1024 * 1024 },
-  free: { maxDurationSec: 30, maxBytes: 50 * 1024 * 1024 },
-  pro: { maxDurationSec: 120, maxBytes: 100 * 1024 * 1024 },
-  team: { maxDurationSec: 120, maxBytes: 100 * 1024 * 1024 },
+  guest: { maxDurationSec: VIDEO_REVERSE_ENGINEER_MAX_DURATION_SEC, maxBytes: 20 * 1024 * 1024 },
+  free: { maxDurationSec: VIDEO_REVERSE_ENGINEER_MAX_DURATION_SEC, maxBytes: 50 * 1024 * 1024 },
+  pro: { maxDurationSec: VIDEO_REVERSE_ENGINEER_MAX_DURATION_SEC, maxBytes: 100 * 1024 * 1024 },
+  team: { maxDurationSec: VIDEO_REVERSE_ENGINEER_MAX_DURATION_SEC, maxBytes: 100 * 1024 * 1024 },
 } as const;

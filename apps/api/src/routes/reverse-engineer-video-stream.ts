@@ -6,11 +6,12 @@ import {
   VideoReverseEngineerInputSchema,
   VideoReverseEngineerMimeSchema,
 } from "@open-prompt-os/contracts";
-import { parsePublicVideoUrl, redactSecrets } from "@open-prompt-os/core";
+import { parsePublicVideoUrl } from "@open-prompt-os/core";
 import { prisma } from "@open-prompt-os/db";
 import type { Context, Hono } from "hono";
 import type { ApiEnv } from "../app-env.js";
 import { type ResolvedActor, resolveActor } from "../auth/session-resolver.js";
+import { toUserFacingServerError } from "../errors.js";
 import { enrichRequestContext, logger } from "../logger.js";
 import { checkQuota, recordPromptGeneration, recordUsage } from "../services/usage-quota.js";
 
@@ -43,7 +44,11 @@ async function resolveActorLimits(actor: ResolvedActor) {
     });
     const plan = space?.subscriptions[0]?.plan ?? space?.plan ?? "free";
     return { tier: plan, ...VIDEO_REVERSE_ENGINEER_LIMITS[plan] };
-  } catch {
+  } catch (error) {
+    logger.warn("Failed to resolve video tier limits; falling back to free", {
+      event: "video.limits_lookup_failed",
+      err: error,
+    });
     return { tier: "free" as const, ...VIDEO_REVERSE_ENGINEER_LIMITS.free };
   }
 }
@@ -181,10 +186,11 @@ export function registerVideoReverseEngineerStream(
         );
       }
 
-      const effectiveEnd = parsed.data.endOffsetSec ?? parsed.data.durationSeconds;
+      const rawEffectiveEnd = parsed.data.endOffsetSec ?? parsed.data.durationSeconds;
       if (
-        effectiveEnd !== undefined &&
-        effectiveEnd - parsed.data.startOffsetSec > limits.maxDurationSec
+        rawEffectiveEnd !== undefined &&
+        (rawEffectiveEnd > limits.maxDurationSec ||
+          rawEffectiveEnd - parsed.data.startOffsetSec > limits.maxDurationSec)
       ) {
         return c.json(
           {
@@ -196,7 +202,14 @@ export function registerVideoReverseEngineerStream(
         );
       }
 
-      inputPayload = parsed.data;
+      const effectiveEnd = Math.min(
+        rawEffectiveEnd ?? limits.maxDurationSec,
+        limits.maxDurationSec,
+      );
+      inputPayload = {
+        ...parsed.data,
+        endOffsetSec: effectiveEnd,
+      };
       fileBytes = new Uint8Array(await fileEntry.arrayBuffer());
       rawSourceLabel = parsed.data.focusNotes || `[Video Upload: ${parsed.data.mimeType}]`;
     } else {
@@ -221,8 +234,12 @@ export function registerVideoReverseEngineerStream(
       }
 
       const effectiveEnd =
-        parsed.data.endOffsetSec ?? parsed.data.startOffsetSec + limits.maxDurationSec;
-      if (effectiveEnd - parsed.data.startOffsetSec > limits.maxDurationSec) {
+        parsed.data.endOffsetSec ??
+        Math.min(parsed.data.startOffsetSec + limits.maxDurationSec, limits.maxDurationSec);
+      if (
+        effectiveEnd > limits.maxDurationSec ||
+        effectiveEnd - parsed.data.startOffsetSec > limits.maxDurationSec
+      ) {
         return c.json(
           {
             code: "VALIDATION_ERROR",
@@ -311,10 +328,8 @@ export function registerVideoReverseEngineerStream(
             requestId,
             err: error,
           });
-          const message = redactSecrets(
-            error instanceof Error ? error.message : "Video analysis failed.",
-          );
-          sendEvent("error", { code: "PROVIDER_UNAVAILABLE", message, requestId });
+          const safe = toUserFacingServerError(error);
+          sendEvent("error", { code: safe.code, message: safe.message, requestId });
         } finally {
           try {
             controller.close();

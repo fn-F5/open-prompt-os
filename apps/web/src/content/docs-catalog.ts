@@ -128,11 +128,6 @@ export const DOCS_CATALOG: readonly DocArticle[] = [
               "Extract a 6-axis visual prompt from any PNG, JPEG, or WebP image",
             ],
             [
-              "Template Gallery",
-              "/templates",
-              "Browse curated blueprints and load them into the Composer in one click",
-            ],
-            [
               "Library & History",
               "/library, /history",
               "Search, tag, and publish shareable prompt links (/share/:shareId)",
@@ -259,12 +254,12 @@ Provide an Executive Verdict, Failure Mode Matrix, and step-by-step Hardening Pl
       "strict-json-schema-extractor",
     ],
     composerAction: {
-      label: "Load CO-STAR Architecture Template",
+      label: "Load CO-STAR Architecture Example",
       mode: "text",
       framework: "costar",
       draft: {
         rawInput:
-          "Evaluate [System_Proposal] handling [Scale_Target] requests/sec and produce a failure mode trade-off matrix.",
+          "Evaluate a multi-region PostgreSQL active-standby failover architecture handling 50,000 requests/sec and produce a failure mode trade-off matrix.",
         persona: "Principal Distributed Systems Architect",
         audience: "Staff Infrastructure Reviewers",
         format: "Executive Verdict, Trade-off Matrix, Hardening Steps",
@@ -485,49 +480,6 @@ Provide an Executive Verdict, Failure Mode Matrix, and step-by-step Hardening Pl
     relatedTemplateSlugs: [
       "editorial-founder-portrait-studio",
       "isometric-saas-architecture-diagram-art",
-    ],
-  },
-  {
-    slug: "variables-and-reusable-templates",
-    title: "Reusable [Variables], Libraries & Public Share Links",
-    shortTitle: "Variables & Templates",
-    category: "Core Concepts",
-    description:
-      "Parameterize prompts with [Square_Bracket_Variables], catch unresolved placeholders automatically, and share specs via /share/:shareId.",
-    tldrAnswer:
-      "Generated prompts in Open Prompt OS are detailed and directly copy-pasteable by default with zero unrequested placeholders. If you intentionally add [Square_Brackets] in your own drafts or curated templates, Open Prompt OS still detects them automatically, warns on [TODO]/[TBD] slips, and lets you share read-only links via /share/:shareId.",
-    readingTimeMinutes: 3,
-    updatedAt: "2026-11-15T10:00:00.000Z",
-    keywords: [
-      "reusable prompt variables",
-      "prompt template library",
-      "share ai prompts",
-      "parameterized prompts",
-    ],
-    sections: [
-      {
-        id: "variable-linting",
-        heading: "Automatic Variable Detection & Linting",
-        paragraphs: [
-          "Every editor surface runs live variable analysis powered by @open-prompt-os/core:",
-        ],
-        bullets: [
-          "Detected Variables: Extracted automatically from [Variable_Name] tokens for quick inspection.",
-          "Duplicate Variable Tracking: Highlights tokens referenced multiple times across sections.",
-          "Unresolved Placeholder Warnings: Flags forgotten [TODO], [TBD], or [INSERT] tokens before you send.",
-        ],
-      },
-    ],
-    faqs: [
-      {
-        question: "What happens when someone opens my /share/:shareId link?",
-        answer:
-          "Recipients see the clean compiled specification, target model badge, one-click Copy, Open in ChatGPT, and Fork in Composer so they can customize your blueprint without modifying your saved original.",
-      },
-    ],
-    relatedTemplateSlugs: [
-      "sql-query-optimization-and-index-audit",
-      "enterprise-customer-escalation-reply",
     ],
   },
   {

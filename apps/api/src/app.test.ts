@@ -396,7 +396,7 @@ describe("runtime, config, rate-limiter, and clientKey helpers", () => {
     const xml = await res.text();
     expect(xml).toContain('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">');
     expect(xml).toContain("/docs/prompt-frameworks-costar-rise-care-cot</loc>");
-    expect(xml).toContain("/templates/staff-architecture-rfc-review</loc>");
+    expect(xml).not.toContain("/templates");
   });
 });
 
@@ -484,7 +484,7 @@ describe("video reverse engineer stream", () => {
       message: expect.stringMatching(/Download the clip as an MP4/i),
     });
 
-    // 2. Guest trim window > 15s returns 400
+    // 2. Trim window > 30s returns 400
     const longTrimRes = await app.request(
       "http://localhost/api/prompts/reverse-engineer-video/stream",
       {
@@ -494,14 +494,14 @@ describe("video reverse engineer stream", () => {
           sourceType: "youtube",
           youtubeUrl: "https://youtu.be/jNQXAC9IVRw",
           startOffsetSec: 0,
-          endOffsetSec: 25,
+          endOffsetSec: 35,
         }),
       },
     );
     expect(longTrimRes.status).toBe(400);
     expect(await longTrimRes.json()).toMatchObject({
       code: "VALIDATION_ERROR",
-      message: expect.stringMatching(/15s limit/i),
+      message: expect.stringMatching(/30s limit/i),
     });
 
     // 3. Invalid MIME upload returns 400

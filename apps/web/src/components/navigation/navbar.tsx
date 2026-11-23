@@ -101,7 +101,6 @@ export function MarketingNavbar() {
     { to: "/", label: "Compiler" },
     { to: "/reverse-engineer", label: "Reverse Engineer" },
     { to: "/improve", label: "Improve & Autopsy" },
-    { to: "/templates", label: "Templates" },
     { to: "/pricing", label: "Pricing" },
   ];
 
@@ -277,7 +276,6 @@ export function AppNavbar() {
     { to: "/improve", label: "Improve & Autopsy" },
     { to: "/library", label: "Library" },
     { to: "/history", label: "History" },
-    { to: "/templates", label: "Templates" },
   ];
 
   const isSettingsActive = location.pathname.startsWith("/settings");

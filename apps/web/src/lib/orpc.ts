@@ -416,12 +416,49 @@ function apiErrorCode(status: number, code: string | undefined): ApiErrorCode {
   return "INTERNAL_ERROR";
 }
 
+const FRIENDLY_HIGH_TRAFFIC_MESSAGE =
+  "We're experiencing high traffic right now. Please try again in a moment.";
+const FRIENDLY_SERVER_ERROR_MESSAGE =
+  "We're experiencing a temporary issue on our side. Please try again in a moment.";
+const RAW_TECHNICAL_ERROR_PATTERN =
+  /^\s*\{|"error"\s*:|resource_exhausted|googleapis\.com|econnrefused|eperm|prisma|stack|at\s+\w+\s*\(/i;
+const HIGH_TRAFFIC_ERROR_PATTERN =
+  /429|resource_exhausted|quota|rate.?limit|too many requests|overloaded|503|capacity|timeout|timed out/i;
+
+function sanitizeUserErrorMessage(code: ApiErrorCode, rawMessage: string): string {
+  const trimmed = rawMessage.trim();
+  if (
+    code === "INTERNAL_ERROR" ||
+    code === "PROVIDER_UNAVAILABLE" ||
+    RAW_TECHNICAL_ERROR_PATTERN.test(trimmed)
+  ) {
+    if (HIGH_TRAFFIC_ERROR_PATTERN.test(trimmed)) {
+      return FRIENDLY_HIGH_TRAFFIC_MESSAGE;
+    }
+    if (
+      RAW_TECHNICAL_ERROR_PATTERN.test(trimmed) ||
+      trimmed.startsWith("INTERNAL_ERROR:") ||
+      trimmed === "Internal error" ||
+      trimmed === "Request failed"
+    ) {
+      return FRIENDLY_SERVER_ERROR_MESSAGE;
+    }
+  }
+  return trimmed || FRIENDLY_SERVER_ERROR_MESSAGE;
+}
+
 async function throwApiError(response: Response, fallbackRequestId: string): Promise<never> {
   let payload: {
     code?: string;
     message?: string;
     requestId?: string;
-    json?: { code?: string; message?: string; status?: number };
+    data?: { code?: string; requestId?: string };
+    json?: {
+      code?: string;
+      message?: string;
+      status?: number;
+      data?: { code?: string; requestId?: string };
+    };
   } = {};
   try {
     payload = (await response.json()) as typeof payload;
@@ -429,10 +466,22 @@ async function throwApiError(response: Response, fallbackRequestId: string): Pro
     payload = {};
   }
   const err = payload.json ?? payload;
+  const message = err.message ?? payload.message ?? "Request failed";
+  const rawCode =
+    err.data?.code ??
+    payload.data?.code ??
+    (message.startsWith("QUOTA_EXCEEDED:") ? "QUOTA_EXCEEDED" : undefined) ??
+    err.code ??
+    payload.code;
+  const resolvedCode = apiErrorCode(response.status, rawCode);
   throw new OrpcClientError(
-    apiErrorCode(response.status, err.code ?? payload.code),
-    err.message ?? payload.message ?? "Request failed",
-    payload.requestId ?? response.headers.get("x-request-id") ?? fallbackRequestId,
+    resolvedCode,
+    sanitizeUserErrorMessage(resolvedCode, message),
+    err.data?.requestId ??
+      payload.data?.requestId ??
+      payload.requestId ??
+      response.headers.get("x-request-id") ??
+      fallbackRequestId,
   );
 }
 
@@ -583,16 +632,20 @@ export const orpcClient = {
                 }
               });
               if (streamError) {
+                const resolvedCode = apiErrorCode(500, streamError.code);
                 throw new OrpcClientError(
-                  apiErrorCode(500, streamError.code),
-                  streamError.message ?? "Prompt compilation failed",
+                  resolvedCode,
+                  sanitizeUserErrorMessage(
+                    resolvedCode,
+                    streamError.message ?? FRIENDLY_SERVER_ERROR_MESSAGE,
+                  ),
                   streamError.requestId ?? headers["x-request-id"],
                 );
               }
               if (!done) {
                 throw new OrpcClientError(
                   "INTERNAL_ERROR",
-                  "Stream ended before completion",
+                  FRIENDLY_SERVER_ERROR_MESSAGE,
                   headers["x-request-id"],
                 );
               }
@@ -894,9 +947,13 @@ export const orpcClient = {
           }
         });
         if (streamError) {
+          const resolvedCode = apiErrorCode(500, streamError.code);
           throw new OrpcClientError(
-            apiErrorCode(500, streamError.code),
-            streamError.message ?? "Video reverse engineering failed.",
+            resolvedCode,
+            sanitizeUserErrorMessage(
+              resolvedCode,
+              streamError.message ?? FRIENDLY_SERVER_ERROR_MESSAGE,
+            ),
             streamError.requestId ?? headers["x-request-id"],
           );
         }
