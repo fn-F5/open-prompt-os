@@ -1,8 +1,13 @@
-import { Badge } from "@open-prompt-os/ui-web";
+import type { ComposerMode } from "@open-prompt-os/contracts";
+import { Badge, Button } from "@open-prompt-os/ui-web";
 import {
   ArrowRight,
   Compass,
+  Cpu,
   EyeOff,
+  FileText,
+  Film,
+  Image,
   Layers,
   Lock,
   Send,
@@ -15,6 +20,7 @@ import { Link } from "react-router";
 import { HOME_AEO_FAQS } from "../../content/docs-catalog.js";
 import { CARD_HOVER_ANIMATION } from "../../hooks/use-card-parallax.js";
 import { trackEvent } from "../../lib/telemetry.js";
+import { composerActions } from "../../state/composer-store.js";
 import { PricingPlansSection } from "../pricing/pricing-plans-section.js";
 
 function ObservedSection({
@@ -71,9 +77,8 @@ const AFTER_HIGHLIGHTS = [
   },
   {
     step: "3",
-    label: "Concrete Details",
-    value:
-      "Launch the Realtime Analytics API highlighting p99 < 40ms latency and the June 30 migration deadline.",
+    label: "Reusable Variables",
+    value: "Launch [API_Product_Name] highlighting [Latency_Target] and [Migration_Deadline].",
   },
   {
     step: "4",
@@ -82,7 +87,90 @@ const AFTER_HIGHLIGHTS = [
   },
 ] as const;
 
+const USE_CASE_SHOWCASE: ReadonlyArray<{
+  readonly mode: ComposerMode;
+  readonly icon: typeof FileText;
+  readonly tabLabel: string;
+  readonly modeSummary: string;
+  readonly badge: string;
+  readonly title: string;
+  readonly summary: string;
+  readonly rawInput: string;
+  readonly highlights: readonly { label: string; text: string }[];
+}> = [
+  {
+    mode: "text",
+    icon: FileText,
+    tabLabel: "Work & Writing",
+    modeSummary: "Architecture docs, executive memos, code specs, and support rubrics.",
+    badge: "Docs · Code · Strategy",
+    title: "Staff Architecture RFC & Trade-off Matrix",
+    summary:
+      "Turns quick technical notes into a structured specification with role calibration, comparison tables, and edge-case rules.",
+    rawInput:
+      "Design a multi-region failover strategy for [Service_Name] with RPO < 30s and RTO < 2m.",
+    highlights: [
+      { label: "Role", text: "Principal Distributed Systems Architect" },
+      { label: "Variables", text: "[Service_Name], [RPO_Budget], [RTO_Budget]" },
+      {
+        label: "Format",
+        text: "Executive Verdict, Active-Active vs. Warm-Standby Matrix, Runbook Steps",
+      },
+      { label: "Guardrail", text: "Never assume zero replication lag across regions" },
+    ],
+  },
+  {
+    mode: "image",
+    icon: Image,
+    tabLabel: "Image Studio",
+    modeSummary: "Product photography, editorial portraits, lens optics, and lighting setups.",
+    badge: "Product · Editorial · Brand",
+    title: "Industrial Studio Hardware Keyframe",
+    summary:
+      "Adds focal length, depth of field, lighting mood, and negative prompts automatically so visuals look like real studio photography.",
+    rawInput:
+      "Macro studio photograph of [Product_Subject] on matte basalt, 85mm f/2.0, rim lighting.",
+    highlights: [
+      {
+        label: "Subject",
+        text: "[Product_Subject] crafted from [Material_Finish] on matte basalt",
+      },
+      { label: "Optics", text: "16:9 widescreen, 85mm prime lens, f/2.0 shallow depth of field" },
+      { label: "Lighting", text: "Soft volumetric key light with crisp silver rim highlights" },
+      { label: "Negative Guardrail", text: "No neon cast, no distorted text, no plastic sheen" },
+    ],
+  },
+  {
+    mode: "video",
+    icon: Film,
+    tabLabel: "Cinema Video",
+    modeSummary: "24fps camera motion, scene transitions, pacing, and physics continuity.",
+    badge: "Motion · Storyboards · Reveal",
+    title: "Continuous 24fps Orbital Product Reveal",
+    summary:
+      "Specifies frame rate, camera trajectory, opening/closing beats, and physics guardrails for Veo, Sora, and video models.",
+    rawInput:
+      "Continuous 6-second orbital tracking shot around [Hero_Subject] as volumetric key light sweeps across the frame.",
+    highlights: [
+      {
+        label: "Scene Arc",
+        text: "[Opening_Frame] transitions smoothly around [Hero_Subject] to [Closing_Beat]",
+      },
+      { label: "Camera", text: "24fps, 16:9 cinema scope, 6-second continuous tracking shot" },
+      {
+        label: "Motion Physics",
+        text: "Consistent object geometry with natural 180° shutter blur",
+      },
+      { label: "Guardrail", text: "Prevent morphing textures or sudden lighting flicker" },
+    ],
+  },
+];
+
 export function MarketingScrollContent() {
+  const [selectedUseCase, setSelectedUseCase] = React.useState<ComposerMode>("text");
+  const activeShowcase =
+    USE_CASE_SHOWCASE.find((u) => u.mode === selectedUseCase) ?? USE_CASE_SHOWCASE[0]!;
+
   return (
     <div
       data-testid="anonymous-marketing-content"
@@ -328,12 +416,125 @@ export function MarketingScrollContent() {
             <span className="inline-flex items-center justify-center w-10 h-10 rounded-[10px] bg-[var(--accent-subtle-bg)] text-[var(--accent-text)] border border-[var(--separator-strong)]">
               <Lock className="w-5 h-5" />
             </span>
-            <h3 className="text-lg font-medium tracking-[-0.02em]">Prompt Library</h3>
+            <h3 className="text-lg font-medium tracking-[-0.02em]">Reusable Library</h3>
             <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed">
-              Stop hunting through old chat threads. Save and organize your best ready-to-paste
-              prompts in one place.
+              Stop hunting through old chat threads. Save your best prompts with custom{" "}
+              <code className="font-mono text-[var(--accent-text)]">[Variables]</code> in one place.
             </p>
           </article>
+        </div>
+      </ObservedSection>
+
+      {/* SECTION 3: Templates Showcase with Non-Duplicated Mode Selector Strip + Detail Inspector */}
+      <ObservedSection sectionId="use_cases" className="relative space-y-6 sm:space-y-10">
+        <div className="text-center max-w-2xl mx-auto space-y-2.5 sm:space-y-3">
+          <Badge variant="framework">Curated Template Gallery</Badge>
+          <h2 className="text-2xl sm:text-4xl font-medium tracking-[-0.025em] text-balance">
+            Prompts tuned for writing, images,{" "}
+            <span className="text-gradient-brand">and video</span>
+          </h2>
+          <p className="text-sm sm:text-lg text-[var(--text-secondary)] leading-relaxed">
+            Pick a studio mode below to inspect a sample blueprint, or load it straight into the
+            composer.
+          </p>
+        </div>
+
+        {/* 3-Card Mode Selector Strip (Shows mode category & scope without duplicating the template title below) */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 sm:gap-4">
+          {USE_CASE_SHOWCASE.map((item) => {
+            const Icon = item.icon;
+            const isSelected = item.mode === selectedUseCase;
+            return (
+              <button
+                key={item.mode}
+                type="button"
+                data-animate={CARD_HOVER_ANIMATION.marketingShowcaseTab}
+                onClick={() => setSelectedUseCase(item.mode)}
+                className={`text-left p-4 sm:p-5 transition-all focus-ring cursor-pointer flex flex-col justify-between gap-2 ${
+                  isSelected ? "glow-card" : "flat-surface opacity-85 hover:opacity-100"
+                }`}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="inline-flex items-center gap-2 text-base font-medium tracking-[-0.02em] text-[var(--text-primary)]">
+                    <Icon className="w-4 h-4 text-[var(--accent-text)]" />
+                    <span>{item.tabLabel}</span>
+                  </span>
+                  <Badge variant={isSelected ? "framework" : "neutral"}>{item.badge}</Badge>
+                </div>
+                <p className="text-sm text-[var(--text-secondary)]">{item.modeSummary}</p>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Active Template Detail Inspector */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 p-5 sm:p-10 glass-surface items-center">
+          <div className="lg:col-span-5 min-w-0 space-y-4 sm:space-y-5">
+            <Badge variant="framework">Sample {activeShowcase.tabLabel} Blueprint</Badge>
+            <h3 className="text-xl sm:text-2xl font-medium tracking-[-0.02em] leading-snug">
+              {activeShowcase.title}
+            </h3>
+            <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed">
+              {activeShowcase.summary}
+            </p>
+
+            <div className="p-3.5 sm:p-4 rounded-xl bg-[var(--surface-2)] space-y-1.5">
+              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--accent-text)]">
+                Input prompt:
+              </div>
+              <p className="text-sm sm:text-base font-medium text-[var(--text-primary)]">
+                "{activeShowcase.rawInput}"
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                variant="solid"
+                size="md"
+                className="max-w-full text-xs sm:text-sm px-3.5 sm:px-5"
+                onClick={() => {
+                  composerActions.setMode(activeShowcase.mode);
+                  composerActions.updateActiveDraft({ rawInput: activeShowcase.rawInput });
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+              >
+                <Cpu className="w-4 h-4 shrink-0" />
+                <span>Load in {activeShowcase.tabLabel} Composer</span>
+              </Button>
+
+              <Link
+                to="/templates"
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-[var(--accent-text)] hover:underline focus-ring rounded"
+              >
+                <span>Browse all templates</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+
+          <div className="lg:col-span-7 min-w-0 lg:pl-8 lg:border-l lg:border-[var(--separator-subtle)] space-y-3.5 sm:space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-[var(--separator-subtle)]">
+              <span className="text-sm font-semibold text-[var(--accent-text)]">
+                Compiled Specification Structure
+              </span>
+              <Badge variant="neutral">{activeShowcase.mode.toUpperCase()} MODE</Badge>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              {activeShowcase.highlights.map((h) => (
+                <div
+                  key={h.label}
+                  className="p-3.5 sm:p-4 rounded-2xl bg-[var(--surface-2)] space-y-1"
+                >
+                  <div className="text-xs font-semibold uppercase tracking-wider text-[var(--cyan-text)]">
+                    {h.label}
+                  </div>
+                  <div className="text-sm sm:text-base text-[var(--text-primary)] leading-relaxed">
+                    {h.text}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </ObservedSection>
 

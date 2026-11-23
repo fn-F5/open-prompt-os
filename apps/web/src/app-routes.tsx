@@ -13,6 +13,12 @@ const ImproveAutopsyPage = React.lazy(() =>
 const ReverseEngineerPage = React.lazy(() =>
   import("./routes/reverse-engineer-page.js").then((m) => ({ default: m.ReverseEngineerPage })),
 );
+const TemplateGalleryPage = React.lazy(() =>
+  import("./routes/template-gallery-page.js").then((m) => ({ default: m.TemplateGalleryPage })),
+);
+const TemplateDetailPage = React.lazy(() =>
+  import("./routes/template-detail-page.js").then((m) => ({ default: m.TemplateDetailPage })),
+);
 const DocsHubPage = React.lazy(() =>
   import("./routes/docs-hub-page.js").then((m) => ({ default: m.DocsHubPage })),
 );
@@ -102,6 +108,8 @@ export function AppRoutes() {
             <Route index element={<ComposerPage />} />
             <Route path="improve" element={<ImproveAutopsyPage />} />
             <Route path="reverse-engineer" element={<ReverseEngineerPage />} />
+            <Route path="templates" element={<TemplateGalleryPage />} />
+            <Route path="templates/:templateSlug" element={<TemplateDetailPage />} />
             <Route path="docs" element={<DocsHubPage />} />
             <Route path="docs/:docSlug" element={<DocsArticlePage />} />
             <Route path="history" element={<HistoryPage />} />

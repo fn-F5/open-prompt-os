@@ -100,7 +100,7 @@ export const DEFAULT_PRICING_PLANS: readonly PricingPlanItem[] = [
     guestDailyPromptLimit: null,
     features: [
       "2,000 daily AI-compiled prompts & autopsies",
-      "Shared team prompt library",
+      "Shared team prompt library & templates",
       "PostgreSQL Row-Level Security tenant isolation",
     ],
     highlighted: false,
