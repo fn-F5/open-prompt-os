@@ -311,7 +311,7 @@ export function buildPricingSeo(origin = getSiteOrigin()): SeoMetadata {
           name: SITE_NAME,
         },
         description:
-          "Full-lifecycle AI prompt engineering studio with Prompt Compiler, Prompt Autopsy, Reverse Engineer, and Prompt Library.",
+          "Full-lifecycle AI prompt engineering studio with Prompt Compiler, Prompt Autopsy, Reverse Engineer, and Template Library.",
         offers: DEFAULT_PRICING_PLANS.map((plan) => ({
           "@type": "Offer",
           name: `${plan.name} Plan`,

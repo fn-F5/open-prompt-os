@@ -396,7 +396,7 @@ describe("runtime, config, rate-limiter, and clientKey helpers", () => {
     const xml = await res.text();
     expect(xml).toContain('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">');
     expect(xml).toContain("/docs/prompt-frameworks-costar-rise-care-cot</loc>");
-    expect(xml).not.toContain("/templates");
+    expect(xml).toContain("/templates/staff-architecture-rfc-review</loc>");
   });
 });
 

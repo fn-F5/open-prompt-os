@@ -50,7 +50,8 @@ export function generateLlmsTxt(
     "",
     `- [Prompt Compiler](${cleanOrigin}/): Guided multi-modal prompt builder (Text, Image, Video) with CO-STAR, RISE, CARE, and Chain-of-Thought frameworks and one-click dispatch.`,
     `- [Improve & Prompt Autopsy](${cleanOrigin}/improve): Structural prompt optimizer and root-cause debugger across 8 diagnostic categories.`,
-    `- [Reverse Engineer](${cleanOrigin}/reverse-engineer): Upload PNG, JPEG, or WebP images to extract a 6-axis visual anatomy and ready-to-paste prompt.`,
+    `- [Reverse Engineer](${cleanOrigin}/reverse-engineer): Upload PNG, JPEG, or WebP images to extract a 6-axis visual anatomy and reusable prompt draft.`,
+    `- [Template Gallery](${cleanOrigin}/templates): Curated, permissively licensed prompt blueprints with [Variable] parameters.`,
     `- [Documentation Hub](${cleanOrigin}/docs): Answer-First prompt engineering guides and framework comparisons.`,
     `- [Pricing](${cleanOrigin}/pricing): Instant free anonymous tier plus Pro and Team plans.`,
     "",
@@ -58,9 +59,16 @@ export function generateLlmsTxt(
     "",
     ...docs.map((doc) => `- [${doc.title}](${cleanOrigin}/docs/${doc.slug}): ${doc.description}`),
     "",
+    "## Curated Prompt Blueprints",
+    "",
+    ...templates.map(
+      (tpl) =>
+        `- [${tpl.title}](${cleanOrigin}/templates/${tpl.slug}) (${tpl.mode.toUpperCase()} · ${tpl.frameworkBadge}): ${tpl.useCase}`,
+    ),
+    "",
     "## Full Context Corpus",
     "",
-    `- [Complete Markdown Knowledge Base](${cleanOrigin}/llms-full.txt): Concatenated documentation, framework matrices, diagnostic taxonomy, and FAQs.`,
+    `- [Complete Markdown Knowledge Base](${cleanOrigin}/llms-full.txt): Concatenated documentation, framework matrices, diagnostic taxonomy, FAQs, and template specifications.`,
     `- [XML Sitemap](${cleanOrigin}/sitemap.xml): Machine-readable index of all public pages.`,
     "",
   ];
@@ -133,6 +141,24 @@ export function generateLlmsFullTxt(
     }
   }
 
+  parts.push("---", "", "## Curated Prompt Templates", "");
+
+  for (const tpl of templates) {
+    parts.push(
+      `### ${tpl.title}`,
+      `URL: ${cleanOrigin}/templates/${tpl.slug}`,
+      `Mode: ${tpl.mode} | Category: ${tpl.category} | Framework: ${tpl.frameworkBadge}`,
+      `Compatible Models: ${tpl.compatibleModels.join(", ")}`,
+      "",
+      tpl.useCase,
+      "",
+      "```markdown",
+      tpl.compiledTemplate,
+      "```",
+      "",
+    );
+  }
+
   return parts.join("\n");
 }
 
@@ -145,7 +171,7 @@ export interface SitemapUrlEntry {
 
 export function generateSitemapXml(
   origin = DEFAULT_SITE_URL,
-  _templates: readonly PromptTemplate[] = DEFAULT_CURATED_TEMPLATES,
+  templates: readonly PromptTemplate[] = DEFAULT_CURATED_TEMPLATES,
   docs: readonly DocArticle[] = DOCS_CATALOG,
 ): string {
   const cleanOrigin = origin.replace(/\/+$/, "");
@@ -153,11 +179,18 @@ export function generateSitemapXml(
     { loc: `${cleanOrigin}/`, changefreq: "weekly", priority: "1.0" },
     { loc: `${cleanOrigin}/improve`, changefreq: "weekly", priority: "0.9" },
     { loc: `${cleanOrigin}/reverse-engineer`, changefreq: "weekly", priority: "0.9" },
+    { loc: `${cleanOrigin}/templates`, changefreq: "daily", priority: "0.9" },
     { loc: `${cleanOrigin}/docs`, changefreq: "weekly", priority: "0.9" },
     { loc: `${cleanOrigin}/pricing`, changefreq: "monthly", priority: "0.8" },
     ...docs.map((doc) => ({
       loc: `${cleanOrigin}/docs/${doc.slug}`,
       lastmod: doc.updatedAt.slice(0, 10),
+      changefreq: "weekly" as const,
+      priority: "0.8",
+    })),
+    ...templates.map((tpl) => ({
+      loc: `${cleanOrigin}/templates/${tpl.slug}`,
+      lastmod: tpl.updatedAt.slice(0, 10),
       changefreq: "weekly" as const,
       priority: "0.8",
     })),
@@ -198,7 +231,12 @@ export function buildPrerenderRoutes(
     {
       path: "/reverse-engineer",
       meta: STATIC_ROUTE_SEO.reverseEngineer(origin),
-      staticBodyHtml: `<main class="mx-auto max-w-[1360px] px-4 py-10 space-y-4"><h1>Reverse Engineer Image to Prompt</h1><p>Upload any PNG, JPEG, or WebP reference image to extract a 6-axis visual breakdown and ready-to-paste prompt.</p><ol><li>Choose Image or Video Motion Prompt mode.</li><li>Upload a PNG, JPEG, or WebP reference image up to 4 MB.</li><li>Copy or load the reconstructed prompt into Composer.</li></ol></main>`,
+      staticBodyHtml: `<main class="mx-auto max-w-[1360px] px-4 py-10 space-y-4"><h1>Reverse Engineer Image to Prompt</h1><p>Upload any PNG, JPEG, or WebP reference image to extract a 6-axis visual breakdown and reusable prompt draft.</p></main>`,
+    },
+    {
+      path: "/templates",
+      meta: buildTemplateGallerySeo(templates, origin),
+      staticBodyHtml: `<main class="mx-auto max-w-[1360px] px-4 py-10 space-y-4"><h1>AI Prompt Template Gallery</h1><ul>${templates.map((t) => `<li><a href="/templates/${escapeHtml(t.slug)}">${escapeHtml(t.title)}</a> — ${escapeHtml(t.useCase)}</li>`).join("")}</ul><ol><li>Choose Image or Video Motion Prompt mode.</li><li>Upload a PNG, JPEG, or WebP reference image up to 4 MB.</li><li>Copy or load the reconstructed prompt into Composer.</li></ol></main>`,
     },
     {
       path: "/pricing",
@@ -214,6 +252,11 @@ export function buildPrerenderRoutes(
       path: `/docs/${doc.slug}`,
       meta: buildDocArticleSeo(doc, origin),
       staticBodyHtml: `<main class="mx-auto max-w-4xl px-4 py-10 space-y-4"><article><h1>${escapeHtml(doc.title)}</h1><p><strong>Direct Answer:</strong> ${escapeHtml(doc.tldrAnswer)}</p>${doc.sections.map((s) => `<section><h2>${escapeHtml(s.heading)}</h2>${s.paragraphs.map((p) => `<p>${escapeHtml(p)}</p>`).join("")}</section>`).join("")}</article></main>`,
+    })),
+    ...templates.map((tpl) => ({
+      path: `/templates/${tpl.slug}`,
+      meta: buildTemplateDetailSeo(tpl, origin),
+      staticBodyHtml: `<main class="mx-auto max-w-4xl px-4 py-10 space-y-4"><article><h1>${escapeHtml(tpl.title)}</h1><p>${escapeHtml(tpl.useCase)}</p><pre>${escapeHtml(tpl.compiledTemplate)}</pre></article></main>`,
     })),
   ];
 

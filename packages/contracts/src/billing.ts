@@ -121,7 +121,7 @@ export const DEFAULT_PRICING_PLANS: readonly PricingPlanItem[] = [
       "30 Compile requests / day",
       "20 Prompt Autopsy requests / day",
       "10 Reverse Engineer requests / day",
-      "Shared team prompt library",
+      "Shared team prompt library & templates",
       "PostgreSQL Row-Level Security tenant isolation",
     ],
     highlighted: false,
