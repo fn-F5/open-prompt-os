@@ -341,9 +341,9 @@ describe("Cloudflare Turnstile in AuthDialog", () => {
 
     await waitFor(() => {
       expect(screen.getByLabelText("Sign-in code")).toBeInTheDocument();
+      expect(removeSpy).toHaveBeenCalledWith("widget-1");
     });
     expect(screen.queryByTestId("turnstile-widget")).not.toBeInTheDocument();
-    expect(removeSpy).toHaveBeenCalledWith("widget-1");
 
     // Switch back via "Use another email" and confirm Turnstile re-mounts cleanly
     fireEvent.click(screen.getByRole("button", { name: "Use another email" }));
