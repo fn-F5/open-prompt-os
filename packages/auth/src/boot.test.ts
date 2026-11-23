@@ -8,6 +8,7 @@ const production = {
   WEB_ORIGINS: "https://openpromptos.com",
   DATABASE_URL: "postgresql://app@db.internal:5432/open_prompt_os",
   RESEND_API_KEY: "re_test",
+  TURNSTILE_SECRET_KEY: "cf_turnstile_test",
   PASSKEY_RP_ID: "openpromptos.com",
 };
 
@@ -37,7 +38,7 @@ describe("production boot", () => {
       googleClientSecret: undefined,
       githubClientId: undefined,
       githubClientSecret: undefined,
-      turnstileSecretKey: undefined,
+      turnstileSecretKey: "cf_turnstile_test",
       trustProxy: false,
       secureCookies: true,
     });
@@ -61,15 +62,21 @@ describe("production boot", () => {
     expect(() => loadAuthBoot({ ...production, DATABASE_URL: "   " })).toThrow(
       "Refusing to start. DATABASE_URL is required.",
     );
+    expect(() => loadAuthBoot({ ...production, TURNSTILE_SECRET_KEY: undefined })).toThrow(
+      "Refusing to start. TURNSTILE_SECRET_KEY is required.",
+    );
+    expect(() => loadAuthBoot({ ...production, TURNSTILE_SECRET_KEY: "   " })).toThrow(
+      "Refusing to start. TURNSTILE_SECRET_KEY is required.",
+    );
   });
 
   it("validates production secret length, development keyword, origins, DB protocol, and RP ID", () => {
     expect(() => loadAuthBoot({ ...production, BETTER_AUTH_SECRET: "a".repeat(31) })).toThrow(
       "Refusing to start. BETTER_AUTH_SECRET is not a production secret.",
     );
-    expect(loadAuthBoot({ ...production, BETTER_AUTH_SECRET: "a".repeat(32) })?.secret?.length).toBe(
-      32,
-    );
+    expect(
+      loadAuthBoot({ ...production, BETTER_AUTH_SECRET: "a".repeat(32) })?.secret?.length,
+    ).toBe(32);
     expect(() =>
       loadAuthBoot({ ...production, BETTER_AUTH_SECRET: `DEVELOPMENT_${"x".repeat(25)}` }),
     ).toThrow("Refusing to start. BETTER_AUTH_SECRET is not a production secret.");

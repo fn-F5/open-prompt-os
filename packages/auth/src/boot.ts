@@ -107,6 +107,7 @@ export function loadAuthBoot(env: Record<string, string | undefined>): AuthBootC
       throw new Error("Refusing to start. DATABASE_URL must be PostgreSQL.");
     }
     required(env, "RESEND_API_KEY");
+    required(env, "TURNSTILE_SECRET_KEY");
     if (env.PASSKEY_RP_ID !== "openpromptos.com") {
       throw new Error("Refusing to start. PASSKEY_RP_ID must be openpromptos.com.");
     }
