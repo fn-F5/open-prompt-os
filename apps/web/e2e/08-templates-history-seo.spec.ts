@@ -11,13 +11,10 @@ test.describe("08 - Templates, History & SEO Endpoints @full", () => {
     await cleanupUser(request, email);
   });
 
-  test("browses seeded templates, records video RE in History, and serves sitemap.xml", async ({
-    page,
-    request,
-  }) => {
-    // 1. Seeded templates gallery + detail load
-    await page.goto("/templates");
-    await expect(page.getByRole("heading", { name: /Template Gallery/i }).first()).toBeVisible({
+  test("records video RE in History and serves sitemap.xml", async ({ page, request }) => {
+    // 1. Docs hub loads cleanly
+    await page.goto("/docs");
+    await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible({
       timeout: 10_000,
     });
 

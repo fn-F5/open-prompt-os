@@ -31,7 +31,7 @@ test.describe("07 - Quota Enforcement & PostgreSQL RLS Tenant Isolation @full", 
 
     // Second run without resetting quota must be blocked by real Postgres usage_counters
     await page.getByRole("button", { name: /Reverse Engineer Video/i }).click();
-    await expect(page.getByRole("alert")).toContainText(/Daily limit reached/i, {
+    await expect(page.getByRole("dialog")).toContainText(/Daily Limit Reached/i, {
       timeout: 10_000,
     });
 

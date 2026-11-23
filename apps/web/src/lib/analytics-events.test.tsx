@@ -75,12 +75,12 @@ describe("Analytics event schema & navigation/button tracking", () => {
 
     captureMock.mockClear();
 
-    const templatesLinks = screen.getAllByRole("link", { name: "Templates" });
-    fireEvent.click(templatesLinks[0] as HTMLElement);
+    const pricingLinks = screen.getAllByRole("link", { name: "Pricing" });
+    fireEvent.click(pricingLinks[0] as HTMLElement);
 
     expect(captureMock).toHaveBeenCalledWith("navigation:nav_link_click", {
-      link_name: "templates",
-      target_path: "/templates",
+      link_name: "pricing",
+      target_path: "/pricing",
       nav_surface: "marketing_navbar",
       is_authenticated: false,
     });
