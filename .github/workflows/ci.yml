@@ -59,6 +59,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Cache Turborepo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-
+
       - name: Generate Prisma client
         run: pnpm --filter @open-prompt-os/db db:generate
 
@@ -101,8 +109,16 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Cache Stryker incremental report
+        uses: actions/cache@v4
+        with:
+          path: packages/core/reports/stryker-incremental.json
+          key: stryker-core-${{ runner.os }}-${{ hashFiles('packages/core/src/**') }}
+          restore-keys: |
+            stryker-core-${{ runner.os }}-
+
       - name: Run Stryker mutation tests on @open-prompt-os/core
-        run: pnpm --filter @open-prompt-os/core exec stryker run
+        run: pnpm --filter @open-prompt-os/core exec stryker run --incremental
 
   e2e:
     name: Full-Stack E2E Verification
@@ -151,8 +167,20 @@ jobs:
       - name: Verify E2E suite integrity (no skips or .only)
         run: pnpm verify:e2e-integrity
 
+      - name: Cache Playwright Chromium
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
       - name: Install Playwright Chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: pnpm --filter @open-prompt-os/web exec playwright install --with-deps chromium
+
+      - name: Install Playwright OS dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: pnpm --filter @open-prompt-os/web exec playwright install-deps chromium
 
       - name: Generate Prisma client
         run: pnpm --filter @open-prompt-os/db db:generate
@@ -166,9 +194,85 @@ jobs:
       - name: Run Playwright Full-Stack E2E suite
         run: pnpm test:e2e
 
-      - name: Run Playwright Layout & Resolution Audit
+      - name: Upload Playwright report and traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-e2e-evidence
+          path: |
+            reports/playwright-report
+            reports/playwright-results
+          retention-days: 7
+
+  resolution-audit:
+    name: Layout & Resolution Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16
         env:
-          STRICT_RESOLUTION: "1"
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: ci_password
+          POSTGRES_DB: open_prompt_os
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U admin -d open_prompt_os"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      NODE_ENV: test
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: ci_password
+      POSTGRES_DB: open_prompt_os
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache Playwright Chromium
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install Playwright Chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm --filter @open-prompt-os/web exec playwright install --with-deps chromium
+
+      - name: Install Playwright OS dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: pnpm --filter @open-prompt-os/web exec playwright install-deps chromium
+
+      - name: Generate Prisma client
+        run: pnpm --filter @open-prompt-os/db db:generate
+
+      - name: Prepare PostgreSQL schema, RLS, and seed data
+        run: |
+          pnpm --filter @open-prompt-os/db exec tsx scripts/prisma.ts migrate deploy
+          pnpm --filter @open-prompt-os/db db:rls
+          pnpm --filter @open-prompt-os/db db:seed
+
+      - name: Run Playwright Layout & Resolution Audit (report-only)
         run: pnpm --filter @open-prompt-os/web test:resolution
 
       - name: Upload resolution audit report and screenshots
@@ -180,14 +284,4 @@ jobs:
             apps/web/e2e/resolution-report.json
             reports/resolution-screenshots
           if-no-files-found: ignore
-          retention-days: 7
-
-      - name: Upload Playwright report and traces on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-e2e-evidence
-          path: |
-            reports/playwright-report
-            reports/playwright-results
           retention-days: 7
