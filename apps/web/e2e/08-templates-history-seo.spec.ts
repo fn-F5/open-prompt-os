@@ -1,6 +1,6 @@
 import { API_URL, cleanupUser, expect, resetQuota, signInViaAuthDialog, test } from "./fixtures.js";
 
-test.describe("08 - Docs, History & SEO Endpoints @full", () => {
+test.describe("08 - Templates, History & SEO Endpoints @full", () => {
   const email = `e2e.hist.${Date.now()}@example.com`;
 
   test.beforeEach(async ({ request }) => {
@@ -11,13 +11,13 @@ test.describe("08 - Docs, History & SEO Endpoints @full", () => {
     await cleanupUser(request, email);
   });
 
-  test("loads docs hub, records video RE in History, and serves sitemap.xml without templates", async ({
+  test("browses seeded templates, records video RE in History, and serves sitemap.xml", async ({
     page,
     request,
   }) => {
-    // 1. Documentation Hub loads cleanly
-    await page.goto("/docs");
-    await expect(page.getByRole("heading", { name: /Documentation/i }).first()).toBeVisible({
+    // 1. Seeded templates gallery + detail load
+    await page.goto("/templates");
+    await expect(page.getByRole("heading", { name: /Template Gallery/i }).first()).toBeVisible({
       timeout: 10_000,
     });
 
@@ -39,11 +39,9 @@ test.describe("08 - Docs, History & SEO Endpoints @full", () => {
       timeout: 10_000,
     });
 
-    // 3. SEO sitemap.xml returns 200 XML and excludes removed /templates routes
+    // 3. SEO sitemap.xml returns 200 XML
     const sitemapRes = await request.get(`${API_URL}/api/seo/sitemap.xml`);
     expect(sitemapRes.status()).toBe(200);
-    const sitemapXml = await sitemapRes.text();
-    expect(sitemapXml).toContain("<urlset");
-    expect(sitemapXml).not.toContain("/templates");
+    expect(await sitemapRes.text()).toContain("<urlset");
   });
 });
