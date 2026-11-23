@@ -17,7 +17,7 @@ import { ORPCError } from "@orpc/server";
 import type { ResolvedActor } from "../auth/session-resolver.js";
 import { toUserFacingServerError } from "../errors.js";
 import { logger } from "../logger.js";
-import { checkQuota, recordPromptGeneration, recordUsage } from "../services/usage-quota.js";
+import { recordPromptGeneration, releaseQuota, reserveQuota } from "../services/usage-quota.js";
 
 function failure(error: unknown, requestId: string): never {
   if (error instanceof ORPCError) {
@@ -59,7 +59,7 @@ export async function executeCompose(
     failure(error, ctx.requestId);
   }
 
-  const quota = await checkQuota(ctx.actor, "compose");
+  const quota = await reserveQuota(ctx.actor, "compose");
   if (!quota.allowed) {
     throw new ORPCError("FORBIDDEN", {
       message:
@@ -72,9 +72,6 @@ export async function executeCompose(
     const started = Date.now();
     const result = await orchestrator.compose(input, ctx);
     const latencyMs = result.latencyMs || Date.now() - started;
-
-    // Atomically increment daily usage counter
-    await recordUsage(ctx.actor, "compose");
 
     // Persist to prompt_generations
     await recordPromptGeneration(ctx.actor, {
@@ -91,9 +88,12 @@ export async function executeCompose(
 
     return {
       ...result,
-      remainingDailyPrompts: Math.max(0, quota.remainingDaily - 1),
+      remainingDailyPrompts: quota.remainingDaily,
     };
   } catch (error) {
+    if (quota.reserved) {
+      await releaseQuota(ctx.actor, "compose");
+    }
     failure(error, ctx.requestId);
   }
 }
@@ -110,7 +110,7 @@ export async function executeRefine(
   }
 
   const action = ctx.kind === "autopsy" ? "autopsy" : "refine";
-  const quota = await checkQuota(ctx.actor, action);
+  const quota = await reserveQuota(ctx.actor, action);
   if (!quota.allowed) {
     throw new ORPCError("FORBIDDEN", {
       message: `QUOTA_EXCEEDED: Daily limit reached for ${action}. Upgrade your plan or try again tomorrow.`,
@@ -122,9 +122,6 @@ export async function executeRefine(
     const started = Date.now();
     const result = await orchestrator.refine(input, ctx);
     const latencyMs = result.latencyMs || Date.now() - started;
-
-    // Atomically increment daily usage counter
-    await recordUsage(ctx.actor, action);
 
     // Persist to prompt_generations
     await recordPromptGeneration(ctx.actor, {
@@ -140,6 +137,9 @@ export async function executeRefine(
 
     return result;
   } catch (error) {
+    if (quota.reserved) {
+      await releaseQuota(ctx.actor, action);
+    }
     failure(error, ctx.requestId);
   }
 }
@@ -149,7 +149,7 @@ export async function executeReverseEngineer(
   input: ReverseEngineerInput,
   ctx: OrchestratorContext & { actor: ResolvedActor },
 ): Promise<ReverseEngineerOutput> {
-  const quota = await checkQuota(ctx.actor, "reverse_engineer");
+  const quota = await reserveQuota(ctx.actor, "reverse_engineer");
   if (!quota.allowed) {
     throw new ORPCError("FORBIDDEN", {
       message:
@@ -162,8 +162,6 @@ export async function executeReverseEngineer(
     const started = Date.now();
     const result = await orchestrator.reverseEngineer(input, ctx);
     const latencyMs = result.latencyMs || Date.now() - started;
-
-    await recordUsage(ctx.actor, "reverse_engineer");
 
     const fallbackPreview =
       input.imageBase64.length <= 120_000
@@ -187,9 +185,12 @@ export async function executeReverseEngineer(
 
     return {
       ...result,
-      remainingDailyRuns: Math.max(0, quota.remainingDaily - 1),
+      remainingDailyRuns: quota.remainingDaily,
     };
   } catch (error) {
+    if (quota.reserved) {
+      await releaseQuota(ctx.actor, "reverse_engineer");
+    }
     failure(error, ctx.requestId);
   }
 }
