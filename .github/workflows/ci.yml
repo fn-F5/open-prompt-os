@@ -101,9 +101,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build core workspace dependencies
-        run: pnpm --filter @open-prompt-os/core... build
-
       - name: Run Stryker mutation tests on @open-prompt-os/core
         run: pnpm --filter @open-prompt-os/core exec stryker run
 
