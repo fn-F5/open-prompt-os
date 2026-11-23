@@ -188,6 +188,16 @@ export function registerVideoReverseEngineerStream(
       }
 
       const rawEffectiveEnd = parsed.data.endOffsetSec ?? parsed.data.durationSeconds;
+      if (rawEffectiveEnd !== undefined && rawEffectiveEnd <= parsed.data.startOffsetSec) {
+        return c.json(
+          {
+            code: "VALIDATION_ERROR",
+            message: "End time must be greater than start time.",
+            requestId,
+          },
+          400,
+        );
+      }
       if (
         rawEffectiveEnd !== undefined &&
         (rawEffectiveEnd > limits.maxDurationSec ||
