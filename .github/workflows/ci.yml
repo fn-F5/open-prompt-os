@@ -68,6 +68,9 @@ jobs:
           pnpm --filter @open-prompt-os/db db:rls
           pnpm --filter @open-prompt-os/db db:seed
 
+      - name: Run Biome lint & format check
+        run: pnpm lint
+
       - name: Typecheck workspace
         run: pnpm typecheck
 
@@ -76,6 +79,33 @@ jobs:
 
       - name: Run all test suites
         run: pnpm test
+
+  mutation:
+    name: Mutation Testing (Core)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build core workspace dependencies
+        run: pnpm --filter @open-prompt-os/core... build
+
+      - name: Run Stryker mutation tests on @open-prompt-os/core
+        run: pnpm --filter @open-prompt-os/core exec stryker run
 
   e2e:
     name: Full-Stack E2E Verification
@@ -138,6 +168,22 @@ jobs:
 
       - name: Run Playwright Full-Stack E2E suite
         run: pnpm test:e2e
+
+      - name: Run Playwright Layout & Resolution Audit
+        env:
+          STRICT_RESOLUTION: "1"
+        run: pnpm --filter @open-prompt-os/web test:resolution
+
+      - name: Upload resolution audit report and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-resolution-audit
+          path: |
+            apps/web/e2e/resolution-report.json
+            reports/resolution-screenshots
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Upload Playwright report and traces on failure
         if: failure()

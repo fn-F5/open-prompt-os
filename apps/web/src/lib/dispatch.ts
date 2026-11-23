@@ -19,7 +19,10 @@ const TARGET_LABELS: Record<DispatchTarget, string> = {
   clipboard: "Clipboard",
 };
 
-export function buildDispatchUrl(target: Exclude<DispatchTarget, "clipboard">, promptText: string): string {
+export function buildDispatchUrl(
+  target: Exclude<DispatchTarget, "clipboard">,
+  promptText: string,
+): string {
   const encoded = encodeURIComponent(promptText);
   switch (target) {
     case "chatgpt":

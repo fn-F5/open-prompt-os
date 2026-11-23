@@ -34,8 +34,12 @@ const SIZE_CLASSES: Record<ButtonSize, string> = {
 };
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className = "", variant = "primary-inverse", size = "md", type = "button", ...props }, ref) => {
-    const sizeClass = variant === "icon" ? "min-h-[42px] min-w-[42px] rounded-xl" : SIZE_CLASSES[size];
+  (
+    { className = "", variant = "primary-inverse", size = "md", type = "button", ...props },
+    ref,
+  ) => {
+    const sizeClass =
+      variant === "icon" ? "min-h-[42px] min-w-[42px] rounded-xl" : SIZE_CLASSES[size];
     return (
       <button
         ref={ref}

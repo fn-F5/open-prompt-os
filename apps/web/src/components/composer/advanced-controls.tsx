@@ -138,7 +138,10 @@ export function AdvancedControls({
 
           <div>
             <div className="flex items-center justify-between text-sm mb-2">
-              <label htmlFor="creativity-slider" className="font-semibold text-[var(--text-primary)]">
+              <label
+                htmlFor="creativity-slider"
+                className="font-semibold text-[var(--text-primary)]"
+              >
                 Creativity vs. Precision
               </label>
               <span className="font-mono text-sm font-semibold text-[var(--accent-text)] tabular-nums">

@@ -169,7 +169,8 @@ const USE_CASE_SHOWCASE: ReadonlyArray<{
 export function MarketingScrollContent() {
   const [selectedUseCase, setSelectedUseCase] = React.useState<ComposerMode>("text");
   const activeShowcase =
-    USE_CASE_SHOWCASE.find((u) => u.mode === selectedUseCase) ?? USE_CASE_SHOWCASE[0]!;
+    USE_CASE_SHOWCASE.find((u) => u.mode === selectedUseCase) ?? USE_CASE_SHOWCASE[0];
+  if (!activeShowcase) return null;
 
   return (
     <div
