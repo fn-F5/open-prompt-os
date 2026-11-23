@@ -5,6 +5,7 @@ import { Menu, MessageSquarePlus, Moon, Sun, User, X } from "lucide-react";
 import * as React from "react";
 import { Link, useLocation } from "react-router";
 import { useAuthSession } from "../../hooks/use-auth-session.js";
+import { trackAnalyticsEvent } from "../../lib/analytics-events.js";
 import { orpcClient } from "../../lib/orpc.js";
 import { queryKeys } from "../../lib/query-client.js";
 import { safeGetItem, safeSetItem } from "../../lib/storage.js";
@@ -78,7 +79,13 @@ function ThemeToggle({
   return (
     <button
       type="button"
-      onClick={onToggle}
+      data-analytics-tracked="true"
+      onClick={() => {
+        trackAnalyticsEvent("navigation:theme_toggle_click", {
+          next_theme: theme === "dark" ? "light" : "dark",
+        });
+        onToggle();
+      }}
       aria-label={`Theme is ${theme}. Switch to ${theme === "dark" ? "light" : "dark"} theme`}
       title={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
       className="inline-flex items-center justify-center w-9 h-9 min-w-[38px] min-h-[38px] shrink-0 rounded-xl bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--separator-subtle)] hover:border-[var(--separator-strong)] transition-colors focus-ring cursor-pointer"
@@ -101,7 +108,6 @@ export function MarketingNavbar() {
     { to: "/", label: "Compiler" },
     { to: "/reverse-engineer", label: "Reverse Engineer" },
     { to: "/improve", label: "Improve & Autopsy" },
-    { to: "/templates", label: "Templates" },
     { to: "/pricing", label: "Pricing" },
   ];
 
@@ -111,6 +117,13 @@ export function MarketingNavbar() {
         <div className="flex items-center gap-2 xl:gap-5 min-w-0">
           <Link
             to="/"
+            data-analytics-tracked="true"
+            onClick={() =>
+              trackAnalyticsEvent("navigation:brand_logo_click", {
+                target_path: "/",
+                nav_surface: "marketing_navbar",
+              })
+            }
             className="inline-flex items-center gap-2.5 sm:gap-3 font-bold tracking-tight text-base sm:text-lg whitespace-nowrap shrink-0 focus-ring rounded-xl py-1"
           >
             <BrandLogo className="w-9 h-9 shrink-0 shadow-sm" />
@@ -131,6 +144,15 @@ export function MarketingNavbar() {
                   key={item.to}
                   to={item.to}
                   aria-current={isActive ? "page" : undefined}
+                  data-analytics-tracked="true"
+                  onClick={() =>
+                    trackAnalyticsEvent("navigation:nav_link_click", {
+                      link_name: item.label.toLowerCase().replace(/[^a-z0-9]+/g, "_"),
+                      target_path: item.to,
+                      nav_surface: "marketing_navbar",
+                      is_authenticated: false,
+                    })
+                  }
                   className={`inline-flex items-center gap-1.5 px-2 xl:px-2.5 py-1.5 rounded-xl text-xs xl:text-sm whitespace-nowrap shrink-0 transition-all focus-ring ${
                     isActive
                       ? "bg-[var(--accent-subtle-bg)] text-[var(--text-primary)] font-semibold border border-[var(--separator-strong)] shadow-sm"
@@ -156,7 +178,14 @@ export function MarketingNavbar() {
             size="sm"
             aria-label="Send feedback or feature request"
             className="whitespace-nowrap shrink-0"
-            onClick={() => openFeedbackDialog({ defaultKind: "feature_request", source: "navbar" })}
+            data-analytics-tracked="true"
+            onClick={() => {
+              trackAnalyticsEvent("feedback:open_button_click", {
+                source: "navbar",
+                feedback_kind: "feature_request",
+              });
+              openFeedbackDialog({ defaultKind: "feature_request", source: "navbar" });
+            }}
           >
             <MessageSquarePlus className="w-4 h-4 text-[var(--accent-text)]" aria-hidden="true" />
             <span>Feedback</span>
@@ -168,7 +197,14 @@ export function MarketingNavbar() {
             variant="ghost"
             size="sm"
             className="whitespace-nowrap shrink-0"
-            onClick={() => openAuthDialog({ reason: "navbar_signin", mode: "signin" })}
+            data-analytics-tracked="true"
+            onClick={() => {
+              trackAnalyticsEvent("auth:sign_in_button_click", {
+                source: "navbar",
+                auth_mode: "signin",
+              });
+              openAuthDialog({ reason: "navbar_signin", mode: "signin" });
+            }}
           >
             Sign In
           </Button>
@@ -176,7 +212,14 @@ export function MarketingNavbar() {
             variant="solid"
             size="sm"
             className="whitespace-nowrap shrink-0"
-            onClick={() => openAuthDialog({ reason: "navbar_signin", mode: "signup" })}
+            data-analytics-tracked="true"
+            onClick={() => {
+              trackAnalyticsEvent("auth:get_started_button_click", {
+                source: "navbar",
+                auth_mode: "signup",
+              });
+              openAuthDialog({ reason: "navbar_signin", mode: "signup" });
+            }}
           >
             Get Started
           </Button>
@@ -188,7 +231,14 @@ export function MarketingNavbar() {
             variant="icon"
             aria-label={mobileOpen ? "Close navigation menu" : "Open navigation menu"}
             aria-expanded={mobileOpen}
-            onClick={() => setMobileOpen((o) => !o)}
+            data-analytics-tracked="true"
+            onClick={() => {
+              trackAnalyticsEvent("navigation:mobile_menu_click", {
+                menu_state: mobileOpen ? "close" : "open",
+                nav_surface: "marketing_navbar",
+              });
+              setMobileOpen((o) => !o);
+            }}
           >
             {mobileOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
           </Button>
@@ -277,7 +327,6 @@ export function AppNavbar() {
     { to: "/improve", label: "Improve & Autopsy" },
     { to: "/library", label: "Library" },
     { to: "/history", label: "History" },
-    { to: "/templates", label: "Templates" },
   ];
 
   const isSettingsActive = location.pathname.startsWith("/settings");
@@ -293,6 +342,13 @@ export function AppNavbar() {
         <div className="flex items-center gap-2 xl:gap-4 min-w-0">
           <Link
             to="/"
+            data-analytics-tracked="true"
+            onClick={() =>
+              trackAnalyticsEvent("navigation:brand_logo_click", {
+                target_path: "/",
+                nav_surface: "app_navbar",
+              })
+            }
             className="inline-flex items-center gap-2.5 font-bold tracking-tight text-base sm:text-lg whitespace-nowrap shrink-0 focus-ring rounded-xl py-1"
           >
             <BrandLogo className="w-9 h-9 shrink-0 shadow-sm" />
@@ -312,6 +368,15 @@ export function AppNavbar() {
                   key={item.to}
                   to={item.to}
                   aria-current={isActive ? "page" : undefined}
+                  data-analytics-tracked="true"
+                  onClick={() =>
+                    trackAnalyticsEvent("navigation:nav_link_click", {
+                      link_name: item.label.toLowerCase().replace(/[^a-z0-9]+/g, "_"),
+                      target_path: item.to,
+                      nav_surface: "marketing_navbar",
+                      is_authenticated: false,
+                    })
+                  }
                   className={`inline-flex items-center gap-1.5 px-2 xl:px-2.5 py-1.5 rounded-xl text-xs xl:text-sm whitespace-nowrap shrink-0 transition-all focus-ring ${
                     isActive
                       ? "bg-[var(--accent-subtle-bg)] text-[var(--text-primary)] font-semibold border border-[var(--separator-strong)] shadow-sm"
@@ -344,7 +409,14 @@ export function AppNavbar() {
             size="sm"
             aria-label="Send feedback or feature request"
             className="whitespace-nowrap shrink-0"
-            onClick={() => openFeedbackDialog({ defaultKind: "feature_request", source: "navbar" })}
+            data-analytics-tracked="true"
+            onClick={() => {
+              trackAnalyticsEvent("feedback:open_button_click", {
+                source: "navbar",
+                feedback_kind: "feature_request",
+              });
+              openFeedbackDialog({ defaultKind: "feature_request", source: "navbar" });
+            }}
           >
             <MessageSquarePlus className="w-4 h-4 text-[var(--accent-text)]" aria-hidden="true" />
             <span className="hidden xl:inline">Feedback</span>
@@ -356,6 +428,15 @@ export function AppNavbar() {
             to="/settings/profile"
             aria-label={user?.name ?? "Operator"}
             aria-current={isSettingsActive ? "page" : undefined}
+            data-analytics-tracked="true"
+            onClick={() =>
+              trackAnalyticsEvent("navigation:nav_link_click", {
+                link_name: "settings_profile",
+                target_path: "/settings/profile",
+                nav_surface: "app_navbar",
+                is_authenticated: true,
+              })
+            }
             className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs xl:text-sm whitespace-nowrap shrink-0 transition-colors focus-ring ${
               isSettingsActive
                 ? "bg-[var(--accent-subtle-bg)] text-[var(--text-primary)] font-semibold border border-[var(--separator-strong)] shadow-sm"
@@ -375,7 +456,14 @@ export function AppNavbar() {
             variant="icon"
             aria-label={mobileOpen ? "Close workspace menu" : "Open workspace menu"}
             aria-expanded={mobileOpen}
-            onClick={() => setMobileOpen((o) => !o)}
+            data-analytics-tracked="true"
+            onClick={() => {
+              trackAnalyticsEvent("navigation:mobile_menu_click", {
+                menu_state: mobileOpen ? "close" : "open",
+                nav_surface: "app_navbar",
+              });
+              setMobileOpen((o) => !o);
+            }}
           >
             {mobileOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
           </Button>

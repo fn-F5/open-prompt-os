@@ -15,6 +15,7 @@ import {
 } from "@open-prompt-os/core";
 import { ORPCError } from "@orpc/server";
 import type { ResolvedActor } from "../auth/session-resolver.js";
+import { toUserFacingServerError } from "../errors.js";
 import { logger } from "../logger.js";
 import { checkQuota, recordPromptGeneration, recordUsage } from "../services/usage-quota.js";
 
@@ -38,10 +39,10 @@ function failure(error: unknown, requestId: string): never {
     requestId,
     err: error,
   });
-  const message = redactSecrets(error instanceof Error ? error.message : "Internal error");
+  const safe = toUserFacingServerError(error);
   throw new ORPCError("INTERNAL_SERVER_ERROR", {
-    message: `INTERNAL_ERROR: ${message}`,
-    data: { requestId },
+    message: safe.message,
+    data: { requestId, code: safe.code },
   });
 }
 

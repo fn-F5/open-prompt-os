@@ -84,13 +84,17 @@ function buildContents(request: GeminiContentRequest) {
       },
     };
     if (request.video.startOffsetSec !== undefined || request.video.endOffsetSec !== undefined) {
+      const startSec =
+        request.video.startOffsetSec !== undefined
+          ? Math.max(0, Math.floor(request.video.startOffsetSec))
+          : undefined;
+      const endSec =
+        request.video.endOffsetSec !== undefined
+          ? Math.min(30, Math.max(1, Math.ceil(request.video.endOffsetSec)))
+          : undefined;
       videoPart.videoMetadata = {
-        ...(request.video.startOffsetSec !== undefined
-          ? { startOffset: `${Math.floor(request.video.startOffsetSec)}s` }
-          : {}),
-        ...(request.video.endOffsetSec !== undefined
-          ? { endOffset: `${Math.ceil(request.video.endOffsetSec)}s` }
-          : {}),
+        ...(startSec !== undefined ? { startOffset: `${startSec}s` } : {}),
+        ...(endSec !== undefined ? { endOffset: `${endSec}s` } : {}),
       };
     }
     return [videoPart, { text: request.userPrompt }];

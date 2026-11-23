@@ -86,11 +86,11 @@ describe("Navigation Placement, Docs Hub, SEO Metadata & AEO Assets", () => {
         "Compiler",
         "Reverse Engineer",
         "Improve & Autopsy",
-        "Templates",
         "Pricing",
       ]);
 
       expect(within(primaryNav).queryByRole("link", { name: /Docs/i })).toBeNull();
+      expect(within(primaryNav).queryByRole("link", { name: /Templates/i })).toBeNull();
       expect(screen.queryByRole("button", { name: /Tour/i })).toBeNull();
       expect(screen.queryByRole("button", { name: /Replay interactive tour/i })).toBeNull();
 
@@ -102,7 +102,6 @@ describe("Navigation Placement, Docs Hub, SEO Metadata & AEO Assets", () => {
         "Compiler",
         "Reverse Engineer",
         "Improve & Autopsy",
-        "Templates",
         "Pricing",
       ]);
       expect(within(mobileNav).queryByRole("link", { name: /Docs/i })).toBeNull();
@@ -139,9 +138,9 @@ describe("Navigation Placement, Docs Hub, SEO Metadata & AEO Assets", () => {
         "Improve & Autopsy",
         "Library",
         "History",
-        "Templates",
       ]);
       expect(within(workspaceNav).queryByRole("link", { name: /Docs/i })).toBeNull();
+      expect(within(workspaceNav).queryByRole("link", { name: /Templates/i })).toBeNull();
       expect(screen.queryByRole("button", { name: /Tour/i })).toBeNull();
     });
 
@@ -434,7 +433,7 @@ describe("Navigation Placement, Docs Hub, SEO Metadata & AEO Assets", () => {
       expect(screen.getByLabelText("Direct Answer Summary")).toBeInTheDocument();
       expect(screen.getByText("Framework Decision Matrix")).toBeInTheDocument();
       expect(screen.getByText("CO-STAR")).toBeInTheDocument();
-      expect(screen.getByText("Related Prompt Blueprints")).toBeInTheDocument();
+      expect(screen.queryByText("Related Prompt Blueprints")).toBeNull();
       expect(screen.getByText("Continue Reading")).toBeInTheDocument();
 
       expect(document.head.querySelector('link[rel="canonical"]')?.getAttribute("href")).toBe(
@@ -493,30 +492,25 @@ describe("Navigation Placement, Docs Hub, SEO Metadata & AEO Assets", () => {
       expect(llms).toContain(
         "https://openpromptos.com/docs/prompt-frameworks-costar-rise-care-cot",
       );
-      expect(llms).toContain("https://openpromptos.com/templates/staff-architecture-rfc-review");
+      expect(llms).not.toContain("/templates");
 
       const llmsFull = generateLlmsFullTxt("https://openpromptos.com");
       for (const doc of DOCS_CATALOG) {
         expect(llmsFull).toContain(doc.title);
         expect(llmsFull).toContain(doc.tldrAnswer);
       }
-      for (const tpl of DEFAULT_CURATED_TEMPLATES) {
-        expect(llmsFull).toContain(tpl.title);
-        expect(llmsFull).toContain(tpl.slug);
-      }
+      expect(llmsFull).not.toContain("/templates/");
 
       const sitemap = generateSitemapXml("https://openpromptos.com");
       expect(sitemap).toContain('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">');
       expect(sitemap).toContain("<loc>https://openpromptos.com/</loc>");
       expect(sitemap).toContain("<loc>https://openpromptos.com/docs</loc>");
-      expect(sitemap).toContain(
-        "<loc>https://openpromptos.com/templates/sql-query-optimization-and-index-audit</loc>",
-      );
+      expect(sitemap).not.toContain("/templates");
 
       const shellHtml = `<!doctype html><html><head><title>Default</title><meta name="description" content="Default" /><meta name="robots" content="index" /><link rel="canonical" href="https://openpromptos.com/" /><meta property="og:type" content="website" /><meta property="og:title" content="Default" /><meta property="og:description" content="Default" /><meta property="og:url" content="https://openpromptos.com/" /><meta property="og:image" content="https://openpromptos.com/og-default.svg" /><meta name="twitter:title" content="Default" /><meta name="twitter:description" content="Default" /><meta name="twitter:image" content="https://openpromptos.com/og-default.svg" /></head><body><div id="root"></div></body></html>`;
 
       const routes = buildPrerenderRoutes("https://openpromptos.com");
-      expect(routes.length).toBe(6 + DOCS_CATALOG.length + DEFAULT_CURATED_TEMPLATES.length);
+      expect(routes.length).toBe(5 + DOCS_CATALOG.length);
 
       const docsRoute = routes.find((r) => r.path === "/docs/prompt-autopsy-and-debugging");
       if (!docsRoute)

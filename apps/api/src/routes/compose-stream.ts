@@ -1,14 +1,11 @@
 import type { PromptOrchestrator } from "@open-prompt-os/adapter-kit";
 import type { Auth } from "@open-prompt-os/auth";
 import { ComposePromptInputSchema } from "@open-prompt-os/contracts";
-import {
-  evaluatePromptQuality,
-  extractDraftSupplementalText,
-  redactSecrets,
-} from "@open-prompt-os/core";
+import { evaluatePromptQuality, extractDraftSupplementalText } from "@open-prompt-os/core";
 import type { Context, Hono } from "hono";
 import type { ApiEnv } from "../app-env.js";
 import { resolveActor } from "../auth/session-resolver.js";
+import { toUserFacingServerError } from "../errors.js";
 import { enrichRequestContext, logger } from "../logger.js";
 import { checkQuota, recordPromptGeneration, recordUsage } from "../services/usage-quota.js";
 
@@ -79,6 +76,7 @@ export function registerComposeStream(app: Hono<ApiEnv>, deps: ComposeStreamDeps
         try {
           // Flush SSE headers immediately through dev/reverse proxies before awaiting the first token.
           controller.enqueue(encoder.encode(": stream-open\n\n"));
+          let completed = false;
 
           while (!signal.aborted) {
             const next = await iterator.next();
@@ -109,11 +107,16 @@ export function registerComposeStream(app: Hono<ApiEnv>, deps: ComposeStreamDeps
               ]);
 
               event.output.remainingDailyPrompts = Math.max(0, quota.remainingDaily - 1);
+              completed = true;
 
               controller.enqueue(
                 encoder.encode(`event: done\ndata: ${JSON.stringify(event.output)}\n\n`),
               );
             }
+          }
+
+          if (!signal.aborted && !completed) {
+            throw new Error("Compose stream ended without a completion event.");
           }
         } catch (error) {
           logger.error("Compose stream failed", {
@@ -121,11 +124,11 @@ export function registerComposeStream(app: Hono<ApiEnv>, deps: ComposeStreamDeps
             requestId,
             err: error,
           });
-          const message = redactSecrets(error instanceof Error ? error.message : "Internal error");
+          const safe = toUserFacingServerError(error);
           try {
             controller.enqueue(
               encoder.encode(
-                `event: error\ndata: ${JSON.stringify({ code: "INTERNAL_ERROR", message, requestId })}\n\n`,
+                `event: error\ndata: ${JSON.stringify({ code: safe.code, message: safe.message, requestId })}\n\n`,
               ),
             );
           } catch {

@@ -11,7 +11,12 @@ import * as React from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
 import { AppRoutes } from "./app-routes.js";
+import { installClickAnalytics } from "./lib/click-tracker.js";
+import { initPostHog } from "./lib/posthog.js";
 import { queryClient } from "./lib/query-client.js";
+
+initPostHog();
+installClickAnalytics();
 
 const rootElement = document.getElementById("root");
 if (!rootElement) {

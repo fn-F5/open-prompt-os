@@ -108,9 +108,17 @@ export function VideoReverseEngineerPanel() {
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
-      const start = Math.max(0, Number.parseFloat(startOffsetSec) || 0);
+      const start = Math.max(
+        0,
+        Math.min(Number.parseFloat(startOffsetSec) || 0, limits.maxDurationSec - 1),
+      );
       const parsedEnd = Number.parseFloat(endOffsetSec);
-      const end = Number.isFinite(parsedEnd) ? parsedEnd : undefined;
+      const rawEnd = Number.isFinite(parsedEnd)
+        ? parsedEnd
+        : inputMode === "upload" && selectedFile?.durationSec
+          ? Math.min(selectedFile.durationSec, limits.maxDurationSec)
+          : limits.maxDurationSec;
+      const end = Math.min(rawEnd, limits.maxDurationSec);
 
       if (inputMode === "upload") {
         if (!selectedFile) throw new Error("Upload an MP4, WebM, or MOV video first.");
@@ -167,7 +175,11 @@ export function VideoReverseEngineerPanel() {
     onError: (err) => {
       setStageMessage(null);
       if (err instanceof OrpcClientError && err.code === "QUOTA_EXCEEDED") {
-        openAuthDialog({ reason: "quota_limit" });
+        if (!isAuthenticated) {
+          setValidationError(null);
+          openAuthDialog({ reason: "quota_limit" });
+          return;
+        }
       }
       if (err instanceof DOMException && err.name === "AbortError") {
         return;
@@ -239,12 +251,16 @@ export function VideoReverseEngineerPanel() {
     const start = Number.parseFloat(startOffsetSec);
     const end = endOffsetSec.trim() ? Number.parseFloat(endOffsetSec) : undefined;
 
-    if (!Number.isFinite(start) || start < 0) {
-      setValidationError("Start time must be 0 or greater.");
+    if (!Number.isFinite(start) || start < 0 || start >= limits.maxDurationSec) {
+      setValidationError(`Start time must be between 0 and ${limits.maxDurationSec - 1} seconds.`);
       return;
     }
     if (end !== undefined && (!Number.isFinite(end) || end <= start)) {
       setValidationError("End time must be greater than start time.");
+      return;
+    }
+    if (end !== undefined && end > limits.maxDurationSec) {
+      setValidationError(`End time cannot exceed the ${limits.maxDurationSec}s hard limit.`);
       return;
     }
 
@@ -437,9 +453,20 @@ export function VideoReverseEngineerPanel() {
               id="video-re-start"
               type="number"
               min={0}
+              max={limits.maxDurationSec - 1}
               step={1}
               value={startOffsetSec}
-              onChange={(e) => setStartOffsetSec(e.target.value)}
+              onChange={(e) => {
+                const raw = e.target.value;
+                if (raw === "") {
+                  setStartOffsetSec("");
+                  return;
+                }
+                const num = Number.parseFloat(raw);
+                if (!Number.isFinite(num)) return;
+                const clamped = Math.max(0, Math.min(num, limits.maxDurationSec - 1));
+                setStartOffsetSec(String(clamped));
+              }}
               className="w-full rounded-lg px-2.5 py-1.5 text-xs bg-[var(--surface-2)] text-[var(--text-primary)] border border-[var(--separator-subtle)] focus-ring"
             />
           </div>
@@ -454,9 +481,20 @@ export function VideoReverseEngineerPanel() {
               id="video-re-end"
               type="number"
               min={1}
+              max={limits.maxDurationSec}
               step={1}
               value={endOffsetSec}
-              onChange={(e) => setEndOffsetSec(e.target.value)}
+              onChange={(e) => {
+                const raw = e.target.value;
+                if (raw === "") {
+                  setEndOffsetSec("");
+                  return;
+                }
+                const num = Number.parseFloat(raw);
+                if (!Number.isFinite(num)) return;
+                const clamped = Math.max(1, Math.min(num, limits.maxDurationSec));
+                setEndOffsetSec(String(clamped));
+              }}
               className="w-full rounded-lg px-2.5 py-1.5 text-xs bg-[var(--surface-2)] text-[var(--text-primary)] border border-[var(--separator-subtle)] focus-ring"
             />
           </div>
@@ -493,7 +531,7 @@ export function VideoReverseEngineerPanel() {
             id="video-re-focus"
             value={focusNotes}
             onChange={(e) => setFocusNotes(e.target.value)}
-            placeholder="e.g. Match the whip-pan transition and rim lighting, swap product to [Product_Name]..."
+            placeholder="e.g. Match the whip-pan transition and rim lighting, swap product to a matte black espresso machine..."
             className="min-h-[76px] bg-[var(--surface-2)]"
           />
         </div>

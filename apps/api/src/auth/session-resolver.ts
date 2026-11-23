@@ -3,6 +3,7 @@ import type { Auth } from "@open-prompt-os/auth";
 import { prisma, runAsSystem } from "@open-prompt-os/db";
 import type { Context } from "hono";
 import { clientKey } from "../client-key.js";
+import { logger } from "../logger.js";
 
 export interface ResolvedActor {
   readonly clientKey: string;
@@ -48,8 +49,12 @@ async function ensureDevUserAndSpace(userId: string, spaceId: string): Promise<v
         },
       });
     });
-  } catch {
-    // Best-effort in development / tests
+  } catch (error) {
+    logger.warn("Best-effort personal space lookup failed", {
+      event: "auth.personal_space_lookup_failed",
+      userId,
+      err: error,
+    });
   }
 }
 
@@ -103,8 +108,11 @@ export async function resolveActor(
           spaceId: result.user.spaceId,
         };
       }
-    } catch {
-      // Fall through to raw token / guest lookup
+    } catch (error) {
+      logger.warn("Better Auth session lookup failed; falling back to token/guest", {
+        event: "auth.session_lookup_failed",
+        err: error,
+      });
     }
   }
 
@@ -150,8 +158,11 @@ export async function resolveActor(
           spaceId,
         };
       }
-    } catch {
-      // In case DB is temporarily unreachable or erroring, fall back to guest actor
+    } catch (error) {
+      logger.error("Database session lookup failed; falling back to guest actor", {
+        event: "auth.db_session_lookup_failed",
+        err: error,
+      });
     }
   }
 

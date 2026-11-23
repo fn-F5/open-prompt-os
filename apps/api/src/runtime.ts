@@ -100,22 +100,19 @@ export function createRuntime(config: AppConfig) {
       });
     },
     onLlmResponse(event) {
-      logger.debug(
-        `LLM response: ${event.providerId}/${event.modelId} ${event.latencyMs}ms`,
-        {
-          event: "llm.response",
-          providerId: event.providerId,
-          modelId: event.modelId,
-          streaming: event.streaming,
-          latencyMs: event.latencyMs,
-          usage: event.usage,
-          healed: event.healed,
-          responseText: event.text,
-        },
-      );
+      logger.debug(`LLM response: ${event.providerId}/${event.modelId} ${event.latencyMs}ms`, {
+        event: "llm.response",
+        providerId: event.providerId,
+        modelId: event.modelId,
+        streaming: event.streaming,
+        latencyMs: event.latencyMs,
+        usage: event.usage,
+        healed: event.healed,
+        responseText: event.text,
+      });
     },
     onProviderFailure(event) {
-      logger.warn("LLM provider failed; failing over", {
+      logger.error("LLM provider failed", {
         event: "llm.provider_failed",
         providerId: event.providerId,
         modelId: event.modelId,

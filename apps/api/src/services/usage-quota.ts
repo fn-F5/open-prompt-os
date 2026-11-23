@@ -13,6 +13,7 @@ import {
   runAsTenant,
 } from "@open-prompt-os/db";
 import type { ResolvedActor } from "../auth/session-resolver.js";
+import { logger } from "../logger.js";
 
 export function getTodayUtcDate(): Date {
   const now = new Date();
@@ -54,89 +55,116 @@ export async function checkQuota(
   const today = getTodayUtcDate();
   const isGuest = !actor.spaceId;
 
-  const lookupCurrentUsage = async (): Promise<number> => {
+  const lookupTodayUsage = async (): Promise<{
+    actionUsage: number;
+    totalUsage: number;
+  }> => {
     try {
-      if (actor.spaceId) {
-        const spaceId = actor.spaceId;
-        const counter = await runAsTenant({ spaceId, userId: actor.userId }, async (tx) =>
-          tx.usageCounter.findUnique({
-            where: {
-              spaceId_usageDate_action: {
-                spaceId,
+      const rows = actor.spaceId
+        ? await runAsTenant({ spaceId: actor.spaceId, userId: actor.userId }, async (tx) =>
+            tx.usageCounter.findMany({
+              where: {
+                spaceId: actor.spaceId,
                 usageDate: today,
-                action,
               },
-            },
-            select: { count: true },
-          }),
-        );
-        return counter?.count ?? 0;
+              select: { action: true, count: true },
+            }),
+          )
+        : await runAsTenant({ clientKey: actor.hashedClientKey }, async (tx) =>
+            tx.usageCounter.findMany({
+              where: {
+                clientKey: actor.hashedClientKey,
+                usageDate: today,
+              },
+              select: { action: true, count: true },
+            }),
+          );
+
+      let actionUsage = 0;
+      let totalUsage = 0;
+      for (const row of rows) {
+        totalUsage += row.count;
+        if (row.action === action) {
+          actionUsage += row.count;
+        }
       }
-      const counter = await runAsTenant({ clientKey: actor.hashedClientKey }, async (tx) =>
-        tx.usageCounter.findUnique({
-          where: {
-            clientKey_usageDate_action: {
-              clientKey: actor.hashedClientKey,
-              usageDate: today,
-              action,
-            },
-          },
-          select: { count: true },
-        }),
-      );
-      return counter?.count ?? 0;
-    } catch {
-      // If DB is unreachable, fail open or default to 0
-      return 0;
+      return { actionUsage, totalUsage };
+    } catch (error) {
+      logger.error("Quota usage lookup failed; failing open", {
+        event: "quota.usage_lookup_failed",
+        action,
+        err: error,
+      });
+      return { actionUsage: 0, totalUsage: 0 };
     }
   };
 
-  const lookupDailyLimit = async (plan: PlanTier): Promise<number> => {
+  const lookupDailyLimit = async (plan: PlanTier, targetAction: UsageAction): Promise<number> => {
     try {
       const limitRow = await prisma.planLimit.findUnique({
         where: {
           plan_action_isGuest: {
             plan,
-            action,
+            action: targetAction,
             isGuest,
           },
         },
       });
       return (
         limitRow?.dailyLimit ??
-        (isGuest ? GUEST_DEFAULT_LIMITS[action] : DEFAULT_LIMITS[plan][action])
+        (isGuest ? GUEST_DEFAULT_LIMITS[targetAction] : DEFAULT_LIMITS[plan][targetAction])
       );
-    } catch {
-      return isGuest ? GUEST_DEFAULT_LIMITS[action] : DEFAULT_LIMITS[plan][action];
+    } catch (error) {
+      logger.error("Quota plan limit lookup failed; using default limit", {
+        event: "quota.limit_lookup_failed",
+        plan,
+        action: targetAction,
+        err: error,
+      });
+      return isGuest ? GUEST_DEFAULT_LIMITS[targetAction] : DEFAULT_LIMITS[plan][targetAction];
     }
   };
 
-  let dailyLimit: number;
-  let currentUsage: number;
+  let plan: PlanTier = "free";
+  let usage: { actionUsage: number; totalUsage: number };
 
   if (actor.spaceId) {
-    const [space, usage] = await Promise.all([
-      prisma.space.findUnique({
-        where: { id: actor.spaceId },
-        select: { plan: true },
-      }),
-      lookupCurrentUsage(),
+    const spaceId = actor.spaceId;
+    const [space, todayUsage] = await Promise.all([
+      prisma.space
+        .findUnique({
+          where: { id: spaceId },
+          select: { plan: true },
+        })
+        .catch((error: unknown) => {
+          logger.error("Quota space plan lookup failed; defaulting to free", {
+            event: "quota.space_lookup_failed",
+            spaceId,
+            err: error,
+          });
+          return null;
+        }),
+      lookupTodayUsage(),
     ]);
-    currentUsage = usage;
-    dailyLimit = await lookupDailyLimit(space?.plan ?? "free");
+    plan = space?.plan ?? "free";
+    usage = todayUsage;
   } else {
-    [dailyLimit, currentUsage] = await Promise.all([
-      lookupDailyLimit("free"),
-      lookupCurrentUsage(),
-    ]);
+    usage = await lookupTodayUsage();
   }
 
-  const remainingDaily = Math.max(0, dailyLimit - currentUsage);
+  const [dailyLimit, totalDailyLimit] =
+    action === "compose"
+      ? await lookupDailyLimit(plan, "compose").then((limit) => [limit, limit] as const)
+      : await Promise.all([lookupDailyLimit(plan, action), lookupDailyLimit(plan, "compose")]);
+
+  const actionRemaining = Math.max(0, dailyLimit - usage.actionUsage);
+  const totalRemaining = Math.max(0, totalDailyLimit - usage.totalUsage);
+  const remainingDaily = Math.min(actionRemaining, totalRemaining);
   return {
     allowed: remainingDaily > 0,
     remainingDaily,
     dailyLimit,
-    currentUsage,
+    currentUsage: usage.actionUsage,
   };
 }
 

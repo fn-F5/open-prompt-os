@@ -1,16 +1,19 @@
 import type { ReverseEngineerImageMime, ReverseEngineerOutput } from "@open-prompt-os/contracts";
 import { Badge, Button, Tabs, Textarea, toast } from "@open-prompt-os/ui-web";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Check, Copy, ImagePlus, Sparkles, Trash2 } from "lucide-react";
 import * as React from "react";
 import { useNavigate } from "react-router";
 import { SanitizedPromptRenderer } from "../components/output/output-card.js";
 import { VideoReverseEngineerPanel } from "../components/reverse-engineer/video-reverse-engineer-panel.js";
 import { SeoHead } from "../components/seo/seo-head.js";
+import { useAuthSession } from "../hooks/use-auth-session.js";
 import { useCardHoverAnimation } from "../hooks/use-card-parallax.js";
 import { copyTextToClipboard } from "../lib/dispatch.js";
-import { orpcClient } from "../lib/orpc.js";
+import { OrpcClientError, orpcClient } from "../lib/orpc.js";
+import { queryKeys } from "../lib/query-client.js";
 import { STATIC_ROUTE_SEO } from "../lib/seo.js";
+import { openAuthDialog } from "../state/auth-dialog-store.js";
 import { composerActions } from "../state/composer-store.js";
 
 const MAX_FILE_BYTES = 4 * 1024 * 1024;
@@ -64,7 +67,9 @@ async function createThumbnailDataUrl(dataUrl: string): Promise<string | undefin
 
 export function ReverseEngineerPage() {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const animateCard = useCardHoverAnimation();
+  const { isAuthenticated } = useAuthSession();
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const [sourceModality, setSourceModality] = React.useState<"image" | "video">("image");
@@ -96,8 +101,16 @@ export function ReverseEngineerPage() {
     },
     onSuccess: (data) => {
       setResult(data);
+      qc.invalidateQueries({ queryKey: queryKeys.billing.status() });
     },
     onError: (err) => {
+      if (err instanceof OrpcClientError && err.code === "QUOTA_EXCEEDED") {
+        if (!isAuthenticated) {
+          setValidationError(null);
+          openAuthDialog({ reason: "quota_limit" });
+          return;
+        }
+      }
       setValidationError(err instanceof Error ? err.message : "Reverse engineering failed.");
     },
   });

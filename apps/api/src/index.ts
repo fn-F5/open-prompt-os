@@ -8,6 +8,7 @@ import { createApp } from "./app.js";
 import { loadConfig } from "./config.js";
 import { createE2eOrchestrator } from "./e2e-harness.js";
 import { logger } from "./logger.js";
+import { createPostHogErrorTracker } from "./posthog.js";
 import { createRateLimiter } from "./rate-limit.js";
 import { createRuntime } from "./runtime.js";
 
@@ -51,6 +52,11 @@ const webOrigins = isE2eMode
   ? [...new Set([...config.webOrigins, "http://127.0.0.1:5173", "http://localhost:5173"])]
   : config.webOrigins;
 
+const errorTracker = createPostHogErrorTracker({
+  apiKey: isE2eMode ? undefined : config.posthogKey,
+  host: config.posthogHost,
+});
+
 const app = createApp({
   orchestrator,
   billingProvider,
@@ -64,13 +70,26 @@ const app = createApp({
         github: Boolean(authBoot.githubClientId && authBoot.githubClientSecret),
       }
     : undefined,
+  errorTracker,
   ...(e2eMailer ? { e2eHarness: { mailer: e2eMailer } } : {}),
 });
 
-serve({ fetch: app.fetch, port: config.port }, (info) => {
+const server = serve({ fetch: app.fetch, port: config.port }, (info) => {
   logger.info("API server started", {
     event: "server.started",
     port: info.port,
     e2eTestMode: isE2eMode,
   });
 });
+
+function shutdownServer(signal: string) {
+  logger.info("Shutting down API server", { event: "server.shutdown", signal });
+  server.close(() => {
+    void errorTracker.shutdown().finally(() => {
+      process.exit(0);
+    });
+  });
+}
+
+process.once("SIGINT", () => shutdownServer("SIGINT"));
+process.once("SIGTERM", () => shutdownServer("SIGTERM"));

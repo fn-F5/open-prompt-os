@@ -692,6 +692,7 @@ export function createOrchestrator(options: OrchestratorOptions): PromptOrchestr
       const fullChain = options.registry.failoverChain(prepared.draft.modelId);
       const chain = options.disableFailover ? fullChain.slice(0, 1) : fullChain;
       const preferred = chain[0];
+      let lastError: unknown;
       for (const adapter of chain) {
         if (!acquire(adapter.id, clock())) continue;
         let yielded = false;
@@ -735,6 +736,7 @@ export function createOrchestrator(options: OrchestratorOptions): PromptOrchestr
             "provider_error",
             "Stream ended before completion.",
           );
+          lastError = providerError;
           if (yielded) throw providerError;
           fail(adapter.id, clock(), providerError, {
             modelId: req.modelId ?? adapter.defaultModel,
@@ -743,6 +745,7 @@ export function createOrchestrator(options: OrchestratorOptions): PromptOrchestr
         } catch (error) {
           if (isInputGuardError(error)) throw error;
           const providerError = asProviderError(error);
+          lastError = providerError;
           if (yielded) throw providerError;
           fail(adapter.id, clock(), providerError, {
             modelId: req.modelId ?? adapter.defaultModel,
@@ -751,6 +754,13 @@ export function createOrchestrator(options: OrchestratorOptions): PromptOrchestr
           if (options.disableFailover || adapter.id === "rule-synthesizer") throw providerError;
         }
       }
+      throw (
+        lastError ??
+        new LlmProviderError(
+          "provider_error",
+          "All AI providers are temporarily cooling down or unavailable.",
+        )
+      );
     },
     async refine(input, ctx) {
       assertNoClientSystemPrompt(input);
@@ -837,19 +847,25 @@ export function createOrchestrator(options: OrchestratorOptions): PromptOrchestr
       const videoTimeoutMs = Math.max(options.timeoutMs, 120_000);
       ctx.onStage?.("preparing");
 
+      const clampedStartSec = Math.max(0, Math.min(input.startOffsetSec ?? 0, 29));
+      const requestedEndSec =
+        input.endOffsetSec ??
+        (input.durationSeconds !== undefined ? Math.min(input.durationSeconds, 30) : 30);
+      const clampedEndSec = Math.max(clampedStartSec + 0.1, Math.min(requestedEndSec, 30));
+
       const videoAttachment =
         input.sourceType === "youtube"
           ? {
               fileUri: input.youtubeUrl,
               mimeType: "video/mp4" as const,
-              startOffsetSec: input.startOffsetSec,
-              endOffsetSec: input.endOffsetSec,
+              startOffsetSec: clampedStartSec,
+              endOffsetSec: clampedEndSec,
             }
           : {
               bytes: input.fileBytes,
               mimeType: input.mimeType ?? ("video/mp4" as const),
-              startOffsetSec: input.startOffsetSec > 0 ? input.startOffsetSec : undefined,
-              endOffsetSec: input.endOffsetSec,
+              startOffsetSec: clampedStartSec,
+              endOffsetSec: clampedEndSec,
             };
 
       if (input.sourceType === "youtube" && !videoAttachment.fileUri) {
@@ -871,8 +887,8 @@ export function createOrchestrator(options: OrchestratorOptions): PromptOrchestr
           userPrompt: JSON.stringify({
             sourceType: input.sourceType,
             targetGenerator: input.targetGenerator,
-            startOffsetSec: input.startOffsetSec,
-            endOffsetSec: input.endOffsetSec,
+            startOffsetSec: clampedStartSec,
+            endOffsetSec: clampedEndSec,
             durationSeconds: input.durationSeconds,
             focusNotes,
           }),

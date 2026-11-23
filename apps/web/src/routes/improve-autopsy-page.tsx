@@ -1,6 +1,5 @@
 import type { PromptLength, RefinePromptOutput } from "@open-prompt-os/contracts";
 import {
-  analyzePromptVariables,
   computeLineDiff,
   computePromptHealthScore,
   evaluatePromptQuality,
@@ -56,12 +55,12 @@ const IMPROVE_EXAMPLES = [
   {
     label: "Vague Architecture Doc",
     prompt:
-      "Write a technical architecture doc for our payment service for [Target_Audience] using [Payment_Provider].",
+      "Write a technical architecture doc for our Node.js payment service targeting backend engineers using Stripe.",
   },
   {
     label: "Generic Cold Outreach",
     prompt:
-      "Write a cold email to [Prospect_Role] pitching our DevOps monitoring tool and ask for a 15 minute call.",
+      "Write a cold email to a VP of Engineering pitching our DevOps monitoring tool and ask for a 15 minute call.",
   },
 ] as const;
 
@@ -99,7 +98,7 @@ export function ImproveAutopsyPage() {
   const [mode, setMode] = React.useState<"improve" | "autopsy">("improve");
   const [originalPrompt, setOriginalPrompt] = React.useState(
     preload ||
-      "Write a technical architecture doc for our payment service for [Target_Audience] using [Payment_Provider].",
+      "Write a technical architecture doc for our Node.js payment service targeting backend engineers using Stripe.",
   );
   const [failedOutput, setFailedOutput] = React.useState("");
   const [targetLength, setTargetLength] = React.useState<PromptLength>("balanced");
@@ -116,10 +115,6 @@ export function ImproveAutopsyPage() {
   const promptRef = useAutoResizeTextarea(originalPrompt, { minHeightPx: 120, maxHeightPx: 280 });
   const failedRef = useAutoResizeTextarea(failedOutput, { minHeightPx: 100, maxHeightPx: 240 });
 
-  const liveVarAnalysis = React.useMemo(
-    () => analyzePromptVariables(originalPrompt),
-    [originalPrompt],
-  );
   const liveHealth = React.useMemo(
     () => computePromptHealthScore(originalPrompt),
     [originalPrompt],
@@ -323,7 +318,7 @@ export function ImproveAutopsyPage() {
           value={mobilePane}
           onValueChange={setMobilePane}
           options={[
-            { value: "input", label: "1. Input & Variables" },
+            { value: "input", label: "1. Input" },
             {
               value: "diagnosis",
               label: `2. Diagnosis & Output${result ? ` (${result.findings.length})` : ""}`,
@@ -352,8 +347,6 @@ export function ImproveAutopsyPage() {
                 Original Prompt
               </label>
               <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)] tabular-nums">
-                <span>{liveVarAnalysis.detectedVariables.length} variable(s)</span>
-                <span aria-hidden="true">·</span>
                 <span className="font-mono font-medium text-[var(--text-primary)]">
                   Health {liveHealth.score}/100
                 </span>
@@ -368,40 +361,6 @@ export function ImproveAutopsyPage() {
                 placeholder="Paste the prompt you want to optimize or diagnose..."
               />
             </div>
-          </div>
-
-          {/* Live Variable Inventory & Unresolved/Duplicate Flags */}
-          <div className="p-3 rounded-lg bg-[var(--surface-2)] border border-[var(--separator-subtle)] space-y-2">
-            <div className="text-xs font-medium text-[var(--text-secondary)]">
-              Detected <code className="font-mono">[Variable]</code> Slots
-            </div>
-            {liveVarAnalysis.detectedVariables.length > 0 ? (
-              <div className="flex flex-wrap gap-1.5">
-                {liveVarAnalysis.detectedVariables.map((v) => (
-                  <code
-                    key={v}
-                    className="font-mono text-xs px-2 py-0.5 rounded bg-[var(--surface-1)] text-[var(--text-primary)] border border-[var(--separator-subtle)]"
-                  >
-                    [{v}]
-                  </code>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-[var(--text-secondary)]">
-                No <code className="font-mono">[Variable]</code> slots detected yet.
-              </p>
-            )}
-            {liveVarAnalysis.duplicateVariables.length > 0 ? (
-              <div className="text-xs text-[var(--text-primary)]">
-                Duplicate tokens reused: {liveVarAnalysis.duplicateVariables.join(", ")}
-              </div>
-            ) : null}
-            {liveVarAnalysis.unresolvedVariables.length > 0 ? (
-              <div className="text-xs text-[var(--danger-text)] font-medium">
-                Unresolved/placeholder variable warning:{" "}
-                {liveVarAnalysis.unresolvedVariables.join(", ")}
-              </div>
-            ) : null}
           </div>
 
           {/* Failed Output Input + Quick Symptom Tags for Autopsy Mode */}

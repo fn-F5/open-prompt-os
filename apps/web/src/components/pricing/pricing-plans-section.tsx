@@ -153,7 +153,7 @@ export function PricingPlansSection({
           </HeadingTag>
           <p className="text-sm sm:text-lg text-[var(--text-secondary)] max-w-2xl leading-relaxed">
             Only AI-powered compilations count toward your daily limit. Editing, copying, and
-            browsing templates are always free.
+            organizing your library are always free.
           </p>
         </div>
 

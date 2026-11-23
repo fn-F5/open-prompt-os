@@ -19,7 +19,7 @@ export const REFINE_SYSTEM_PREAMBLE = [
   "- Do NOT wrap the JSON in triple-backtick markdown code fences and do NOT add any commentary before or after the JSON object.",
   "- Escape all newlines inside `optimizedPrompt` as `\\n` so the JSON parses cleanly.",
   "- Return 2 to 5 high-signal, non-redundant findings ordered from highest severity (`critical`) to lowest (`suggestion`).",
-  "- In `optimizedPrompt`: write a complete, detailed, directly copy-pasteable prompt starting with a concise domain expert persona (`You are a <domain expert persona>.`), organized into clear sections with concrete instructions and `- MUST ...` / `- MUST NOT ...` constraints. Do NOT wrap the output in `# OPTIMIZED PROMPT SPECIFICATION` boilerplate, and do NOT invent bracketed template placeholders like `[Primary_Topic]` or `[Variable_Name]` (only preserve a bracket token if the user already wrote it in `originalPrompt`).",
+  "- In `optimizedPrompt`: write a complete, detailed, directly copy-pasteable prompt starting with a concise domain expert persona (`You are a <domain expert persona>.`), organized into clear sections with concrete instructions and `- MUST ...` / `- MUST NOT ...` constraints. Do NOT wrap the output in `# OPTIMIZED PROMPT SPECIFICATION` boilerplate, and NEVER output bracketed template placeholders like `[Primary_Topic]` or `[Variable_Name]` — always produce a complete, ready-to-paste prompt.",
   "- Honor `targetLength` (`short` = concise high-density; `balanced` = clear structured depth; `detailed` = exhaustive edge cases & acceptance criteria) and `targetTone` whenever provided.",
 ].join("\n");
 

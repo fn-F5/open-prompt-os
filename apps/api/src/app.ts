@@ -12,6 +12,7 @@ import type { ApiEnv } from "./app-env.js";
 import { resolveActor } from "./auth/session-resolver.js";
 import { clientKey } from "./client-key.js";
 import { type E2eHarnessOptions, registerE2eRoutes } from "./e2e-harness.js";
+import { toUserFacingServerError } from "./errors.js";
 import {
   createLogger,
   enrichRequestContext,
@@ -19,6 +20,7 @@ import {
   resolveRequestId,
   runWithRequestContext,
 } from "./logger.js";
+import type { ApiErrorTracker } from "./posthog.js";
 import { createRouter } from "./router.js";
 import { registerComposeStream } from "./routes/compose-stream.js";
 import { registerVideoReverseEngineerStream } from "./routes/reverse-engineer-video-stream.js";
@@ -34,6 +36,7 @@ export interface AppOptions {
   auth?: Auth;
   oauthProviders?: { google: boolean; github: boolean };
   e2eHarness?: E2eHarnessOptions;
+  errorTracker?: ApiErrorTracker;
   log?: (line: string) => void;
 }
 
@@ -230,7 +233,11 @@ export function createApp(options: AppOptions) {
         return c.json({ isNewUser: null });
       }
       return c.json({ isNewUser: !existing });
-    } catch {
+    } catch (error) {
+      appLogger.warn("Signup status lookup failed", {
+        event: "auth.signup_status_failed",
+        err: error,
+      });
       return c.json({ isNewUser: null });
     }
   });
@@ -323,9 +330,37 @@ export function createApp(options: AppOptions) {
         .catch(() => "");
       appLogger.error("oRPC procedure returned server error", {
         event: "rpc.error",
+        path: c.req.path,
         status: response.status,
-        errorBody: errorText.slice(0, 500),
+        errorBody: errorText.slice(0, 1000),
       });
+      options.errorTracker?.captureException(
+        new Error(
+          `oRPC server error (${response.status}): ${redactSecrets(errorText.slice(0, 500))}`,
+        ),
+        {
+          requestId,
+          path: c.req.path,
+          method: c.req.method,
+          status: response.status,
+          source: "rpc.error",
+        },
+      );
+      const safe = toUserFacingServerError(new Error(errorText));
+      const headers = new Headers(response.headers);
+      headers.set("content-type", "application/json; charset=utf-8");
+      headers.set("x-request-id", requestId);
+      return new Response(
+        JSON.stringify({
+          json: {
+            code: safe.code,
+            status: response.status,
+            message: safe.message,
+            data: { requestId, code: safe.code },
+          },
+        }),
+        { status: response.status, headers },
+      );
     }
     const headers = new Headers(response.headers);
     headers.set("x-request-id", requestId);
@@ -339,10 +374,18 @@ export function createApp(options: AppOptions) {
       path: c.req.path,
       err: error,
     });
+    options.errorTracker?.captureException(error, {
+      requestId,
+      path: c.req.path,
+      method: c.req.method,
+      status: 500,
+      source: "http.unhandled_error",
+    });
+    const safe = toUserFacingServerError(error);
     return c.json(
       {
-        code: "INTERNAL_ERROR",
-        message: redactSecrets(error.message),
+        code: safe.code,
+        message: safe.message,
         requestId,
       },
       500,
