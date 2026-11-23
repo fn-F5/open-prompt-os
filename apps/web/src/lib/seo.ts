@@ -304,6 +304,12 @@ export function buildPricingSeo(origin = getSiteOrigin()): SeoMetadata {
         "@context": "https://schema.org",
         "@type": "Product",
         name: SITE_NAME,
+        image: buildCanonicalUrl(DEFAULT_OG_IMAGE_PATH, origin),
+        sku: "open-prompt-os-studio",
+        brand: {
+          "@type": "Brand",
+          name: SITE_NAME,
+        },
         description:
           "Full-lifecycle AI prompt engineering studio with Prompt Compiler, Prompt Autopsy, Reverse Engineer, and Prompt Library.",
         offers: DEFAULT_PRICING_PLANS.map((plan) => ({
@@ -311,6 +317,7 @@ export function buildPricingSeo(origin = getSiteOrigin()): SeoMetadata {
           name: `${plan.name} Plan`,
           price: String(plan.monthlyPriceUsd),
           priceCurrency: "USD",
+          availability: "https://schema.org/InStock",
           description: plan.description,
           url: buildCanonicalUrl("/pricing", origin),
         })),
@@ -372,6 +379,8 @@ export const STATIC_ROUTE_SEO = {
     canonicalPath: "/improve",
     ogType: "website",
     jsonLd: [
+      buildOrganizationSchema(origin),
+      buildWebSiteSchema(origin),
       buildSoftwareApplicationSchema(origin, {
         path: "/improve",
         name: "Open Prompt OS — Improve & Prompt Autopsy",
@@ -408,6 +417,8 @@ export const STATIC_ROUTE_SEO = {
     canonicalPath: "/reverse-engineer",
     ogType: "website",
     jsonLd: [
+      buildOrganizationSchema(origin),
+      buildWebSiteSchema(origin),
       buildSoftwareApplicationSchema(origin, {
         path: "/reverse-engineer",
         name: "Open Prompt OS — Reverse Engineer Image to Prompt",

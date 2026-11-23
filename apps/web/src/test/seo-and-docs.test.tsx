@@ -312,19 +312,29 @@ describe("Navigation Placement, Docs Hub, SEO Metadata & AEO Assets", () => {
       expect((faqSchema?.mainEntity as unknown[]).length).toBe(HOME_AEO_FAQS.length);
     });
 
-    it("emits HowTo and SoftwareApplication JSON-LD on ImproveAutopsyPage and ReverseEngineerPage", () => {
+    it("emits Organization, WebSite, SoftwareApplication, and HowTo JSON-LD on ImproveAutopsyPage and ReverseEngineerPage", () => {
       const improveView = renderWithRouter(<ImproveAutopsyPage />, ["/improve"], "/improve");
       expect(document.head.querySelector('link[rel="canonical"]')?.getAttribute("href")).toBe(
         "https://openpromptos.com/improve",
       );
-      expect(readJsonLdPayloads().map((s) => s["@type"])).toEqual(["SoftwareApplication", "HowTo"]);
+      expect(readJsonLdPayloads().map((s) => s["@type"])).toEqual([
+        "Organization",
+        "WebSite",
+        "SoftwareApplication",
+        "HowTo",
+      ]);
       improveView.unmount();
 
       renderWithRouter(<ReverseEngineerPage />, ["/reverse-engineer"], "/reverse-engineer");
       expect(document.head.querySelector('link[rel="canonical"]')?.getAttribute("href")).toBe(
         "https://openpromptos.com/reverse-engineer",
       );
-      expect(readJsonLdPayloads().map((s) => s["@type"])).toEqual(["SoftwareApplication", "HowTo"]);
+      expect(readJsonLdPayloads().map((s) => s["@type"])).toEqual([
+        "Organization",
+        "WebSite",
+        "SoftwareApplication",
+        "HowTo",
+      ]);
     });
 
     it("emits CollectionPage + ItemList JSON-LD and syncs mode/search query params on TemplateGalleryPage", async () => {
@@ -357,7 +367,15 @@ describe("Navigation Placement, Docs Hub, SEO Metadata & AEO Assets", () => {
       expect(document.head.querySelector('link[rel="canonical"]')?.getAttribute("href")).toBe(
         "https://openpromptos.com/pricing",
       );
-      expect(readJsonLdPayloads().map((s) => s["@type"])).toEqual(["Product", "BreadcrumbList"]);
+      const pricingJsonLd = readJsonLdPayloads();
+      expect(pricingJsonLd.map((s) => s["@type"])).toEqual(["Product", "BreadcrumbList"]);
+      const productSchema = pricingJsonLd.find((s) => s["@type"] === "Product");
+      expect(productSchema?.image).toBe("https://openpromptos.com/og-default.svg");
+      expect(productSchema?.sku).toBe("open-prompt-os-studio");
+      expect(productSchema?.brand).toEqual({ "@type": "Brand", name: "Open Prompt OS" });
+      expect(
+        (productSchema?.offers as Array<Record<string, unknown>>)?.[0]?.availability,
+      ).toBe("https://schema.org/InStock");
       pricingView.unmount();
 
       renderWithRouter(<PublicPromptPage />, ["/share/share_1"], "/share/:shareId");
