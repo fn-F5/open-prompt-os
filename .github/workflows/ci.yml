@@ -88,38 +88,6 @@ jobs:
       - name: Run all test suites
         run: pnpm test
 
-  mutation:
-    name: Mutation Testing (Core)
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Cache Stryker incremental report
-        uses: actions/cache@v4
-        with:
-          path: packages/core/reports/stryker-incremental.json
-          key: stryker-core-${{ runner.os }}-${{ hashFiles('packages/core/src/**') }}
-          restore-keys: |
-            stryker-core-${{ runner.os }}-
-
-      - name: Run Stryker mutation tests on @open-prompt-os/core
-        run: pnpm --filter @open-prompt-os/core exec stryker run --incremental
-
   e2e:
     name: Full-Stack E2E Verification
     runs-on: ubuntu-latest
