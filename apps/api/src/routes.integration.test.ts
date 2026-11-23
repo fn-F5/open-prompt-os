@@ -787,7 +787,7 @@ describe("API Routes & Database Integration", () => {
       };
       expect(json.reconstructedPrompt).toContain("High-detail editorial photography");
       expect(json.reconstructedPrompt).not.toContain("[Primary_Subject]");
-      expect(json.remainingDailyRuns).toBe(2); // free tier reverse_engineer limit is 3
+      expect(json.remainingDailyRuns).toBe(1); // free tier reverse_engineer limit is 2
       expect(json.breakdown.subject.length).toBeGreaterThan(0);
 
       const gens = await runAsSystem((tx) =>

@@ -18,7 +18,7 @@ test.describe("07 - Quota Enforcement & PostgreSQL RLS Tenant Isolation @full", 
     page,
     request,
   }) => {
-    // 1. Guest runs Video Reverse Engineer once (1/day limit) -> second run returns QUOTA_EXCEEDED
+    // 1. Guest runs Video Reverse Engineer twice (2/day limit) -> third run returns QUOTA_EXCEEDED
     await page.goto("/reverse-engineer");
     await page.getByRole("tab", { name: "Video", exact: true }).click();
     await page.getByRole("tab", { name: "YouTube Link" }).click();
@@ -29,7 +29,11 @@ test.describe("07 - Quota Enforcement & PostgreSQL RLS Tenant Isolation @full", 
     await page.getByRole("button", { name: /Reverse Engineer Video/i }).click();
     await expect(page.getByText(/Estimated timestamps/i)).toBeVisible({ timeout: 10_000 });
 
-    // Second run without resetting quota must be blocked by real Postgres usage_counters
+    // Second run succeeds under the 2/day guest reverse_engineer limit
+    await page.getByRole("button", { name: /Reverse Engineer Video/i }).click();
+    await expect(page.getByText(/Estimated timestamps/i)).toBeVisible({ timeout: 10_000 });
+
+    // Third run without resetting quota must be blocked by real Postgres usage_counters
     // and prompt the guest to sign in via the auth dialog instead of showing a raw error banner
     await page.getByRole("button", { name: /Reverse Engineer Video/i }).click();
     await expect(page.getByRole("dialog")).toContainText(
