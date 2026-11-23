@@ -264,32 +264,48 @@ describe("Web Route Pages & AuthGate", () => {
       expect(plansSpy).toHaveBeenCalledTimes(2);
     });
 
-    it("defaults to annual 50% savings with Pro Studio ($8/mo), Team Space ($16/mo), and BYOK as the final card", async () => {
+    it("defaults to annual Save More with Free, Pro Studio, Team Space, and BYOK as the final card", async () => {
       renderRoute(<PricingPage />, ["/pricing"], "/pricing");
 
       expect(screen.queryByText("Starter Workspace")).toBeNull();
-      expect(screen.queryByText("Power Users")).toBeNull();
+      expect(screen.getByText("Power Users")).toBeInTheDocument();
 
       const yearlyTab = screen.getByRole("tab", { name: /Yearly/i });
       expect(yearlyTab).toHaveAttribute("aria-selected", "true");
-      expect(yearlyTab).toHaveTextContent("Save 50%");
+      expect(yearlyTab).toHaveTextContent("Save More");
 
-      // Yearly prices by default (50% off $8, $16, and $2)
+      // Yearly prices by default ($0, $6, $12, $4)
       await waitFor(() => {
+        expect(screen.getByText("$0")).toBeInTheDocument();
+        expect(screen.getByText("$6")).toBeInTheDocument();
+        expect(screen.getByText("$12")).toBeInTheDocument();
         expect(screen.getByText("$4")).toBeInTheDocument();
-        expect(screen.getByText("$8")).toBeInTheDocument();
-        expect(screen.getByText("$1")).toBeInTheDocument();
       });
 
       const headings = screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
-      expect(headings).toEqual(["Pro Studio", "Team Space", "BYOK"]);
+      expect(headings).toEqual(["Free", "Pro Studio", "Team Space", "BYOK"]);
 
-      // Monthly prices when switched to Monthly
+      // Unified daily request limits per plan
+      expect(
+        screen.getByText("10 AI requests / day (Compile, Autopsy & Reverse Engineer)"),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText("35 AI requests / day (Compile, Autopsy & Reverse Engineer)"),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText("60 AI requests / day per seat (Compile, Autopsy & Reverse Engineer)"),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText("Unlimited AI requests / day (Compile, Autopsy & Reverse Engineer)"),
+      ).toBeInTheDocument();
+
+      // Monthly prices when switched to Monthly ($0, $8, $16, $5)
       fireEvent.click(screen.getByRole("tab", { name: /Monthly/i }));
       await waitFor(() => {
+        expect(screen.getByText("$0")).toBeInTheDocument();
         expect(screen.getByText("$8")).toBeInTheDocument();
         expect(screen.getByText("$16")).toBeInTheDocument();
-        expect(screen.getByText("$2")).toBeInTheDocument();
+        expect(screen.getByText("$5")).toBeInTheDocument();
       });
     });
   });
@@ -316,6 +332,24 @@ describe("Web Route Pages & AuthGate", () => {
       const restoredButtons = await screen.findAllByRole("button", { name: /Use template/i });
       const firstTemplateBtn = restoredButtons[0];
       if (!firstTemplateBtn) throw new Error("Expected a template button");
+
+      // Unauthenticated user clicking Use template sees the Sign In dialog
+      fireEvent.click(firstTemplateBtn);
+      expect(getAuthDialogState().isOpen).toBe(true);
+      expect(screen.queryByTestId("composer-dest")).toBeNull();
+
+      // Authenticated user clicking Use template loads it into Composer
+      act(() => {
+        setAuthSessionForTest({
+          id: "u_tpl",
+          email: "tpl@example.com",
+          name: "Template User",
+          plan: "free",
+          spaceId: "sp_tpl",
+          spaceName: "Template Space",
+          hasPasskey: false,
+        });
+      });
       fireEvent.click(firstTemplateBtn);
       expect(screen.getByTestId("composer-dest")).toBeInTheDocument();
     });
@@ -376,9 +410,10 @@ describe("Web Route Pages & AuthGate", () => {
         expect(screen.getByLabelText("Search saved prompts")).toBeInTheDocument();
       });
 
-      const listBtn = screen.getByRole("button", { name: /List view/i });
-      fireEvent.click(listBtn);
-      expect(safeGetItem("open-prompt-os:library-view:v1")).toBe("list");
+      expect(screen.queryByRole("button", { name: /List view/i })).toBeNull();
+      expect(screen.queryByRole("button", { name: /Grid view/i })).toBeNull();
+      expect(screen.getByRole("tab", { name: "Library" })).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: "History" })).toBeInTheDocument();
 
       const copyBtns = await screen.findAllByRole("button", { name: "Copy" });
       const firstCopyBtn = copyBtns[0];

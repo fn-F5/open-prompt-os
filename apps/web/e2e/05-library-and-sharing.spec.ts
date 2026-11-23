@@ -30,11 +30,9 @@ test.describe("05 - Library CRUD & Cross-Context Public Sharing @full", () => {
       timeout: 10_000,
     });
 
-    // Navigate to Library, toggle view, and share
+    // Navigate to Library and share
     await page.goto("/library");
     await expect(page.getByLabel("Search saved prompts")).toBeVisible();
-    await page.getByLabel("List view").click();
-    await page.getByLabel("Grid view").click();
 
     const sharePromise = page.waitForResponse(
       (res) => res.url().includes("/rpc/prompts/share") && res.status() === 200,

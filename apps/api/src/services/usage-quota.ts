@@ -27,16 +27,16 @@ export function getTomorrowUtcMidnight(): Date {
 }
 
 const DEFAULT_LIMITS: Record<PlanTier, Record<UsageAction, number>> = {
-  free: { compose: 20, refine: 10, autopsy: 5, reverse_engineer: 3 },
-  pro: { compose: 500, refine: 250, autopsy: 100, reverse_engineer: 50 },
-  team: { compose: 2000, refine: 1000, autopsy: 500, reverse_engineer: 200 },
+  free: { compose: 10, refine: 10, autopsy: 10, reverse_engineer: 10 },
+  pro: { compose: 35, refine: 35, autopsy: 35, reverse_engineer: 35 },
+  team: { compose: 60, refine: 60, autopsy: 60, reverse_engineer: 60 },
 };
 
 const GUEST_DEFAULT_LIMITS: Record<UsageAction, number> = {
-  compose: 5,
-  refine: 3,
-  autopsy: 2,
-  reverse_engineer: 1,
+  compose: 10,
+  refine: 10,
+  autopsy: 10,
+  reverse_engineer: 10,
 };
 
 const DEFAULT_GLOBAL_GUEST_DAILY_LIMIT = 500;

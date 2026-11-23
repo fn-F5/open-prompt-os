@@ -252,8 +252,8 @@ describe("API Routes & Database Integration", () => {
       };
       expect(json.plan).toBe("free");
       expect(json.status).toBe("active");
-      expect(json.dailyLimit).toBe(5);
-      expect(json.remainingDailyPrompts).toBeLessThanOrEqual(5);
+      expect(json.dailyLimit).toBe(10);
+      expect(json.remainingDailyPrompts).toBeLessThanOrEqual(10);
       expect(new Date(json.resetAt).getTime()).toBeGreaterThan(Date.now());
     });
 
@@ -275,8 +275,8 @@ describe("API Routes & Database Integration", () => {
         };
       };
       expect(json.plan).toBe("free");
-      expect(json.dailyLimit).toBe(20);
-      expect(json.remainingDailyPrompts).toBe(20);
+      expect(json.dailyLimit).toBe(10);
+      expect(json.remainingDailyPrompts).toBe(10);
     });
   });
 
@@ -353,7 +353,7 @@ describe("API Routes & Database Integration", () => {
         };
       };
       expect(json.compiledPrompt).toBeDefined();
-      expect(json.remainingDailyPrompts).toBe(19); // 20 - 1
+      expect(json.remainingDailyPrompts).toBe(9); // 10 - 1
 
       // Verify record exists in prompt_generations for this space
       const generations = await runAsSystem(async (tx) =>
@@ -378,7 +378,7 @@ describe("API Routes & Database Integration", () => {
       const { json: statusJson } = (await statusRes.json()) as {
         json: { remainingDailyPrompts: number };
       };
-      expect(statusJson.remainingDailyPrompts).toBe(19);
+      expect(statusJson.remainingDailyPrompts).toBe(9);
     });
 
     it("executes refine and persists to prompt_generations", async () => {
@@ -412,7 +412,7 @@ describe("API Routes & Database Integration", () => {
 
     it("rejects execution when quota is exhausted with QUOTA_EXCEEDED (403)", async () => {
       const quotaKey = `exhausted_guest_${Date.now()}`;
-      // Pre-seed 5 calls in DB for this guest key (guest dailyLimit is 5)
+      // Pre-seed 10 calls in DB for this guest key (guest dailyLimit is 10)
       const today = new Date(
         Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate()),
       );
@@ -424,7 +424,7 @@ describe("API Routes & Database Integration", () => {
             clientKey: hashClientKey(quotaKey),
             usageDate: today,
             action: "compose",
-            count: 5,
+            count: 10,
           },
         }),
       );
@@ -487,7 +487,7 @@ describe("API Routes & Database Integration", () => {
           json: { compiledPrompt: string; remainingDailyPrompts: number };
         };
         expect(json.compiledPrompt).toBeDefined();
-        expect(json.remainingDailyPrompts).toBe(4); // guest dailyLimit is 5
+        expect(json.remainingDailyPrompts).toBe(9); // guest dailyLimit is 10
 
         const guestGens = await runAsSystem((tx) =>
           tx.promptGeneration.findMany({
@@ -547,8 +547,8 @@ describe("API Routes & Database Integration", () => {
 
       expect(res.status).toBe(200);
       const { json } = (await res.json()) as { json: { dailyLimit: number } };
-      // Authenticated space limit (20), not guest limit (5)
-      expect(json.dailyLimit).toBe(20);
+      // Authenticated space limit (10)
+      expect(json.dailyLimit).toBe(10);
     });
   });
 
@@ -787,7 +787,7 @@ describe("API Routes & Database Integration", () => {
       };
       expect(json.reconstructedPrompt).toContain("High-detail editorial photography");
       expect(json.reconstructedPrompt).not.toContain("[Primary_Subject]");
-      expect(json.remainingDailyRuns).toBe(2); // free tier reverse_engineer limit is 3
+      expect(json.remainingDailyRuns).toBe(7); // 10 unified daily limit - 3 runs (compose, refine, reverseEngineer)
       expect(json.breakdown.subject.length).toBeGreaterThan(0);
 
       const gens = await runAsSystem((tx) =>
@@ -930,7 +930,7 @@ describe("API Routes & Database Integration", () => {
         json: { plan: string; dailyLimit: number };
       };
       expect(teamJson.plan).toBe("team");
-      expect(teamJson.dailyLimit).toBe(2000);
+      expect(teamJson.dailyLimit).toBe(60);
 
       const downgradeRes = await app.request("http://localhost/rpc/billing/emulatePlan", {
         method: "POST",
@@ -946,7 +946,7 @@ describe("API Routes & Database Integration", () => {
         json: { plan: string; dailyLimit: number };
       };
       expect(freeJson.plan).toBe("free");
-      expect(freeJson.dailyLimit).toBe(20);
+      expect(freeJson.dailyLimit).toBe(10);
 
       const spaceDowngraded = await prisma.space.findUnique({ where: { id: testSpaceId } });
       expect(spaceDowngraded?.plan).toBe("free");

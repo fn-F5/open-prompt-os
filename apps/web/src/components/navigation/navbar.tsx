@@ -327,7 +327,6 @@ export function AppNavbar() {
     { to: "/reverse-engineer", label: "Reverse Engineer" },
     { to: "/improve", label: "Improve & Autopsy" },
     { to: "/library", label: "Library" },
-    { to: "/history", label: "History" },
     { to: "/templates", label: "Templates" },
   ];
 
