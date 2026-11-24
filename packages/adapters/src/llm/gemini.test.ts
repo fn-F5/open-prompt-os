@@ -194,6 +194,7 @@ describe("createGeminiAdapter", () => {
       async generateContent() {
         return { text: "", inputTokens: 0, outputTokens: 0 };
       },
+      // biome-ignore lint/correctness/useYield: intentionally throws before yielding
       async *generateContentStream(call) {
         seenModels.push(call.model);
         throw new Error(

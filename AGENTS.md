@@ -4,9 +4,10 @@ Guidance for AI coding agents working in **Open Prompt OS**.
 
 ---
 
-## Mandatory First Rule
+## Mandatory Rules
 
 - **NEVER modify, update, weaken, or delete any existing test case (unit, integration, or E2E) without explicitly asking the human and receiving approval first.** If a test fails after a code change, report the failure and ask the user whether to update the test or fix the implementation.
+- **NEVER commit or push changes (`git commit`, `git push`) without explicitly asking the human and receiving approval first.** Leave changes in the working tree for review unless the user explicitly instructs you to commit or push.
 
 ---
 

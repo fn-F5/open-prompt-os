@@ -174,10 +174,9 @@ export function GuidedParameters({
         <span className="font-medium">Guided building blocks:</span>
       </div>
 
-      <div
-        role="group"
+      <fieldset
         aria-label="Guided prompt parameters"
-        className="flex flex-wrap items-center gap-2"
+        className="border-0 p-0 m-0 flex flex-wrap items-center gap-2"
       >
         {PARAMETER_DESCRIPTORS.map((desc) => {
           const summary = getSummary(desc);
@@ -230,11 +229,10 @@ export function GuidedParameters({
             </div>
           );
         })}
-      </div>
+      </fieldset>
 
       {activeDescriptor ? (
-        <div
-          role="region"
+        <section
           aria-label={`Configure ${activeDescriptor.label}`}
           className="rounded-2xl p-4 sm:p-5 bg-[var(--surface-2)] border border-[var(--separator-strong)] space-y-3.5"
         >
@@ -362,7 +360,7 @@ export function GuidedParameters({
               </button>
             ))}
           </div>
-        </div>
+        </section>
       ) : null}
     </div>
   );

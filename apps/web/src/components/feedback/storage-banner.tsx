@@ -29,10 +29,7 @@ export function StorageAndNetworkBanner() {
   if (!degraded && !isOffline) return null;
 
   return (
-    <div
-      role="status"
-      className="w-full bg-[var(--surface-2)] border-b border-[var(--separator-subtle)] px-4 py-2 text-xs text-[var(--text-secondary)]"
-    >
+    <output className="block w-full bg-[var(--surface-2)] border-b border-[var(--separator-subtle)] px-4 py-2 text-xs text-[var(--text-secondary)]">
       <div className="mx-auto max-w-6xl flex flex-wrap items-center justify-between gap-2">
         {isOffline ? (
           <span className="inline-flex items-center gap-1.5 text-[var(--text-primary)] font-medium">
@@ -47,6 +44,6 @@ export function StorageAndNetworkBanner() {
           </span>
         ) : null}
       </div>
-    </div>
+    </output>
   );
 }

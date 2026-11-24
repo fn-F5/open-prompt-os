@@ -1,0 +1,13 @@
+{
+  "$schema": "../../node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "packageManager": "pnpm",
+  "testRunner": "vitest",
+  "plugins": ["@stryker-mutator/vitest-runner", "@stryker-mutator/typescript-checker"],
+  "checkers": ["typescript"],
+  "tsconfigFile": "tsconfig.json",
+  "mutate": ["src/rate-limit.ts", "src/client-key.ts", "src/errors.ts"],
+  "vitest": {
+    "related": true
+  },
+  "reporters": ["clear-text", "progress"]
+}

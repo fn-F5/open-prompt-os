@@ -5,14 +5,15 @@ import { evaluatePromptQuality, extractDraftSupplementalText } from "@open-promp
 import type { Context, Hono } from "hono";
 import type { ApiEnv } from "../app-env.js";
 import { resolveActor } from "../auth/session-resolver.js";
+import type { TrustProxyMode } from "../client-key.js";
 import { toUserFacingServerError } from "../errors.js";
 import { enrichRequestContext, logger } from "../logger.js";
-import { checkQuota, recordPromptGeneration, recordUsage } from "../services/usage-quota.js";
+import { recordPromptGeneration, releaseQuota, reserveQuota } from "../services/usage-quota.js";
 
 export interface ComposeStreamDeps {
   orchestrator: PromptOrchestrator;
   allowRequest: (key: string) => boolean;
-  trustProxy: boolean;
+  trustProxy: TrustProxyMode;
   auth?: Auth;
 }
 
@@ -45,7 +46,7 @@ export function registerComposeStream(app: Hono<ApiEnv>, deps: ComposeStreamDeps
       return c.json({ code: "VALIDATION_ERROR", message: quality.message, requestId }, 400);
     }
 
-    const quota = await checkQuota(actor, "compose");
+    const quota = await reserveQuota(actor, "compose");
     if (!quota.allowed) {
       return c.json(
         {
@@ -91,22 +92,19 @@ export function registerComposeStream(app: Hono<ApiEnv>, deps: ComposeStreamDeps
             } else {
               const latencyMs = event.output.latencyMs ?? Date.now() - started;
 
-              await Promise.all([
-                recordUsage(actor, "compose"),
-                recordPromptGeneration(actor, {
-                  kind: "compose",
-                  rawInput: parsed.data.draft.rawInput,
-                  compiledPrompt: event.output.compiledPrompt,
-                  draft: parsed.data.draft,
-                  mode: parsed.data.draft.mode,
-                  framework: parsed.data.draft.framework ?? "costar",
-                  modelId: parsed.data.draft.modelId,
-                  providerId: event.output.providerId,
-                  latencyMs,
-                }),
-              ]);
+              await recordPromptGeneration(actor, {
+                kind: "compose",
+                rawInput: parsed.data.draft.rawInput,
+                compiledPrompt: event.output.compiledPrompt,
+                draft: parsed.data.draft,
+                mode: parsed.data.draft.mode,
+                framework: parsed.data.draft.framework ?? "costar",
+                modelId: parsed.data.draft.modelId,
+                providerId: event.output.providerId,
+                latencyMs,
+              });
 
-              event.output.remainingDailyPrompts = Math.max(0, quota.remainingDaily - 1);
+              event.output.remainingDailyPrompts = quota.remainingDaily;
               completed = true;
 
               controller.enqueue(
@@ -118,7 +116,13 @@ export function registerComposeStream(app: Hono<ApiEnv>, deps: ComposeStreamDeps
           if (!signal.aborted && !completed) {
             throw new Error("Compose stream ended without a completion event.");
           }
+          if (signal.aborted && !completed && quota.reserved) {
+            await releaseQuota(actor, "compose");
+          }
         } catch (error) {
+          if (quota.reserved) {
+            await releaseQuota(actor, "compose");
+          }
           logger.error("Compose stream failed", {
             event: "prompt.stream_failed",
             requestId,

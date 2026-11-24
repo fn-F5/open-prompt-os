@@ -11,13 +11,14 @@ import { prisma } from "@open-prompt-os/db";
 import type { Context, Hono } from "hono";
 import type { ApiEnv } from "../app-env.js";
 import { type ResolvedActor, resolveActor } from "../auth/session-resolver.js";
+import type { TrustProxyMode } from "../client-key.js";
 import { toUserFacingServerError } from "../errors.js";
 import { enrichRequestContext, logger } from "../logger.js";
-import { checkQuota, recordPromptGeneration, recordUsage } from "../services/usage-quota.js";
+import { recordPromptGeneration, releaseQuota, reserveQuota } from "../services/usage-quota.js";
 
 export interface VideoReverseEngineerStreamDeps {
   orchestrator: PromptOrchestrator;
-  trustProxy: boolean;
+  trustProxy: TrustProxyMode;
   auth?: Auth;
 }
 
@@ -187,6 +188,16 @@ export function registerVideoReverseEngineerStream(
       }
 
       const rawEffectiveEnd = parsed.data.endOffsetSec ?? parsed.data.durationSeconds;
+      if (rawEffectiveEnd !== undefined && rawEffectiveEnd <= parsed.data.startOffsetSec) {
+        return c.json(
+          {
+            code: "VALIDATION_ERROR",
+            message: "End time must be greater than start time.",
+            requestId,
+          },
+          400,
+        );
+      }
       if (
         rawEffectiveEnd !== undefined &&
         (rawEffectiveEnd > limits.maxDurationSec ||
@@ -258,7 +269,7 @@ export function registerVideoReverseEngineerStream(
       rawSourceLabel = parsed.data.focusNotes || urlCheck.canonicalUrl;
     }
 
-    const quota = await checkQuota(actor, "reverse_engineer");
+    const quota = await reserveQuota(actor, "reverse_engineer");
     if (!quota.allowed) {
       return c.json(
         {
@@ -305,24 +316,24 @@ export function registerVideoReverseEngineerStream(
           );
 
           const latencyMs = output.latencyMs || Date.now() - started;
-          await Promise.all([
-            recordUsage(actor, "reverse_engineer"),
-            recordPromptGeneration(actor, {
-              kind: "reverse_engineer",
-              rawInput: rawSourceLabel.slice(0, 8000),
-              compiledPrompt: output.masterPrompt,
-              draft: output.suggestedDraft,
-              mode: "video",
-              framework: "costar",
-              modelId: output.modelId,
-              providerId: output.providerId,
-              latencyMs,
-            }),
-          ]);
+          await recordPromptGeneration(actor, {
+            kind: "reverse_engineer",
+            rawInput: rawSourceLabel.slice(0, 8000),
+            compiledPrompt: output.masterPrompt,
+            draft: output.suggestedDraft,
+            mode: "video",
+            framework: "costar",
+            modelId: output.modelId,
+            providerId: output.providerId,
+            latencyMs,
+          });
 
-          output.remainingDailyRuns = Math.max(0, quota.remainingDaily - 1);
+          output.remainingDailyRuns = quota.remainingDaily;
           sendEvent("done", output);
         } catch (error) {
+          if (quota.reserved) {
+            await releaseQuota(actor, "reverse_engineer");
+          }
           logger.error("Video reverse engineer stream failed", {
             event: "prompt.video_reverse_engineer_failed",
             requestId,

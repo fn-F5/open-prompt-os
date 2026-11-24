@@ -10,6 +10,7 @@ import {
   Prisma,
   type UsageAction,
   prisma,
+  runAsSystem,
   runAsTenant,
 } from "@open-prompt-os/db";
 import type { ResolvedActor } from "../auth/session-resolver.js";
@@ -38,11 +39,28 @@ const GUEST_DEFAULT_LIMITS: Record<UsageAction, number> = {
   reverse_engineer: 10,
 };
 
+const DEFAULT_GLOBAL_GUEST_DAILY_LIMIT = 500;
+
+function isProductionEnv(): boolean {
+  return process.env.NODE_ENV === "production";
+}
+
+function resolveGlobalGuestDailyLimit(): number {
+  const raw = process.env.GLOBAL_GUEST_DAILY_LIMIT?.trim();
+  if (!raw) return DEFAULT_GLOBAL_GUEST_DAILY_LIMIT;
+  const parsed = Number(raw);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : DEFAULT_GLOBAL_GUEST_DAILY_LIMIT;
+}
+
 export interface QuotaCheckResult {
   readonly allowed: boolean;
   readonly remainingDaily: number;
   readonly dailyLimit: number;
   readonly currentUsage: number;
+}
+
+export interface QuotaReservationResult extends QuotaCheckResult {
+  readonly reserved: boolean;
 }
 
 /**
@@ -90,11 +108,14 @@ export async function checkQuota(
       }
       return { actionUsage, totalUsage };
     } catch (error) {
-      logger.error("Quota usage lookup failed; failing open", {
+      logger.error("Quota usage lookup failed", {
         event: "quota.usage_lookup_failed",
         action,
         err: error,
       });
+      if (isProductionEnv()) {
+        throw new Error("Quota storage is temporarily unavailable.");
+      }
       return { actionUsage: 0, totalUsage: 0 };
     }
   };
@@ -125,8 +146,33 @@ export async function checkQuota(
     }
   };
 
+  const lookupGlobalGuestUsage = async (): Promise<number> => {
+    try {
+      const agg = await runAsSystem((tx) =>
+        tx.usageCounter.aggregate({
+          _sum: { count: true },
+          where: {
+            spaceId: null,
+            usageDate: today,
+          },
+        }),
+      );
+      return agg._sum.count ?? 0;
+    } catch (error) {
+      logger.error("Global guest quota lookup failed", {
+        event: "quota.global_guest_lookup_failed",
+        err: error,
+      });
+      if (isProductionEnv()) {
+        throw new Error("Quota storage is temporarily unavailable.");
+      }
+      return 0;
+    }
+  };
+
   let plan: PlanTier = "free";
   let usage: { actionUsage: number; totalUsage: number };
+  let globalGuestRemaining = Number.POSITIVE_INFINITY;
 
   if (actor.spaceId) {
     const spaceId = actor.spaceId;
@@ -149,7 +195,20 @@ export async function checkQuota(
     plan = space?.plan ?? "free";
     usage = todayUsage;
   } else {
-    usage = await lookupTodayUsage();
+    const [todayUsage, globalGuestUsage] = await Promise.all([
+      lookupTodayUsage(),
+      lookupGlobalGuestUsage(),
+    ]);
+    usage = todayUsage;
+    const globalLimit = resolveGlobalGuestDailyLimit();
+    globalGuestRemaining = Math.max(0, globalLimit - globalGuestUsage);
+    if (globalGuestRemaining === 0) {
+      logger.warn("Global anonymous guest daily limit reached", {
+        event: "quota.global_guest_exhausted",
+        globalGuestUsage,
+        globalLimit,
+      });
+    }
   }
 
   const [dailyLimit, totalDailyLimit] =
@@ -159,13 +218,295 @@ export async function checkQuota(
 
   const actionRemaining = Math.max(0, dailyLimit - usage.actionUsage);
   const totalRemaining = Math.max(0, totalDailyLimit - usage.totalUsage);
-  const remainingDaily = Math.min(actionRemaining, totalRemaining);
+  const remainingDaily = Math.min(actionRemaining, totalRemaining, globalGuestRemaining);
   return {
     allowed: remainingDaily > 0,
     remainingDaily,
     dailyLimit,
     currentUsage: usage.actionUsage,
   };
+}
+
+/**
+ * Atomically checks quota and reserves (increments) 1 unit inside a single transaction
+ * guarded by a per-actor advisory lock so parallel bursts cannot bypass daily limits.
+ * Fails closed in production if the database cannot be reached.
+ */
+export async function reserveQuota(
+  actor: ResolvedActor,
+  action: UsageAction,
+): Promise<QuotaReservationResult> {
+  const today = getTodayUtcDate();
+  const isGuest = !actor.spaceId;
+
+  const lookupDailyLimit = async (plan: PlanTier, targetAction: UsageAction): Promise<number> => {
+    try {
+      const limitRow = await prisma.planLimit.findUnique({
+        where: {
+          plan_action_isGuest: {
+            plan,
+            action: targetAction,
+            isGuest,
+          },
+        },
+      });
+      return (
+        limitRow?.dailyLimit ??
+        (isGuest ? GUEST_DEFAULT_LIMITS[targetAction] : DEFAULT_LIMITS[plan][targetAction])
+      );
+    } catch (error) {
+      logger.error("Quota plan limit lookup failed; using default limit", {
+        event: "quota.limit_lookup_failed",
+        plan,
+        action: targetAction,
+        err: error,
+      });
+      return isGuest ? GUEST_DEFAULT_LIMITS[targetAction] : DEFAULT_LIMITS[plan][targetAction];
+    }
+  };
+
+  let plan: PlanTier = "free";
+  if (actor.spaceId) {
+    const spaceId = actor.spaceId;
+    const space = await prisma.space
+      .findUnique({
+        where: { id: spaceId },
+        select: { plan: true },
+      })
+      .catch((error: unknown) => {
+        logger.error("Quota space plan lookup failed", {
+          event: "quota.space_lookup_failed",
+          spaceId,
+          err: error,
+        });
+        if (isProductionEnv()) {
+          throw new Error("Quota storage is temporarily unavailable.");
+        }
+        return null;
+      });
+    plan = space?.plan ?? "free";
+  }
+
+  const [dailyLimit, totalDailyLimit] =
+    action === "compose"
+      ? await lookupDailyLimit(plan, "compose").then((limit) => [limit, limit] as const)
+      : await Promise.all([lookupDailyLimit(plan, action), lookupDailyLimit(plan, "compose")]);
+
+  const dateKey = today.toISOString().slice(0, 10);
+
+  try {
+    if (!actor.spaceId) {
+      // Serialize all guest reservations for the UTC day under a single global advisory lock
+      // inside one transaction so concurrent requests from different IPs cannot race past
+      // the global daily guest cap.
+      const globalGuestLockKey = `quota:global-guest:${dateKey}`;
+      const globalLimit = resolveGlobalGuestDailyLimit();
+
+      return await runAsSystem(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${globalGuestLockKey}))`;
+
+        const [agg, rows] = await Promise.all([
+          tx.usageCounter.aggregate({
+            _sum: { count: true },
+            where: {
+              spaceId: null,
+              usageDate: today,
+            },
+          }),
+          tx.usageCounter.findMany({
+            where: { clientKey: actor.hashedClientKey, usageDate: today },
+            select: { action: true, count: true },
+          }),
+        ]);
+
+        const globalGuestUsage = agg._sum.count ?? 0;
+        const globalGuestRemaining = Math.max(0, globalLimit - globalGuestUsage);
+
+        let actionUsage = 0;
+        let totalUsage = 0;
+        for (const row of rows) {
+          totalUsage += row.count;
+          if (row.action === action) actionUsage += row.count;
+        }
+
+        if (globalGuestRemaining === 0) {
+          logger.warn("Global anonymous guest daily limit reached", {
+            event: "quota.global_guest_exhausted",
+            globalGuestUsage,
+            globalLimit,
+          });
+        }
+
+        const actionRemaining = Math.max(0, dailyLimit - actionUsage);
+        const totalRemaining = Math.max(0, totalDailyLimit - totalUsage);
+        const minRemaining = Math.min(actionRemaining, totalRemaining, globalGuestRemaining);
+
+        if (minRemaining <= 0) {
+          return {
+            allowed: false,
+            remainingDaily: 0,
+            dailyLimit,
+            currentUsage: actionUsage,
+            reserved: false,
+          };
+        }
+
+        await tx.usageCounter.upsert({
+          where: {
+            clientKey_usageDate_action: {
+              clientKey: actor.hashedClientKey,
+              usageDate: today,
+              action,
+            },
+          },
+          create: {
+            clientKey: actor.hashedClientKey,
+            usageDate: today,
+            action,
+            count: 1,
+          },
+          update: {
+            count: { increment: 1 },
+          },
+        });
+
+        return {
+          allowed: true,
+          remainingDaily: Math.max(0, minRemaining - 1),
+          dailyLimit,
+          currentUsage: actionUsage + 1,
+          reserved: true,
+        };
+      });
+    }
+
+    const spaceId = actor.spaceId;
+    const lockKey = `quota:${spaceId}:${dateKey}`;
+
+    return await runAsTenant(
+      {
+        spaceId,
+        userId: actor.userId,
+      },
+      async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+
+        const rows = await tx.usageCounter.findMany({
+          where: { spaceId, usageDate: today },
+          select: { action: true, count: true },
+        });
+
+        let actionUsage = 0;
+        let totalUsage = 0;
+        for (const row of rows) {
+          totalUsage += row.count;
+          if (row.action === action) actionUsage += row.count;
+        }
+
+        const actionRemaining = Math.max(0, dailyLimit - actionUsage);
+        const totalRemaining = Math.max(0, totalDailyLimit - totalUsage);
+        const minRemaining = Math.min(actionRemaining, totalRemaining);
+
+        if (minRemaining <= 0) {
+          return {
+            allowed: false,
+            remainingDaily: 0,
+            dailyLimit,
+            currentUsage: actionUsage,
+            reserved: false,
+          };
+        }
+
+        await tx.usageCounter.upsert({
+          where: {
+            spaceId_usageDate_action: {
+              spaceId,
+              usageDate: today,
+              action,
+            },
+          },
+          create: {
+            spaceId,
+            usageDate: today,
+            action,
+            count: 1,
+          },
+          update: {
+            count: { increment: 1 },
+          },
+        });
+
+        return {
+          allowed: true,
+          remainingDaily: Math.max(0, minRemaining - 1),
+          dailyLimit,
+          currentUsage: actionUsage + 1,
+          reserved: true,
+        };
+      },
+    );
+  } catch (error) {
+    logger.error("Atomic quota reservation failed", {
+      event: "quota.reserve_failed",
+      action,
+      err: error,
+    });
+    if (isProductionEnv()) {
+      throw new Error("Quota storage is temporarily unavailable.");
+    }
+    return {
+      allowed: true,
+      remainingDaily: Math.max(0, dailyLimit - 1),
+      dailyLimit,
+      currentUsage: 0,
+      reserved: false,
+    };
+  }
+}
+
+/**
+ * Refunds 1 reserved quota unit if an AI request fails or aborts before completion.
+ */
+export async function releaseQuota(actor: ResolvedActor, action: UsageAction): Promise<void> {
+  const today = getTodayUtcDate();
+  try {
+    await runAsTenant(
+      {
+        spaceId: actor.spaceId,
+        userId: actor.userId,
+        clientKey: actor.spaceId ? undefined : actor.hashedClientKey,
+      },
+      async (tx) => {
+        if (actor.spaceId) {
+          await tx.usageCounter.updateMany({
+            where: {
+              spaceId: actor.spaceId,
+              usageDate: today,
+              action,
+              count: { gt: 0 },
+            },
+            data: { count: { decrement: 1 } },
+          });
+          return;
+        }
+        await tx.usageCounter.updateMany({
+          where: {
+            clientKey: actor.hashedClientKey,
+            usageDate: today,
+            action,
+            count: { gt: 0 },
+          },
+          data: { count: { decrement: 1 } },
+        });
+      },
+    );
+  } catch (error) {
+    logger.warn("Failed to release reserved quota after request error", {
+      event: "quota.release_failed",
+      action,
+      err: error,
+    });
+  }
 }
 
 /**

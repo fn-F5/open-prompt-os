@@ -28,7 +28,7 @@ export type WebhookParseResult =
   | { readonly kind: "invalid" };
 
 export interface BillingProvider {
-  readonly kind: "stripe" | "emulator";
+  readonly kind: "stripe" | "emulator" | "disabled";
   listPlans(): Promise<PricingPlanItem[]>;
   createCustomer(input: { email: string; spaceId: string }): Promise<{ customerId: string }>;
   createCheckout(input: BillingCheckoutRequest): Promise<{ url: string }>;

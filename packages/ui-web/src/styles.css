@@ -4,34 +4,35 @@
 
 :root,
 [data-theme="dark"] {
-  --font-sans: "Geist", "Geist Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans: "Geist", "Geist Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    sans-serif;
   --font-mono: "Geist Mono", ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
   --font-serif: "Instrument Serif", "Times New Roman", serif;
-  --page-bg: #0F0F11;
-  --surface-1: #1A1A1C;
+  --page-bg: #0f0f11;
+  --surface-1: #1a1a1c;
   --surface-2: #232326;
-  --surface-3: #2E2E32;
-  --surface-inverse: #FFFFFF;
-  --text-primary: #F9FAFB;
-  --text-secondary: #D1D5DB;
-  --text-muted: #9CA3AF;
-  --text-placeholder: #6B7280;
-  --text-inverse: #1A1A1C;
-  --separator-subtle: rgba(255, 255, 255, 0.10);
+  --surface-3: #2e2e32;
+  --surface-inverse: #ffffff;
+  --text-primary: #f9fafb;
+  --text-secondary: #d1d5db;
+  --text-muted: #9ca3af;
+  --text-placeholder: #6b7280;
+  --text-inverse: #1a1a1c;
+  --separator-subtle: rgba(255, 255, 255, 0.1);
   --separator-strong: rgba(255, 120, 0, 0.48);
-  --focus-ring: #FF7800;
-  --accent-primary: #FF7800;
-  --accent-cyan: #FF6B35;
-  --accent-text: #FFA040;
-  --cyan-text: #FFCB90;
-  --success-text: #34D399;
-  --accent-gradient: linear-gradient(135deg, #FF7800 0%, #FF6B35 100%);
+  --focus-ring: #ff7800;
+  --accent-primary: #ff7800;
+  --accent-cyan: #ff6b35;
+  --accent-text: #ffa040;
+  --cyan-text: #ffcb90;
+  --success-text: #34d399;
+  --accent-gradient: linear-gradient(135deg, #ff7800 0%, #ff6b35 100%);
   --accent-glow: rgba(255, 120, 0, 0.22);
   --accent-subtle-bg: rgba(255, 120, 0, 0.14);
   --cyan-subtle-bg: rgba(255, 107, 53, 0.14);
   --success-subtle-bg: rgba(16, 185, 129, 0.14);
   --danger-bg: rgba(239, 68, 68, 0.16);
-  --danger-text: #FCA5A5;
+  --danger-text: #fca5a5;
   --glass-bg: rgba(26, 26, 28, 0.84);
   --glass-border: rgba(255, 255, 255, 0.12);
   --glass-blur: 24px;
@@ -46,39 +47,39 @@
   --card-spotlight-strong: rgba(255, 120, 0, 0.22);
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35), 0 18px 44px -16px rgba(0, 0, 0, 0.65);
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --ambient-indigo: rgba(255, 120, 0, 0.10);
+  --ambient-indigo: rgba(255, 120, 0, 0.1);
   --ambient-cyan: rgba(255, 107, 53, 0.07);
   color-scheme: dark;
 }
 
 [data-theme="light"] {
-  --page-bg: #F2F5FA;
-  --surface-1: #FFFFFF;
-  --surface-2: #F2F5FA;
-  --surface-3: #E1E6EF;
-  --surface-inverse: #1A1A1C;
-  --text-primary: #1A1A1C;
-  --text-secondary: #4B5563;
-  --text-muted: #6B7280;
-  --text-placeholder: #9CA3AF;
-  --text-inverse: #FFFFFF;
-  --separator-subtle: #D7DDE5;
+  --page-bg: #f2f5fa;
+  --surface-1: #ffffff;
+  --surface-2: #f2f5fa;
+  --surface-3: #e1e6ef;
+  --surface-inverse: #1a1a1c;
+  --text-primary: #1a1a1c;
+  --text-secondary: #4b5563;
+  --text-muted: #6b7280;
+  --text-placeholder: #9ca3af;
+  --text-inverse: #ffffff;
+  --separator-subtle: #d7dde5;
   --separator-strong: rgba(255, 120, 0, 0.45);
-  --focus-ring: #FF7800;
-  --accent-primary: #FF7800;
-  --accent-cyan: #FF6B35;
-  --accent-text: #C05800;
-  --cyan-text: #9A3412;
+  --focus-ring: #ff7800;
+  --accent-primary: #ff7800;
+  --accent-cyan: #ff6b35;
+  --accent-text: #c05800;
+  --cyan-text: #9a3412;
   --success-text: #047857;
-  --accent-gradient: linear-gradient(135deg, #FF7800 0%, #FF6B35 100%);
+  --accent-gradient: linear-gradient(135deg, #ff7800 0%, #ff6b35 100%);
   --accent-glow: rgba(255, 120, 0, 0.18);
-  --accent-subtle-bg: #FFF2E9;
+  --accent-subtle-bg: #fff2e9;
   --cyan-subtle-bg: rgba(255, 107, 53, 0.12);
-  --success-subtle-bg: rgba(4, 120, 87, 0.10);
-  --danger-bg: rgba(220, 38, 38, 0.10);
-  --danger-text: #B91C1C;
-  --glass-bg: rgba(255, 255, 255, 0.90);
-  --glass-border: #D7DDE5;
+  --success-subtle-bg: rgba(4, 120, 87, 0.1);
+  --danger-bg: rgba(220, 38, 38, 0.1);
+  --danger-text: #b91c1c;
+  --glass-bg: rgba(255, 255, 255, 0.9);
+  --glass-border: #d7dde5;
   --glass-blur: 24px;
   --glass-highlight: linear-gradient(
     135deg,
@@ -88,9 +89,9 @@
   --bg-card: linear-gradient(180deg, rgba(255, 255, 255, 0.82) 0%, rgba(255, 255, 255, 0.62) 100%);
   --card-spotlight: rgba(255, 120, 0, 0.13);
   --card-spotlight-strong: rgba(255, 120, 0, 0.18);
-  --shadow-card: 0 1px 2px rgba(20, 26, 56, 0.04), 0 16px 36px -14px rgba(26, 26, 28, 0.10);
+  --shadow-card: 0 1px 2px rgba(20, 26, 56, 0.04), 0 16px 36px -14px rgba(26, 26, 28, 0.1);
   --ambient-indigo: rgba(242, 234, 223, 0.85);
-  --ambient-cyan: rgba(255, 120, 0, 0.10);
+  --ambient-cyan: rgba(255, 120, 0, 0.1);
   color-scheme: light;
 }
 
@@ -139,7 +140,7 @@ pre,
     line-height: 1;
     letter-spacing: -0.02em;
     padding-right: 0.04em;
-    background-image: linear-gradient(101deg, #FF7800 0%, #FF6B35 52%, #FF4232 88%);
+    background-image: linear-gradient(101deg, #ff7800 0%, #ff6b35 52%, #ff4232 88%);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -147,13 +148,13 @@ pre,
 
   [data-theme="dark"] .text-gradient-brand,
   [data-theme="dark"] .accent-serif {
-    background-image: linear-gradient(101deg, #FFCB90 0%, #FFA040 52%, #FF6B35 88%);
+    background-image: linear-gradient(101deg, #ffcb90 0%, #ffa040 52%, #ff6b35 88%);
   }
 
   /* Primary CTA Button Gradient */
   .btn-brand-gradient {
     background-image: var(--accent-gradient);
-    color: #FFFFFF;
+    color: #ffffff;
     box-shadow: 0 8px 28px -6px var(--accent-glow), 0 0 0 1px rgba(255, 255, 255, 0.18) inset;
     transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease;
   }
@@ -174,13 +175,14 @@ pre,
     color: var(--text-primary);
     border: 1.5px solid var(--separator-strong);
     box-shadow: 0 4px 14px -4px var(--accent-glow);
-    transition: transform 160ms ease, background-color 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+    transition: transform 160ms ease, background-color 160ms ease, border-color 160ms ease, color
+      160ms ease, box-shadow 160ms ease;
   }
 
   .btn-solid-contrast:hover {
     background-color: var(--accent-primary);
     border-color: var(--accent-primary);
-    color: #FFFFFF;
+    color: #ffffff;
     transform: translateY(-1px);
     box-shadow: 0 8px 22px -4px var(--accent-glow);
   }
@@ -220,7 +222,11 @@ pre,
     --mx: 50%;
     --my: 0%;
     background-color: var(--surface-1);
-    background-image: radial-gradient(400px circle at var(--mx) var(--my), var(--card-spotlight), transparent 60%), var(--bg-card);
+    background-image: radial-gradient(
+        400px circle at var(--mx) var(--my),
+        var(--card-spotlight),
+        transparent 60%
+      ), var(--bg-card);
     border: 1px solid var(--separator-subtle);
     border-radius: 16px;
     box-shadow: var(--shadow-card);
@@ -248,7 +254,11 @@ pre,
     --mx: 50%;
     --my: 0%;
     background-color: var(--surface-1);
-    background-image: radial-gradient(420px circle at var(--mx) var(--my), var(--card-spotlight-strong), transparent 60%), var(--bg-card);
+    background-image: radial-gradient(
+        420px circle at var(--mx) var(--my),
+        var(--card-spotlight-strong),
+        transparent 60%
+      ), var(--bg-card);
     border: 1px solid var(--accent-primary);
     border-radius: 18px;
     box-shadow: 0 0 0 1px var(--accent-primary), var(--shadow-card);
@@ -261,7 +271,8 @@ pre,
   }
 
   .glow-card:hover {
-    box-shadow: 0 0 0 1px var(--accent-primary), 0 14px 36px -10px var(--accent-glow), var(--shadow-card);
+    box-shadow: 0 0 0 1px var(--accent-primary), 0 14px 36px -10px var(--accent-glow),
+      var(--shadow-card);
     transition: transform 0.12s linear, border-color 0.2s ease, box-shadow 0.2s ease;
   }
 
@@ -302,7 +313,11 @@ pre,
 
   .dialog-panel {
     animation: dialog-panel-in 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
-    background-image: radial-gradient(480px circle at 50% 0%, var(--card-spotlight-strong), transparent 65%), var(--bg-card);
+    background-image: radial-gradient(
+        480px circle at 50% 0%,
+        var(--card-spotlight-strong),
+        transparent 65%
+      ), var(--bg-card);
   }
 
   /* Tabular numerals for quotas and latency */
@@ -345,6 +360,7 @@ pre,
 }
 
 /* Reduced transparency & reduced motion overrides */
+/* biome-ignore lint/correctness/noUnknownMediaFeatureName: CSS Media Queries Level 5 */
 @media (prefers-reduced-transparency: reduce) {
   .glass-surface {
     background-color: var(--surface-1) !important;

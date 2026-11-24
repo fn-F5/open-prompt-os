@@ -41,6 +41,71 @@ async function captureIssueScreenshot(
   await page.screenshot({ path: path.join(SCREENSHOT_DIR, `${safeName}.png`) }).catch(() => {});
 }
 
+async function runAcrossViewports(
+  browser: import("@playwright/test").Browser,
+  options: {
+    readonly viewports: readonly ViewportSpec[];
+    readonly colorScheme: "dark" | "light";
+    readonly authenticated: boolean;
+    readonly routes: readonly string[];
+    readonly contextName: string;
+    readonly state: string;
+    readonly screenshotPrefix: string;
+    readonly afterNavigate?: (page: import("@playwright/test").Page) => Promise<void>;
+  },
+): Promise<void> {
+  const groups = [
+    options.viewports.filter((v) => v.isMobile),
+    options.viewports.filter((v) => !v.isMobile),
+  ].filter((group) => group.length > 0);
+
+  for (const group of groups) {
+    const initialViewport = group[0];
+    if (!initialViewport) continue;
+    const context = await createAuditContext(browser, {
+      viewport: initialViewport,
+      colorScheme: options.colorScheme,
+      authenticated: options.authenticated,
+    });
+    const page = await context.newPage();
+    try {
+      for (const route of options.routes) {
+        await gotoAndSettle(page, route);
+        if (options.afterNavigate) {
+          await options.afterNavigate(page);
+        }
+        for (const viewport of group) {
+          await page.setViewportSize({ width: viewport.width, height: viewport.height });
+          await page.evaluate(() => window.scrollTo(0, 0));
+          await page.waitForTimeout(80);
+          const { findings } = await inspectPageResolution(page, {
+            contextName: options.contextName,
+            theme: options.colorScheme,
+            viewport,
+            route,
+            state: options.state,
+          });
+          auditedTargets.push({
+            context: options.contextName,
+            route,
+            viewport: viewport.label,
+            state: options.state,
+          });
+          allFindings.push(...findings);
+          const routeSlug = route === "/" ? "index" : route;
+          await captureIssueScreenshot(
+            page,
+            `${options.screenshotPrefix}_${routeSlug}_${viewport.name}`,
+            findings,
+          );
+        }
+      }
+    } finally {
+      await context.close();
+    }
+  }
+}
+
 test.describe.configure({ mode: "serial" });
 
 test.describe("Multi-Context Multi-Viewport Resolution Audit", () => {
@@ -77,67 +142,26 @@ test.describe("Multi-Context Multi-Viewport Resolution Audit", () => {
     test.setTimeout(120_000);
 
     // 1. Full viewport matrix on index route `/`
-    for (const viewport of VIEWPORT_MATRIX) {
-      const context = await createAuditContext(browser, {
-        viewport,
-        colorScheme: "dark",
-        authenticated: false,
-      });
-      const page = await context.newPage();
-      try {
-        await gotoAndSettle(page, "/");
-        const { findings } = await inspectPageResolution(page, {
-          contextName: "anonymous-dark",
-          theme: "dark",
-          viewport,
-          route: "/",
-          state: "initial-load",
-        });
-        auditedTargets.push({
-          context: "anonymous-dark",
-          route: "/",
-          viewport: viewport.label,
-          state: "initial-load",
-        });
-        allFindings.push(...findings);
-        await captureIssueScreenshot(page, `anon-dark_index_${viewport.name}`, findings);
-      } finally {
-        await context.close();
-      }
-    }
+    await runAcrossViewports(browser, {
+      viewports: VIEWPORT_MATRIX,
+      colorScheme: "dark",
+      authenticated: false,
+      routes: ["/"],
+      contextName: "anonymous-dark",
+      state: "initial-load",
+      screenshotPrefix: "anon-dark",
+    });
 
     // 2. Representative viewports across anonymous secondary routes
-    const secondaryRoutes = ["/improve", "/reverse-engineer", "/templates", "/pricing", "/history"];
-    for (const viewport of SUBSET_VIEWPORTS) {
-      const context = await createAuditContext(browser, {
-        viewport,
-        colorScheme: "dark",
-        authenticated: false,
-      });
-      const page = await context.newPage();
-      try {
-        for (const route of secondaryRoutes) {
-          await gotoAndSettle(page, route);
-          const { findings } = await inspectPageResolution(page, {
-            contextName: "anonymous-dark",
-            theme: "dark",
-            viewport,
-            route,
-            state: "route-view",
-          });
-          auditedTargets.push({
-            context: "anonymous-dark",
-            route,
-            viewport: viewport.label,
-            state: "route-view",
-          });
-          allFindings.push(...findings);
-          await captureIssueScreenshot(page, `anon-dark_${route}_${viewport.name}`, findings);
-        }
-      } finally {
-        await context.close();
-      }
-    }
+    await runAcrossViewports(browser, {
+      viewports: SUBSET_VIEWPORTS,
+      colorScheme: "dark",
+      authenticated: false,
+      routes: ["/improve", "/reverse-engineer", "/templates", "/pricing", "/history"],
+      contextName: "anonymous-dark",
+      state: "route-view",
+      screenshotPrefix: "anon-dark",
+    });
 
     expect(auditedTargets.length).toBeGreaterThan(0);
   });
@@ -147,41 +171,21 @@ test.describe("Multi-Context Multi-Viewport Resolution Audit", () => {
   }) => {
     test.setTimeout(90_000);
 
-    for (const viewport of SUBSET_VIEWPORTS) {
-      const context = await createAuditContext(browser, {
-        viewport,
-        colorScheme: "light",
-        authenticated: false,
-      });
-      const page = await context.newPage();
-      try {
-        for (const route of ["/", "/pricing", "/templates"]) {
-          await gotoAndSettle(page, route);
-          const themeAttr = await page.evaluate(() =>
-            document.documentElement.getAttribute("data-theme"),
-          );
-          expect(themeAttr).toBe("light");
-
-          const { findings } = await inspectPageResolution(page, {
-            contextName: "anonymous-light",
-            theme: "light",
-            viewport,
-            route,
-            state: "route-view",
-          });
-          auditedTargets.push({
-            context: "anonymous-light",
-            route,
-            viewport: viewport.label,
-            state: "route-view",
-          });
-          allFindings.push(...findings);
-          await captureIssueScreenshot(page, `anon-light_${route}_${viewport.name}`, findings);
-        }
-      } finally {
-        await context.close();
-      }
-    }
+    await runAcrossViewports(browser, {
+      viewports: SUBSET_VIEWPORTS,
+      colorScheme: "light",
+      authenticated: false,
+      routes: ["/", "/pricing", "/templates"],
+      contextName: "anonymous-light",
+      state: "route-view",
+      screenshotPrefix: "anon-light",
+      afterNavigate: async (page) => {
+        const themeAttr = await page.evaluate(() =>
+          document.documentElement.getAttribute("data-theme"),
+        );
+        expect(themeAttr).toBe("light");
+      },
+    });
   });
 
   test("audits authenticated workspace browser contexts across navbar breakpoints and workspace routes", async ({
@@ -189,37 +193,15 @@ test.describe("Multi-Context Multi-Viewport Resolution Audit", () => {
   }) => {
     test.setTimeout(90_000);
 
-    const authRoutes = ["/", "/history", "/library", "/settings/profile"];
-    for (const viewport of SUBSET_VIEWPORTS) {
-      const context = await createAuditContext(browser, {
-        viewport,
-        colorScheme: "dark",
-        authenticated: true,
-      });
-      const page = await context.newPage();
-      try {
-        for (const route of authRoutes) {
-          await gotoAndSettle(page, route);
-          const { findings } = await inspectPageResolution(page, {
-            contextName: "authenticated-dark",
-            theme: "dark",
-            viewport,
-            route,
-            state: "workspace-loaded",
-          });
-          auditedTargets.push({
-            context: "authenticated-dark",
-            route,
-            viewport: viewport.label,
-            state: "workspace-loaded",
-          });
-          allFindings.push(...findings);
-          await captureIssueScreenshot(page, `auth-dark_${route}_${viewport.name}`, findings);
-        }
-      } finally {
-        await context.close();
-      }
-    }
+    await runAcrossViewports(browser, {
+      viewports: SUBSET_VIEWPORTS,
+      colorScheme: "dark",
+      authenticated: true,
+      routes: ["/", "/history", "/library", "/settings/profile"],
+      contextName: "authenticated-dark",
+      state: "workspace-loaded",
+      screenshotPrefix: "auth-dark",
+    });
   });
 
   test("audits overlays, popovers, expanded composer, tour, and mobile nav across critical viewports", async ({

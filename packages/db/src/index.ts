@@ -9,7 +9,7 @@ export type DbLogHandler = (event: string, data: Record<string, unknown>) => voi
 
 let dbLogHandler: DbLogHandler | null = null;
 
-/** Registers a structured logger for DB query timing and insert payloads. */
+/** Registers a structured logger for DB query timing and insert events. */
 export function setDbLogger(handler: DbLogHandler | null): void {
   dbLogHandler = handler;
 }
@@ -24,11 +24,9 @@ export const prisma = basePrisma.$extends({
     $allModels: {
       async $allOperations({ model, operation, args, query }) {
         if (INSERT_OPERATIONS.has(operation) && dbLogHandler) {
-          const payload = args as { data?: unknown; create?: unknown } | undefined;
           dbLogHandler("db.insert", {
             model,
             operation,
-            insertData: payload?.data ?? payload?.create ?? null,
           });
         }
         const started = performance.now();

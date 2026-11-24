@@ -1,6 +1,7 @@
 import type { BillingProvider, LlmProviderAdapter } from "@open-prompt-os/adapter-kit";
 import {
   createAnthropicAdapter,
+  createDisabledBillingProvider,
   createGeminiAdapter,
   createLocalBillingEmulator,
   createOllamaAdapter,
@@ -95,8 +96,8 @@ export function createRuntime(config: AppConfig) {
         streaming: event.streaming,
         maxOutputTokens: event.maxOutputTokens,
         timeoutMs: event.timeoutMs,
-        systemPrompt: event.systemPrompt,
-        userPrompt: event.userPrompt,
+        systemPromptChars: event.systemPrompt.length,
+        userPromptChars: event.userPrompt.length,
       });
     },
     onLlmResponse(event) {
@@ -108,7 +109,7 @@ export function createRuntime(config: AppConfig) {
         latencyMs: event.latencyMs,
         usage: event.usage,
         healed: event.healed,
-        responseText: event.text,
+        responseChars: event.text.length,
       });
     },
     onProviderFailure(event) {
@@ -122,23 +123,40 @@ export function createRuntime(config: AppConfig) {
     },
   });
 
-  const billingProvider: BillingProvider =
+  const hasFullStripeConfig = Boolean(
     config.stripeSecretKey &&
-    config.stripePriceProMonthly &&
-    config.stripePriceProYearly &&
-    config.stripePriceTeamMonthly &&
-    config.stripePriceTeamYearly
-      ? createStripeBillingProvider({
-          secretKey: config.stripeSecretKey,
-          webhookSecret: config.stripeWebhookSecret,
-          prices: {
-            proMonthly: config.stripePriceProMonthly,
-            proYearly: config.stripePriceProYearly,
-            teamMonthly: config.stripePriceTeamMonthly,
-            teamYearly: config.stripePriceTeamYearly,
-          },
-        })
-      : createLocalBillingEmulator();
+      config.stripeWebhookSecret &&
+      config.stripePriceProMonthly &&
+      config.stripePriceProYearly &&
+      config.stripePriceTeamMonthly &&
+      config.stripePriceTeamYearly,
+  );
+  const isLocalDevOrTest = config.nodeEnv === "development" || config.nodeEnv === "test";
+
+  let billingProvider: BillingProvider;
+  if (hasFullStripeConfig) {
+    billingProvider = createStripeBillingProvider({
+      secretKey: config.stripeSecretKey as string,
+      webhookSecret: config.stripeWebhookSecret,
+      prices: {
+        proMonthly: config.stripePriceProMonthly as string,
+        proYearly: config.stripePriceProYearly as string,
+        teamMonthly: config.stripePriceTeamMonthly as string,
+        teamYearly: config.stripePriceTeamYearly as string,
+      },
+    });
+  } else if (isLocalDevOrTest) {
+    billingProvider = createLocalBillingEmulator();
+  } else {
+    logger.warn(
+      "Stripe billing is not fully configured; paid checkout, portal, and webhooks are disabled.",
+      {
+        event: "billing.disabled",
+        nodeEnv: config.nodeEnv || "unset",
+      },
+    );
+    billingProvider = createDisabledBillingProvider();
+  }
 
   return { orchestrator, billingProvider };
 }

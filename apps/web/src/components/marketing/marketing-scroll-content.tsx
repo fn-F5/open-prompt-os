@@ -169,7 +169,8 @@ const USE_CASE_SHOWCASE: ReadonlyArray<{
 export function MarketingScrollContent() {
   const [selectedUseCase, setSelectedUseCase] = React.useState<ComposerMode>("text");
   const activeShowcase =
-    USE_CASE_SHOWCASE.find((u) => u.mode === selectedUseCase) ?? USE_CASE_SHOWCASE[0]!;
+    USE_CASE_SHOWCASE.find((u) => u.mode === selectedUseCase) ?? USE_CASE_SHOWCASE[0];
+  if (!activeShowcase) return null;
 
   return (
     <div
@@ -440,7 +441,7 @@ export function MarketingScrollContent() {
         </div>
 
         {/* 3-Card Mode Selector Strip (Shows mode category & scope without duplicating the template title below) */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 sm:gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5 sm:gap-4">
           {USE_CASE_SHOWCASE.map((item) => {
             const Icon = item.icon;
             const isSelected = item.mode === selectedUseCase;

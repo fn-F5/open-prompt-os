@@ -77,10 +77,10 @@ export function PulseHotspot({ hotspotId, label, description }: PulseHotspotProp
       </button>
 
       {expanded ? (
-        <div
-          role="dialog"
+        <dialog
+          open
           aria-label={label}
-          className="absolute bottom-full left-0 mb-3 z-50 w-72 rounded-2xl p-4 glass-surface text-left"
+          className="absolute bottom-full left-0 mb-3 z-50 w-72 rounded-2xl p-4 glass-surface text-left m-0 border-0"
         >
           <div className="flex items-start justify-between gap-2">
             <div className="text-sm font-semibold text-[var(--text-primary)]">{label}</div>
@@ -101,7 +101,7 @@ export function PulseHotspot({ hotspotId, label, description }: PulseHotspotProp
               Got it
             </Button>
           </div>
-        </div>
+        </dialog>
       ) : null}
     </div>
   );

@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import {
   ComposerDraftSchema,
   type ComposerMode,
@@ -161,7 +161,7 @@ export async function sharePrompt(
       };
     }
 
-    const shareId = `shr_${id.replace(/[^a-zA-Z0-9]/g, "").slice(-8)}_${randomUUID().slice(0, 6)}`;
+    const shareId = `shr_${randomBytes(16).toString("base64url")}`;
     await tx.savedPrompt.update({
       where: { id },
       data: {

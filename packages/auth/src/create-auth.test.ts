@@ -624,4 +624,136 @@ describe("createAuth configuration and lifecycle", () => {
     expect((await send()).status).toBe(200);
     expect((await send()).status).toBe(429);
   });
+
+  it("links OAuth accounts only when the provider reports a verified email", async () => {
+    const db = createInMemoryDb();
+    const existingUser = await (
+      db.user as unknown as {
+        create: (args: { data: Record<string, unknown> }) => Promise<Record<string, unknown>>;
+      }
+    ).create({
+      data: {
+        id: "user_verified_1",
+        email: "verified@example.com",
+        emailVerified: true,
+        name: "Verified User",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+    mockTx.spaceMember.findFirst.mockResolvedValue({
+      space: { id: "space_verified_1", name: "Verified's Workspace", plan: "free" },
+    });
+
+    const auth = createAuth({
+      db,
+      boot: makeBoot({
+        githubClientId: "gh-client-id",
+        githubClientSecret: "gh-client-secret",
+      }),
+      mailer: createCaptureMailer(),
+    });
+
+    async function runGithubOAuthCallback(providerEmailVerified: boolean) {
+      const initRes = await auth.handler(
+        new Request("http://localhost:3001/api/auth/sign-in/social", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            origin: "http://localhost:5173",
+          },
+          body: JSON.stringify({
+            provider: "github",
+            callbackURL: "http://localhost:5173/dashboard",
+          }),
+        }),
+      );
+      expect(initRes.status).toBe(200);
+      const initPayload = (await initRes.json()) as { url: string };
+      const authUrl = new URL(initPayload.url);
+      const state = authUrl.searchParams.get("state");
+      expect(state).toBeTruthy();
+
+      const cookie = (initRes.headers.getSetCookie?.() ?? [])
+        .map((c) => c.split(";")[0])
+        .filter(Boolean)
+        .join("; ");
+
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (input: string | URL | Request) => {
+          const url =
+            typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+          if (url.startsWith("https://github.com/login/oauth/access_token")) {
+            return new Response(
+              JSON.stringify({
+                access_token: "gho_test_token",
+                token_type: "bearer",
+                scope: "read:user,user:email",
+              }),
+              { status: 200, headers: { "content-type": "application/json" } },
+            );
+          }
+          if (url === "https://api.github.com/user") {
+            return new Response(
+              JSON.stringify({
+                id: 987654,
+                login: "octo",
+                name: "Octo",
+                email: "verified@example.com",
+                avatar_url: "https://avatars.githubusercontent.com/u/987654",
+              }),
+              { status: 200, headers: { "content-type": "application/json" } },
+            );
+          }
+          if (url === "https://api.github.com/user/emails") {
+            return new Response(
+              JSON.stringify([
+                {
+                  email: "verified@example.com",
+                  primary: true,
+                  verified: providerEmailVerified,
+                },
+              ]),
+              { status: 200, headers: { "content-type": "application/json" } },
+            );
+          }
+          throw new Error(`Unexpected fetch URL in OAuth test: ${url}`);
+        }),
+      );
+
+      return auth.handler(
+        new Request(
+          `http://localhost:3001/api/auth/callback/github?code=test-code&state=${encodeURIComponent(state ?? "")}`,
+          {
+            method: "GET",
+            headers: cookie ? { cookie } : {},
+          },
+        ),
+      );
+    }
+
+    // 1. Unverified email from GitHub must NOT link to existing account
+    const unverifiedRes = await runGithubOAuthCallback(false);
+    expect(unverifiedRes.status).toBe(302);
+    expect(unverifiedRes.headers.get("location")).toContain("error=account_not_linked");
+    const accountsAfterUnverified = await (
+      db.account as unknown as { findMany: () => Promise<Record<string, unknown>[]> }
+    ).findMany();
+    expect(accountsAfterUnverified).toHaveLength(0);
+
+    // 2. Verified email from GitHub links cleanly to the existing verified account
+    const verifiedRes = await runGithubOAuthCallback(true);
+    expect(verifiedRes.status).toBe(302);
+    expect(verifiedRes.headers.get("location")).toBe("http://localhost:5173/dashboard");
+    const accountsAfterVerified = await (
+      db.account as unknown as { findMany: () => Promise<Record<string, unknown>[]> }
+    ).findMany();
+    expect(accountsAfterVerified).toHaveLength(1);
+    expect(accountsAfterVerified[0]).toMatchObject({
+      providerId: "github",
+      accountId: "987654",
+      userId: existingUser.id,
+    });
+  });
 });

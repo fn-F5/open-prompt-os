@@ -1,7 +1,7 @@
 import { DEFAULT_PRICING_PLANS } from "@open-prompt-os/contracts";
 import { Button } from "@open-prompt-os/ui-web";
 import { useQuery } from "@tanstack/react-query";
-import { Menu, MessageSquarePlus, Moon, Sun, User, X } from "lucide-react";
+import { ChevronDown, CreditCard, Menu, MessageSquarePlus, Moon, Sun, User, X } from "lucide-react";
 import * as React from "react";
 import { Link, useLocation } from "react-router";
 import { useAuthSession } from "../../hooks/use-auth-session.js";
@@ -114,7 +114,7 @@ export function MarketingNavbar() {
 
   return (
     <header className="sticky top-0 z-40 w-full glass-surface rounded-none border-t-0 border-x-0">
-      <div className="mx-auto max-w-[1360px] px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-3">
+      <div className="mx-auto max-w-[1360px] px-4 sm:px-6 lg:px-5 xl:px-8 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-3">
         <div className="flex items-center gap-2 xl:gap-5 min-w-0">
           <Link
             to="/"
@@ -125,9 +125,9 @@ export function MarketingNavbar() {
                 nav_surface: "marketing_navbar",
               })
             }
-            className="inline-flex items-center gap-2.5 sm:gap-3 font-bold tracking-tight text-base sm:text-lg whitespace-nowrap shrink-0 focus-ring rounded-xl py-1"
+            className="inline-flex items-center gap-2 xl:gap-3 font-bold tracking-tight text-sm sm:text-base xl:text-lg whitespace-nowrap shrink-0 focus-ring rounded-xl py-1"
           >
-            <BrandLogo className="w-9 h-9 shrink-0 shadow-sm" />
+            <BrandLogo className="w-8 h-8 xl:w-9 xl:h-9 shrink-0 shadow-sm" />
             <span>Open Prompt OS</span>
           </Link>
 
@@ -154,7 +154,7 @@ export function MarketingNavbar() {
                       is_authenticated: false,
                     })
                   }
-                  className={`inline-flex items-center gap-1.5 px-2 xl:px-2.5 py-1.5 rounded-xl text-xs xl:text-sm whitespace-nowrap shrink-0 transition-all focus-ring ${
+                  className={`inline-flex items-center gap-1.5 px-1.5 xl:px-2.5 py-1.5 rounded-xl text-xs xl:text-sm whitespace-nowrap shrink-0 transition-all focus-ring ${
                     isActive
                       ? "bg-[var(--accent-subtle-bg)] text-[var(--text-primary)] font-semibold border border-[var(--separator-strong)] shadow-sm"
                       : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)] font-medium border border-transparent"
@@ -173,12 +173,13 @@ export function MarketingNavbar() {
           </nav>
         </div>
 
-        <div className="hidden lg:flex items-center gap-2 xl:gap-3 shrink-0">
+        <div className="hidden lg:flex items-center gap-1.5 xl:gap-3 shrink-0">
           <Button
             variant="ghost"
             size="sm"
             aria-label="Send feedback or feature request"
-            className="whitespace-nowrap shrink-0"
+            title="Feedback & Feature Requests"
+            className="whitespace-nowrap shrink-0 px-2 xl:px-3"
             data-analytics-tracked="true"
             onClick={() => {
               trackAnalyticsEvent("feedback:open_button_click", {
@@ -189,7 +190,7 @@ export function MarketingNavbar() {
             }}
           >
             <MessageSquarePlus className="w-4 h-4 text-[var(--accent-text)]" aria-hidden="true" />
-            <span>Feedback</span>
+            <span className="hidden xl:inline">Feedback</span>
           </Button>
 
           <ThemeToggle theme={theme} onToggle={toggleTheme} />
@@ -316,6 +317,28 @@ export function AppNavbar() {
   const { user } = useAuthSession();
   const { theme, toggleTheme } = useThemeMode();
   const [mobileOpen, setMobileOpen] = React.useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = React.useState(false);
+  const profileMenuRef = React.useRef<HTMLDivElement | null>(null);
+
+  React.useEffect(() => {
+    if (!profileMenuOpen) return;
+    const handlePointerDown = (event: MouseEvent) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setProfileMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setProfileMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [profileMenuOpen]);
 
   const billingQuery = useQuery({
     queryKey: queryKeys.billing.status(),
@@ -331,6 +354,7 @@ export function AppNavbar() {
   ];
 
   const isSettingsActive = location.pathname.startsWith("/settings");
+  const isPricingActive = location.pathname === "/pricing";
 
   const defaultFreeLimit =
     DEFAULT_PRICING_PLANS.find((plan) => plan.id === "free")?.dailyPromptLimit ?? 20;
@@ -425,30 +449,89 @@ export function AppNavbar() {
 
           <ThemeToggle theme={theme} onToggle={toggleTheme} />
 
-          <Link
-            to="/settings/profile"
-            aria-label={user?.name ?? "Operator"}
-            aria-current={isSettingsActive ? "page" : undefined}
-            data-analytics-tracked="true"
-            onClick={() =>
-              trackAnalyticsEvent("navigation:nav_link_click", {
-                link_name: "settings_profile",
-                target_path: "/settings/profile",
-                nav_surface: "app_navbar",
-                is_authenticated: true,
-              })
-            }
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs xl:text-sm whitespace-nowrap shrink-0 transition-colors focus-ring ${
-              isSettingsActive
-                ? "bg-[var(--accent-subtle-bg)] text-[var(--text-primary)] font-semibold border border-[var(--separator-strong)] shadow-sm"
-                : "bg-[var(--surface-2)] text-[var(--text-primary)] font-medium border border-[var(--separator-subtle)] hover:border-[var(--separator-strong)]"
-            }`}
-          >
-            <User className="w-4 h-4 text-[var(--accent-text)] shrink-0" />
-            <span className="max-w-[120px] xl:max-w-[150px] truncate">
-              {user?.name ?? "Operator"}
-            </span>
-          </Link>
+          <div className="relative" ref={profileMenuRef}>
+            <button
+              type="button"
+              aria-label={user?.name ?? "Operator"}
+              aria-haspopup="menu"
+              aria-expanded={profileMenuOpen}
+              onClick={() => setProfileMenuOpen((open) => !open)}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs xl:text-sm whitespace-nowrap shrink-0 transition-colors focus-ring cursor-pointer ${
+                isSettingsActive || isPricingActive || profileMenuOpen
+                  ? "bg-[var(--accent-subtle-bg)] text-[var(--text-primary)] font-semibold border border-[var(--separator-strong)] shadow-sm"
+                  : "bg-[var(--surface-2)] text-[var(--text-primary)] font-medium border border-[var(--separator-subtle)] hover:border-[var(--separator-strong)]"
+              }`}
+            >
+              <User className="w-4 h-4 text-[var(--accent-text)] shrink-0" />
+              <span className="max-w-[120px] xl:max-w-[150px] truncate">
+                {user?.name ?? "Operator"}
+              </span>
+              <ChevronDown
+                className={`w-3.5 h-3.5 text-[var(--text-secondary)] shrink-0 transition-transform duration-150 ${
+                  profileMenuOpen ? "rotate-180" : ""
+                }`}
+                aria-hidden="true"
+              />
+            </button>
+
+            {profileMenuOpen ? (
+              <div
+                role="menu"
+                aria-label="User profile menu"
+                className="absolute right-0 mt-2 w-48 rounded-xl bg-[var(--surface-1)] border border-[var(--separator-strong)] shadow-lg py-1.5 z-50"
+              >
+                <Link
+                  to="/settings/profile"
+                  role="menuitem"
+                  aria-current={isSettingsActive ? "page" : undefined}
+                  data-analytics-tracked="true"
+                  onClick={() => {
+                    setProfileMenuOpen(false);
+                    trackAnalyticsEvent("navigation:nav_link_click", {
+                      link_name: "settings_profile",
+                      target_path: "/settings/profile",
+                      nav_surface: "app_navbar",
+                      is_authenticated: true,
+                    });
+                  }}
+                  className={`flex items-center gap-2.5 px-3.5 py-2 text-sm transition-colors focus-ring ${
+                    isSettingsActive
+                      ? "bg-[var(--accent-subtle-bg)] text-[var(--text-primary)] font-semibold"
+                      : "text-[var(--text-secondary)] hover:bg-[var(--surface-2)] hover:text-[var(--text-primary)] font-medium"
+                  }`}
+                >
+                  <User className="w-4 h-4 text-[var(--accent-text)] shrink-0" aria-hidden="true" />
+                  <span>Profile</span>
+                </Link>
+                <Link
+                  to="/pricing"
+                  role="menuitem"
+                  aria-current={isPricingActive ? "page" : undefined}
+                  data-analytics-tracked="true"
+                  onClick={() => {
+                    setProfileMenuOpen(false);
+                    trackAnalyticsEvent("navigation:nav_link_click", {
+                      link_name: "pricing",
+                      target_path: "/pricing",
+                      nav_surface: "app_navbar",
+                      is_authenticated: true,
+                    });
+                  }}
+                  className={`flex items-center gap-2.5 px-3.5 py-2 text-sm transition-colors focus-ring ${
+                    isPricingActive
+                      ? "bg-[var(--accent-subtle-bg)] text-[var(--text-primary)] font-semibold"
+                      : "text-[var(--text-secondary)] hover:bg-[var(--surface-2)] hover:text-[var(--text-primary)] font-medium"
+                  }`}
+                >
+                  <CreditCard
+                    className="w-4 h-4 text-[var(--accent-text)] shrink-0"
+                    aria-hidden="true"
+                  />
+                  <span>Plans &amp; Pricing</span>
+                </Link>
+              </div>
+            ) : null}
+          </div>
         </div>
 
         <div className="flex lg:hidden items-center gap-2 shrink-0">
@@ -512,6 +595,18 @@ export function AppNavbar() {
               <MessageSquarePlus className="w-4 h-4 text-[var(--accent-text)]" aria-hidden="true" />
               <span>Feedback &amp; Feature Requests</span>
             </Button>
+            <Link
+              to="/pricing"
+              aria-current={isPricingActive ? "page" : undefined}
+              onClick={() => setMobileOpen(false)}
+              className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)] focus-ring"
+            >
+              <CreditCard
+                className="w-4 h-4 text-[var(--accent-text)] shrink-0"
+                aria-hidden="true"
+              />
+              <span>Plans &amp; Pricing</span>
+            </Link>
             <div className="flex items-center justify-between gap-2">
               <span className="text-sm text-[var(--text-secondary)] tabular-nums">
                 {remaining}/{limit} runs left

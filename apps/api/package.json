@@ -10,7 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@hono/node-server": "2.1.5",
+    "@hono/node-server": "^2.1.6",
     "@open-prompt-os/adapter-kit": "workspace:*",
     "@open-prompt-os/adapters": "workspace:*",
     "@open-prompt-os/auth": "workspace:*",
@@ -18,10 +18,10 @@
     "@open-prompt-os/core": "workspace:*",
     "@open-prompt-os/db": "workspace:*",
     "@orpc/server": "1.16.2",
-    "hono": "4.13.14",
+    "hono": "^4.13.16",
     "posthog-node": "^6.0.5",
     "tsx": "^4.19.3",
-    "zod": "^3.24.2"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@types/node": "^22.13.4",

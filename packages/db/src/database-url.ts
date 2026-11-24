@@ -13,6 +13,7 @@ type Env = Record<string, string | undefined>;
 export function resolveDatabaseUrl(env: Env = process.env): string {
   // If not configured in process.env, try loading repo-root .env once
   if (
+    env === process.env &&
     !env.DATABASE_URL &&
     !env.POSTGRES_USER &&
     typeof process !== "undefined" &&
@@ -28,7 +29,7 @@ export function resolveDatabaseUrl(env: Env = process.env): string {
     }
   }
 
-  const activeEnv: Env = process.env ?? env;
+  const activeEnv: Env = env;
   const explicit = activeEnv.DATABASE_URL?.trim();
   if (explicit && !explicit.includes("${")) return explicit;
 

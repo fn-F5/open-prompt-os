@@ -75,7 +75,11 @@ export function saveGuestInteraction(
     if (existing && options?.requestTimestamp) {
       const existingTime = Date.parse(existing.updatedAt);
       const incomingTime = Date.parse(options.requestTimestamp);
-      if (!Number.isNaN(existingTime) && !Number.isNaN(incomingTime) && incomingTime < existingTime) {
+      if (
+        !Number.isNaN(existingTime) &&
+        !Number.isNaN(incomingTime) &&
+        incomingTime < existingTime
+      ) {
         return existing;
       }
     }

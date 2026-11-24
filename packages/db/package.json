@@ -8,6 +8,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "db:generate": "tsx scripts/prisma.ts generate",
     "db:migrate": "tsx scripts/prisma.ts migrate dev",
     "db:migrate:deploy": "tsx scripts/prisma.ts migrate deploy",

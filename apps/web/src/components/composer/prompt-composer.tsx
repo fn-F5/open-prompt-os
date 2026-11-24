@@ -125,7 +125,7 @@ export function PromptComposer({
   });
 
   const textareaRef = useAutoResizeTextarea(activeDraft.rawInput, {
-    minHeightPx: 128,
+    minHeightPx: 96,
     maxHeightPx: 320,
   });
 
@@ -191,32 +191,32 @@ export function PromptComposer({
     <div className="relative">
       {/* Dedicated Hero Section for Anonymous Visitors */}
       {!isAuthenticated ? (
-        <div className="text-center max-w-4xl mx-auto pt-0 pb-4 sm:pt-1 sm:pb-8 space-y-2.5 sm:space-y-3.5">
-          <div className="hidden sm:inline-flex flex-wrap items-center justify-center gap-2 px-3.5 py-1 sm:px-4 sm:py-1.5 rounded-full bg-[var(--accent-subtle-bg)] border border-[var(--separator-strong)] font-mono text-xs uppercase tracking-[0.08em] font-normal text-[var(--text-primary)] max-w-full">
+        <div className="text-center max-w-4xl mx-auto pt-0 pb-2.5 sm:pt-0.5 sm:pb-5 [@media(max-height:640px)]:pb-2 [@media(max-height:600px)]:pb-1 space-y-1.5 sm:space-y-2.5">
+          <div className="hidden sm:inline-flex [@media(max-height:640px)]:hidden flex-wrap items-center justify-center gap-2 px-3.5 py-1 rounded-full bg-[var(--accent-subtle-bg)] border border-[var(--separator-strong)] font-mono text-xs uppercase tracking-[0.08em] font-normal text-[var(--text-primary)] max-w-full">
             <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--accent-text)] shrink-0" />
             <span>The Operating System for Prompts · Instant free use</span>
           </div>
 
-          <h1 className="text-[26px] sm:text-4xl lg:text-5xl font-medium tracking-[-0.03em] leading-[1.08] text-balance text-[var(--text-primary)]">
+          <h1 className="text-[19px] sm:text-3xl lg:text-[40px] font-medium tracking-[-0.03em] leading-[1.08] text-balance text-[var(--text-primary)]">
             Prompts are trade secrets{" "}
             <span className="text-gradient-brand whitespace-nowrap">creators rarely share</span>
           </h1>
 
-          <p className="text-sm sm:text-lg text-[var(--text-secondary)] max-w-3xl mx-auto leading-relaxed">
+          <p className="text-xs sm:text-base [@media(max-height:600px)]:hidden text-[var(--text-secondary)] max-w-3xl mx-auto leading-relaxed">
             Top creators guard the exact wording that gets studio-grade AI results. Drop a rough
             idea below and hit Compile to generate the same pro-level structure in one click.
           </p>
 
-          <div className="hidden sm:inline-flex items-center gap-2 text-sm text-[var(--success-text)] font-medium">
+          <div className="hidden sm:inline-flex [@media(max-height:640px)]:hidden items-center gap-2 text-xs sm:text-sm text-[var(--success-text)] font-medium">
             <ShieldCheck className="w-4 h-4" />
             <span>Privacy by default: We never train on your prompts.</span>
           </div>
         </div>
       ) : (
-        <div className="mb-3 sm:mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3">
+        <div className="mb-2 sm:mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-3">
           <div>
-            <h1 className="text-xl sm:text-3xl font-medium tracking-[-0.03em]">Prompt Compiler</h1>
-            <p className="text-sm sm:text-base text-[var(--text-secondary)] max-w-2xl">
+            <h1 className="text-lg sm:text-2xl font-medium tracking-[-0.03em]">Prompt Compiler</h1>
+            <p className="text-xs sm:text-sm [@media(max-height:600px)]:hidden text-[var(--text-secondary)] max-w-2xl">
               Draft, parameterize, and dispatch model-specific prompts from your workspace.
             </p>
           </div>
@@ -226,10 +226,10 @@ export function PromptComposer({
       {/* Main Frosted Glass Composer Card */}
       <section
         aria-label="Prompt operating system composer"
-        className="relative p-4 sm:p-8 glass-surface space-y-3.5 sm:space-y-5"
+        className="relative p-3 sm:p-5 [@media(max-height:640px)]:p-3 [@media(max-height:600px)]:p-2.5 glass-surface space-y-2.5 sm:space-y-3.5 [@media(max-height:640px)]:space-y-2 [@media(max-height:600px)]:space-y-1.5"
       >
         {/* Top Row: Mode Switcher + Wrapping Quick Example Strip */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 sm:pb-4 border-b border-[var(--separator-subtle)]">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 pb-2.5 sm:pb-3 [@media(max-height:600px)]:pb-1.5 border-b border-[var(--separator-subtle)]">
           <Tabs
             ariaLabel="Prompt generation mode"
             value={activeMode}
@@ -263,7 +263,7 @@ export function PromptComposer({
         </div>
 
         {/* Main Input Surface */}
-        <div className="rounded-2xl bg-[var(--page-bg)]/80 border border-[var(--separator-subtle)] focus-within:border-[var(--accent-primary)] transition-colors p-2 sm:p-3">
+        <div className="rounded-2xl bg-[var(--page-bg)]/80 border border-[var(--separator-subtle)] focus-within:border-[var(--accent-primary)] transition-colors p-2 sm:p-3 [@media(max-height:600px)]:p-1.5">
           <label htmlFor="prompt-composer-textarea" className="sr-only">
             Prompt intent and instructions ({activeMode} mode)
           </label>
@@ -312,7 +312,7 @@ export function PromptComposer({
         ) : null}
 
         {/* Bottom Action Bar (wrapping cleanly on narrow screens, 1 balanced row on desktop) */}
-        <div className="pt-3 sm:pt-4 border-t border-[var(--separator-subtle)] flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="pt-2.5 sm:pt-3 [@media(max-height:600px)]:pt-1.5 border-t border-[var(--separator-subtle)] flex flex-col md:flex-row md:items-center justify-between gap-2.5 [@media(max-height:600px)]:gap-1.5">
           <div className="flex flex-wrap items-center justify-between sm:justify-start gap-2 min-w-0">
             <ModelPicker
               mode={activeMode}
@@ -380,7 +380,7 @@ export function PromptComposer({
                 size="lg"
                 onClick={validateAndSubmit}
                 aria-label="Compile structured prompt"
-                className="flex-1 sm:flex-initial px-6 sm:px-7"
+                className="flex-1 sm:flex-initial px-4 sm:px-7"
               >
                 <span>Compile Prompt</span>
                 <ArrowRight className="w-5 h-5" />

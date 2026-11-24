@@ -371,18 +371,19 @@ describe("runtime, config, rate-limiter, and clientKey helpers", () => {
     const { Hono } = await import("hono");
     const { clientKey } = await import("./client-key.js");
     const app = new Hono();
+    app.get("/cloudflare", (c) => c.text(clientKey(c, "cloudflare")));
     app.get("/trust", (c) => c.text(clientKey(c, true)));
     app.get("/untrusted", (c) => c.text(clientKey(c, false)));
 
-    const cfRes = await app.request("/trust", {
+    const cfRes = await app.request("/cloudflare", {
       headers: { "cf-connecting-ip": "203.0.113.9", "x-forwarded-for": "198.51.100.1" },
     });
     expect(await cfRes.text()).toBe("203.0.113.9");
 
     const xffRes = await app.request("/trust", {
-      headers: { "x-forwarded-for": "198.51.100.2, 10.0.0.1" },
+      headers: { "cf-connecting-ip": "203.0.113.9", "x-forwarded-for": "198.51.100.2, 10.0.0.1" },
     });
-    expect(await xffRes.text()).toBe("198.51.100.2");
+    expect(await xffRes.text()).toBe("10.0.0.1");
 
     const fallbackRes = await app.request("/untrusted");
     expect(await fallbackRes.text()).toBe("unknown");

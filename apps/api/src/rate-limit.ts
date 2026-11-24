@@ -2,6 +2,7 @@
 export function createRateLimiter(limit: number, windowMs: number, now: () => number = Date.now) {
   const hits = new Map<string, { count: number; resetAt: number }>();
   return (key: string): boolean => {
+    if (limit <= 0) return false;
     const time = now();
     if (hits.size > 10_000) {
       for (const [hitKey, hit] of hits) {

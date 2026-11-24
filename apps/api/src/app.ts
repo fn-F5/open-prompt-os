@@ -1,8 +1,10 @@
 import type { BillingProvider, PromptOrchestrator } from "@open-prompt-os/adapter-kit";
-import { createLocalBillingEmulator } from "@open-prompt-os/adapters";
+import {
+  createDisabledBillingProvider,
+  createLocalBillingEmulator,
+} from "@open-prompt-os/adapters";
 import type { Auth } from "@open-prompt-os/auth";
 import { redactSecrets } from "@open-prompt-os/core";
-import { prisma } from "@open-prompt-os/db";
 import { RPCHandler } from "@orpc/server/fetch";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
@@ -10,7 +12,7 @@ import { cors } from "hono/cors";
 import { z } from "zod";
 import type { ApiEnv } from "./app-env.js";
 import { resolveActor } from "./auth/session-resolver.js";
-import { clientKey } from "./client-key.js";
+import { type TrustProxyMode, clientKey } from "./client-key.js";
 import { type E2eHarnessOptions, registerE2eRoutes } from "./e2e-harness.js";
 import { toUserFacingServerError } from "./errors.js";
 import {
@@ -31,7 +33,7 @@ export interface AppOptions {
   orchestrator: PromptOrchestrator;
   billingProvider?: BillingProvider;
   webOrigins: readonly string[];
-  trustProxy: boolean;
+  trustProxy: TrustProxyMode;
   allowRequest: (key: string) => boolean;
   auth?: Auth;
   oauthProviders?: { google: boolean; github: boolean };
@@ -42,7 +44,11 @@ export interface AppOptions {
 
 export function createApp(options: AppOptions) {
   const app = new Hono<ApiEnv>();
-  const billingProvider = options.billingProvider ?? createLocalBillingEmulator();
+  const isLocalDevOrTest =
+    process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test";
+  const billingProvider =
+    options.billingProvider ??
+    (isLocalDevOrTest ? createLocalBillingEmulator() : createDisabledBillingProvider());
   const router = createRouter({
     orchestrator: options.orchestrator,
     billingProvider,
@@ -217,29 +223,7 @@ export function createApp(options: AppOptions) {
         400,
       );
     }
-    const email = parsed.data.email.toLowerCase();
-    const timeoutSentinel = Symbol("signup-status-timeout");
-    try {
-      const existing = await Promise.race([
-        prisma.user.findUnique({
-          where: { email },
-          select: { id: true },
-        }),
-        new Promise<typeof timeoutSentinel>((resolve) =>
-          setTimeout(() => resolve(timeoutSentinel), 1500),
-        ),
-      ]);
-      if (existing === timeoutSentinel) {
-        return c.json({ isNewUser: null });
-      }
-      return c.json({ isNewUser: !existing });
-    } catch (error) {
-      appLogger.warn("Signup status lookup failed", {
-        event: "auth.signup_status_failed",
-        err: error,
-      });
-      return c.json({ isNewUser: null });
-    }
+    return c.json({ isNewUser: null });
   });
 
   app.on(["GET", "POST"], "/api/auth/*", (c) => {
