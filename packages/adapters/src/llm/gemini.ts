@@ -88,9 +88,10 @@ function buildContents(request: GeminiContentRequest) {
         request.video.startOffsetSec !== undefined
           ? Math.max(0, Math.floor(request.video.startOffsetSec))
           : undefined;
+      const baseStart = startSec ?? 0;
       const endSec =
         request.video.endOffsetSec !== undefined
-          ? Math.min(30, Math.max(1, Math.ceil(request.video.endOffsetSec)))
+          ? Math.min(baseStart + 30, Math.max(baseStart + 1, Math.ceil(request.video.endOffsetSec)))
           : undefined;
       videoPart.videoMetadata = {
         ...(startSec !== undefined ? { startOffset: `${startSec}s` } : {}),

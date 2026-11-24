@@ -25,7 +25,7 @@ export function NotFoundPage() {
       <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
         Your composer draft is preserved. Return to the main workspace to continue compiling.
       </p>
-      <Button variant="primary-inverse" onClick={() => navigate("/")}>
+      <Button variant="primary-inverse" onClick={() => navigate("/compile")}>
         Return to Composer
       </Button>
     </section>

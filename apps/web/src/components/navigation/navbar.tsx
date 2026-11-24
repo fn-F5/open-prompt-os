@@ -105,8 +105,8 @@ export function MarketingNavbar() {
   const [mobileOpen, setMobileOpen] = React.useState(false);
 
   const navLinks = [
-    { to: "/", label: "Compiler" },
-    { to: "/reverse-engineer", label: "Reverse Engineer" },
+    { to: "/", label: "Reverse Engineer" },
+    { to: "/compile", label: "Compiler" },
     { to: "/improve", label: "Improve & Autopsy" },
     { to: "/templates", label: "Templates" },
     { to: "/pricing", label: "Pricing" },
@@ -346,8 +346,8 @@ export function AppNavbar() {
   });
 
   const navLinks = [
-    { to: "/", label: "Compiler" },
-    { to: "/reverse-engineer", label: "Reverse Engineer" },
+    { to: "/", label: "Reverse Engineer" },
+    { to: "/compile", label: "Compiler" },
     { to: "/improve", label: "Improve & Autopsy" },
     { to: "/library", label: "Library" },
     { to: "/templates", label: "Templates" },

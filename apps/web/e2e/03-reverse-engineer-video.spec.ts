@@ -1,15 +1,29 @@
-import { FIXTURE_VIDEO_PATH, expect, resetQuota, test } from "./fixtures.js";
+import {
+  FIXTURE_VIDEO_PATH,
+  cleanupUser,
+  expect,
+  resetQuota,
+  signInViaAuthDialog,
+  test,
+} from "./fixtures.js";
 
 test.describe("03 - Video Reverse Engineer (UI Stability, YouTube & MP4 Upload) @smoke", () => {
+  const email = `e2e.re.video.${Date.now()}@example.com`;
+
   test.beforeEach(async ({ request }) => {
     await resetQuota(request);
+  });
+
+  test.afterEach(async ({ request }) => {
+    await cleanupUser(request, email);
   });
 
   test("keeps header switcher stable across Image/Video, validates links, analyzes video, and hands off to Composer", async ({
     page,
     request,
   }) => {
-    await page.goto("/reverse-engineer");
+    await page.goto("/");
+    await signInViaAuthDialog(page, request, email);
 
     // 1. Verify [Image | Video] header switcher does NOT shift horizontally on toggle
     const sourceTablist = page.getByRole("tablist", { name: "Source media type" });
@@ -68,7 +82,7 @@ test.describe("03 - Video Reverse Engineer (UI Stability, YouTube & MP4 Upload) 
 
     // 5. Accept into Composer loads video mode with master prompt
     await page.getByRole("button", { name: /Accept into Composer/i }).click();
-    await expect(page).toHaveURL(/\/$/);
+    await expect(page).toHaveURL(/\/compile$/);
     await expect(page.getByRole("textbox").first()).toHaveValue(/Shot 1 \(00:00/);
   });
 });

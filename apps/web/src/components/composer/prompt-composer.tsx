@@ -2,16 +2,9 @@ import type { ComposerMode } from "@open-prompt-os/contracts";
 import { evaluatePromptQuality, extractDraftSupplementalText } from "@open-prompt-os/core";
 import { Badge, Button, Tabs, Textarea } from "@open-prompt-os/ui-web";
 import { useQuery } from "@tanstack/react-query";
-import {
-  ArrowRight,
-  CornerDownLeft,
-  ShieldCheck,
-  SlidersHorizontal,
-  Sparkles,
-  Square,
-  Wand2,
-} from "lucide-react";
+import { ArrowRight, CornerDownLeft, SlidersHorizontal, Square, Wand2 } from "lucide-react";
 import * as React from "react";
+import { useLocation } from "react-router";
 import { useAuthSession } from "../../hooks/use-auth-session.js";
 import {
   shouldSubmitOnEnter,
@@ -21,6 +14,7 @@ import { useReducedEffects } from "../../hooks/use-reduced-effects.js";
 import { useTypingPlaceholder } from "../../hooks/use-typing-placeholder.js";
 import { orpcClient } from "../../lib/orpc.js";
 import { queryKeys } from "../../lib/query-client.js";
+import { openAuthDialog } from "../../state/auth-dialog-store.js";
 import { composerActions, useComposerStore } from "../../state/composer-store.js";
 import { PulseHotspot } from "../onboarding/pulse-hotspot.js";
 import { AdvancedControls } from "./advanced-controls.js";
@@ -58,43 +52,43 @@ const MODE_PLACEHOLDERS: Record<ComposerMode, readonly string[]> = {
 const QUICK_EXAMPLES: Record<ComposerMode, readonly { label: string; prompt: string }[]> = {
   text: [
     {
-      label: "System Architecture Review",
+      label: "Follow-up Email",
       prompt:
-        "Design a zero-downtime PostgreSQL Row-Level Security (RLS) rollout plan for a multi-tenant B2B SaaS platform.",
+        "Write a short, friendly follow-up email after a job interview thanking the hiring manager and asking about next steps.",
     },
     {
-      label: "Executive Strategy Memo",
+      label: "Meeting Summary",
       prompt:
-        "Synthesize Q4 user activation metrics and customer interviews into a crisp 2-page executive decision memo with clear trade-offs.",
+        "Turn messy team meeting notes into a clear summary with key decisions, action items, and owners.",
     },
     {
-      label: "Customer Support Guardrails",
+      label: "Explain Simply",
       prompt:
-        "Create a strict evaluation rubric and hallucination checklist for an AI billing support agent.",
+        "Explain how compound interest works in plain language with a simple real-life example for beginners.",
     },
   ],
   image: [
     {
-      label: "Industrial Hardware Render",
+      label: "Coffee Shop Photo",
       prompt:
-        "Macro studio photograph of a brushed titanium audio interface resting on dark basalt with subtle volumetric rim lighting, 85mm f/2.0 lens.",
+        "A warm, sunlit photo of a latte and croissant on a wooden cafe table by a rainy window.",
     },
     {
-      label: "Editorial Architecture",
+      label: "Product Shot",
       prompt:
-        "Architectural monograph photograph of a minimalist concrete and glass cliffside pavilion at dusk, warm interior glow, 35mm tilt-shift lens.",
+        "A clean studio photo of minimalist white wireless headphones on a soft light gray background.",
     },
   ],
   video: [
     {
-      label: "24fps Product Reveal",
+      label: "Ocean Sunset",
       prompt:
-        "Continuous 6-second orbital camera movement around a brushed steel chronograph as a narrow beam of key light sweeps across the dial.",
+        "A slow drone shot gliding over calm ocean waves at golden sunset with warm orange light.",
     },
     {
-      label: "Cinematic Studio Dolly",
+      label: "Product Spin",
       prompt:
-        "Slow 24fps dolly push-in through a softly lit design studio toward a floating holographic prototype.",
+        "A smooth 5-second camera spin around a sleek stainless steel watch with soft studio lighting.",
     },
   ],
 };
@@ -112,8 +106,17 @@ export function PromptComposer({
   onStopGeneration,
   onTypingChange,
 }: PromptComposerProps) {
+  const location = useLocation();
   const { isAuthenticated } = useAuthSession();
   const { activeMode, activeDraft, isAdvancedOpen } = useComposerStore();
+
+  const requireAuth = () => {
+    if (!isAuthenticated) {
+      openAuthDialog({ reason: "action_required", intendedRoute: location.pathname });
+      return false;
+    }
+    return true;
+  };
 
   const [validationError, setValidationError] = React.useState<string | null>(null);
   const [isTextareaFocused, setIsTextareaFocused] = React.useState(false);
@@ -129,9 +132,10 @@ export function PromptComposer({
     maxHeightPx: 320,
   });
 
-  const billingQuery = useQuery({
+  useQuery({
     queryKey: queryKeys.billing.status(),
     queryFn: () => orpcClient.billing.status(),
+    enabled: isAuthenticated,
   });
 
   const errorId = React.useId();
@@ -149,6 +153,7 @@ export function PromptComposer({
   );
 
   const validateAndSubmit = () => {
+    if (!requireAuth()) return;
     const trimmed = activeDraft.rawInput.trim();
     if (!trimmed) {
       setValidationError("Enter a prompt idea or instruction before compiling.");
@@ -183,45 +188,18 @@ export function PromptComposer({
     }
   };
 
-  const remainingGuestUses = billingQuery.data?.remainingDailyPrompts ?? 5;
-  const dailyLimit = billingQuery.data?.dailyLimit ?? 5;
   const examples = QUICK_EXAMPLES[activeMode] ?? QUICK_EXAMPLES.text;
 
   return (
     <div className="relative">
-      {/* Dedicated Hero Section for Anonymous Visitors */}
-      {!isAuthenticated ? (
-        <div className="text-center max-w-4xl mx-auto pt-0 pb-2.5 sm:pt-0.5 sm:pb-5 [@media(max-height:640px)]:pb-2 [@media(max-height:600px)]:pb-1 space-y-1.5 sm:space-y-2.5">
-          <div className="hidden sm:inline-flex [@media(max-height:640px)]:hidden flex-wrap items-center justify-center gap-2 px-3.5 py-1 rounded-full bg-[var(--accent-subtle-bg)] border border-[var(--separator-strong)] font-mono text-xs uppercase tracking-[0.08em] font-normal text-[var(--text-primary)] max-w-full">
-            <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--accent-text)] shrink-0" />
-            <span>The Operating System for Prompts · Instant free use</span>
-          </div>
-
-          <h1 className="text-[19px] sm:text-3xl lg:text-[40px] font-medium tracking-[-0.03em] leading-[1.08] text-balance text-[var(--text-primary)]">
-            Prompts are trade secrets{" "}
-            <span className="text-gradient-brand whitespace-nowrap">creators rarely share</span>
-          </h1>
-
-          <p className="text-xs sm:text-base [@media(max-height:600px)]:hidden text-[var(--text-secondary)] max-w-3xl mx-auto leading-relaxed">
-            Top creators guard the exact wording that gets studio-grade AI results. Drop a rough
-            idea below and hit Compile to generate the same pro-level structure in one click.
+      <div className="mb-2 sm:mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-3">
+        <div>
+          <h1 className="text-lg sm:text-2xl font-medium tracking-[-0.03em]">Prompt Compiler</h1>
+          <p className="text-xs sm:text-sm [@media(max-height:600px)]:hidden text-[var(--text-secondary)] max-w-2xl">
+            Draft, parameterize, and dispatch model-specific prompts from your workspace.
           </p>
-
-          <div className="hidden sm:inline-flex [@media(max-height:640px)]:hidden items-center gap-2 text-xs sm:text-sm text-[var(--success-text)] font-medium">
-            <ShieldCheck className="w-4 h-4" />
-            <span>Privacy by default: We never train on your prompts.</span>
-          </div>
         </div>
-      ) : (
-        <div className="mb-2 sm:mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-3">
-          <div>
-            <h1 className="text-lg sm:text-2xl font-medium tracking-[-0.03em]">Prompt Compiler</h1>
-            <p className="text-xs sm:text-sm [@media(max-height:600px)]:hidden text-[var(--text-secondary)] max-w-2xl">
-              Draft, parameterize, and dispatch model-specific prompts from your workspace.
-            </p>
-          </div>
-        </div>
-      )}
+      </div>
 
       {/* Main Frosted Glass Composer Card */}
       <section
@@ -353,15 +331,6 @@ export function PromptComposer({
               <CornerDownLeft className="w-4 h-4" />
               <span>Enter to compile · Shift+Enter for new line</span>
             </span>
-
-            {!isAuthenticated ? (
-              <span
-                aria-label="Remaining free daily generations"
-                className="text-xs sm:text-sm font-medium text-[var(--text-secondary)] tabular-nums px-2.5 py-1.5 sm:px-3 rounded-xl bg-[var(--surface-2)] border border-[var(--separator-subtle)] shrink-0 whitespace-nowrap"
-              >
-                {remainingGuestUses}/{dailyLimit} free runs left
-              </span>
-            ) : null}
 
             {isPending ? (
               <Button

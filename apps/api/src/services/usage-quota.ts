@@ -79,14 +79,23 @@ export async function checkQuota(
   }> => {
     try {
       const rows = actor.spaceId
-        ? await runAsTenant({ spaceId: actor.spaceId, userId: actor.userId }, async (tx) =>
-            tx.usageCounter.findMany({
-              where: {
-                spaceId: actor.spaceId,
-                usageDate: today,
-              },
-              select: { action: true, count: true },
-            }),
+        ? await runAsTenant(
+            {
+              spaceId: actor.spaceId,
+              userId: actor.userId,
+              clientKey: actor.hashedClientKey,
+            },
+            async (tx) =>
+              tx.usageCounter.findMany({
+                where: {
+                  usageDate: today,
+                  OR: [
+                    { spaceId: actor.spaceId },
+                    ...(actor.hashedClientKey ? [{ clientKey: actor.hashedClientKey }] : []),
+                  ],
+                },
+                select: { action: true, count: true },
+              }),
           )
         : await runAsTenant({ clientKey: actor.hashedClientKey }, async (tx) =>
             tx.usageCounter.findMany({
@@ -387,12 +396,19 @@ export async function reserveQuota(
       {
         spaceId,
         userId: actor.userId,
+        clientKey: actor.hashedClientKey,
       },
       async (tx) => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
 
         const rows = await tx.usageCounter.findMany({
-          where: { spaceId, usageDate: today },
+          where: {
+            usageDate: today,
+            OR: [
+              { spaceId },
+              ...(actor.hashedClientKey ? [{ clientKey: actor.hashedClientKey }] : []),
+            ],
+          },
           select: { action: true, count: true },
         });
 
@@ -627,33 +643,42 @@ export async function recordPromptGeneration(
  * Computes live billing and remaining prompt entitlement status for the actor.
  */
 export async function getBillingStatus(actor: ResolvedActor): Promise<BillingStatus> {
-  const isGuest = !actor.spaceId;
+  if (!actor.spaceId) {
+    return {
+      plan: "free",
+      status: "active",
+      remainingDailyPrompts: 0,
+      dailyLimit: 0,
+      resetAt: getTomorrowUtcMidnight().toISOString(),
+      seats: 1,
+      currentPeriodEnd: null,
+    };
+  }
+
   let plan: PlanTier = "free";
   let status: "active" | "trialing" | "past_due" | "canceled" = "active";
   let seats = 1;
   let currentPeriodEnd: string | null = null;
 
-  if (actor.spaceId) {
-    const space = await prisma.space.findUnique({
-      where: { id: actor.spaceId },
-      include: {
-        subscriptions: {
-          where: { status: { in: ["active", "trialing", "past_due"] } },
-          orderBy: { createdAt: "desc" },
-          take: 1,
-        },
+  const space = await prisma.space.findUnique({
+    where: { id: actor.spaceId },
+    include: {
+      subscriptions: {
+        where: { status: { in: ["active", "trialing", "past_due"] } },
+        orderBy: { createdAt: "desc" },
+        take: 1,
       },
-    });
+    },
+  });
 
-    if (space) {
-      plan = space.plan;
-      const sub = space.subscriptions[0];
-      if (sub) {
-        plan = sub.plan;
-        status = sub.status;
-        seats = sub.seats;
-        currentPeriodEnd = sub.currentPeriodEnd ? sub.currentPeriodEnd.toISOString() : null;
-      }
+  if (space) {
+    plan = space.plan;
+    const sub = space.subscriptions[0];
+    if (sub) {
+      plan = sub.plan;
+      status = sub.status;
+      seats = sub.seats;
+      currentPeriodEnd = sub.currentPeriodEnd ? sub.currentPeriodEnd.toISOString() : null;
     }
   }
 

@@ -126,6 +126,12 @@ export const TurnstileWidget = React.forwardRef<TurnstileWidgetHandle, Turnstile
       };
     }, [siteKey]);
 
-    return <div ref={containerRef} data-testid="turnstile-widget" className="min-h-[65px]" />;
+    return (
+      <div
+        ref={containerRef}
+        data-testid="turnstile-widget"
+        className="flex w-full flex-col items-center justify-center min-h-[65px]"
+      />
+    );
   },
 );

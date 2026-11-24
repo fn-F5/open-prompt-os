@@ -109,7 +109,7 @@ export function HistoryPanel() {
         framework: item.framework,
       });
     }
-    navigate("/");
+    navigate("/compile");
   };
 
   return (
@@ -188,7 +188,7 @@ export function HistoryPanel() {
               Reset filters
             </Button>
           ) : (
-            <Button variant="primary-inverse" size="sm" onClick={() => navigate("/")}>
+            <Button variant="primary-inverse" size="sm" onClick={() => navigate("/compile")}>
               Open Composer
             </Button>
           )}

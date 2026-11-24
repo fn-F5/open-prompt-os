@@ -49,15 +49,32 @@ describe("Video Reverse Engineer 30-second hard cap invariants", () => {
     ).toBe(true);
   });
 
-  it("rejects start >= 30 (even without endOffsetSec), end > 30, end <= start, negative offsets, and non-finite values", () => {
-    // Must fail on startOffsetSec max(29) independently of endOffsetSec > startOffsetSec refinement
-    const startAtCap = VideoReverseEngineerInputSchema.safeParse({
+  it("accepts sliding 30s windows and rejects windows > 30s, end <= start, negative offsets, and non-finite values", () => {
+    expect(
+      VideoReverseEngineerInputSchema.safeParse({
+        sourceType: "upload",
+        startOffsetSec: 5,
+        endOffsetSec: 35,
+      }).success,
+    ).toBe(true);
+
+    expect(
+      VideoReverseEngineerInputSchema.safeParse({
+        sourceType: "youtube",
+        youtubeUrl: "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+        startOffsetSec: 40,
+        endOffsetSec: 46,
+      }).success,
+    ).toBe(true);
+
+    const overWindow = VideoReverseEngineerInputSchema.safeParse({
       sourceType: "upload",
-      startOffsetSec: 30,
+      startOffsetSec: 5,
+      endOffsetSec: 36,
     });
-    expect(startAtCap.success).toBe(false);
-    if (!startAtCap.success) {
-      expect(startAtCap.error.issues[0]?.message).toContain("30s");
+    expect(overWindow.success).toBe(false);
+    if (!overWindow.success) {
+      expect(overWindow.error.issues[0]?.message).toContain("30s limit");
     }
 
     const inverted = VideoReverseEngineerInputSchema.safeParse({
@@ -77,6 +94,7 @@ describe("Video Reverse Engineer 30-second hard cap invariants", () => {
       { sourceType: "upload", startOffsetSec: 30, endOffsetSec: 30 },
       { sourceType: "upload", startOffsetSec: 0, endOffsetSec: 30.1 },
       { sourceType: "upload", startOffsetSec: 0, endOffsetSec: 31 },
+      { sourceType: "upload", startOffsetSec: 5, endOffsetSec: 36 },
       { sourceType: "upload", startOffsetSec: 10, endOffsetSec: 10 },
       { sourceType: "upload", startOffsetSec: -1, endOffsetSec: 10 },
       { sourceType: "upload", startOffsetSec: 0, endOffsetSec: 0 },

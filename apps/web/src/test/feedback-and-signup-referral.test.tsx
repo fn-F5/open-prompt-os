@@ -268,7 +268,7 @@ describe("Anytime Feedback / Feature Requests & Signup Attribution", () => {
       // Clicking "Sign In" opens signin mode -> referral question MUST NOT appear
       fireEvent.click(screen.getByRole("button", { name: "Sign In" }));
       expect(getAuthDialogState().mode).toBe("signin");
-      expect(screen.getByText("Sign In to Open Prompt OS")).toBeInTheDocument();
+      expect(screen.getByText("Sign In to use Open Prompt OS for Free")).toBeInTheDocument();
       expect(screen.queryByLabelText(/How did you come to know about us/i)).toBeNull();
 
       // User can switch to the Sign Up tab inside the dialog

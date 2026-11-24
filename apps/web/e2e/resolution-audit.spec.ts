@@ -157,7 +157,7 @@ test.describe("Multi-Context Multi-Viewport Resolution Audit", () => {
       viewports: SUBSET_VIEWPORTS,
       colorScheme: "dark",
       authenticated: false,
-      routes: ["/improve", "/reverse-engineer", "/templates", "/pricing", "/history"],
+      routes: ["/compile", "/improve", "/templates", "/pricing", "/history"],
       contextName: "anonymous-dark",
       state: "route-view",
       screenshotPrefix: "anon-dark",
@@ -228,7 +228,7 @@ test.describe("Multi-Context Multi-Viewport Resolution Audit", () => {
       });
       const page = await context.newPage();
       try {
-        await gotoAndSettle(page, "/");
+        await gotoAndSettle(page, "/compile");
 
         // 1. Mobile navigation drawer (< 1024px)
         if (viewport.width < 1024) {
@@ -238,12 +238,12 @@ test.describe("Multi-Context Multi-Viewport Resolution Audit", () => {
             contextName: "interactive-overlays",
             theme: "dark",
             viewport,
-            route: "/",
+            route: "/compile",
             state: "mobile-nav-open",
           });
           auditedTargets.push({
             context: "interactive-overlays",
-            route: "/",
+            route: "/compile",
             viewport: viewport.label,
             state: "mobile-nav-open",
           });
@@ -269,12 +269,12 @@ test.describe("Multi-Context Multi-Viewport Resolution Audit", () => {
           contextName: "interactive-overlays",
           theme: "dark",
           viewport,
-          route: "/",
+          route: "/compile",
           state: "auth-dialog-open",
         });
         auditedTargets.push({
           context: "interactive-overlays",
-          route: "/",
+          route: "/compile",
           viewport: viewport.label,
           state: "auth-dialog-open",
         });
@@ -292,12 +292,12 @@ test.describe("Multi-Context Multi-Viewport Resolution Audit", () => {
           contextName: "interactive-overlays",
           theme: "dark",
           viewport,
-          route: "/",
+          route: "/compile",
           state: "model-picker-open",
         });
         auditedTargets.push({
           context: "interactive-overlays",
-          route: "/",
+          route: "/compile",
           viewport: viewport.label,
           state: "model-picker-open",
         });
@@ -321,12 +321,12 @@ test.describe("Multi-Context Multi-Viewport Resolution Audit", () => {
           contextName: "interactive-overlays",
           theme: "dark",
           viewport,
-          route: "/",
+          route: "/compile",
           state: "composer-expanded-advanced",
         });
         auditedTargets.push({
           context: "interactive-overlays",
-          route: "/",
+          route: "/compile",
           viewport: viewport.label,
           state: "composer-expanded-advanced",
         });

@@ -71,8 +71,11 @@ export function saveGuestInteraction(
     const existing = getGuestInteraction();
     const nowIso = options?.requestTimestamp ?? new Date().toISOString();
 
+    const isSameInteraction =
+      Boolean(options?.interactionId) && existing?.interactionId === options?.interactionId;
+
     // Prevent an older late response from overwriting a newer saved record (Section 10.8)
-    if (existing && options?.requestTimestamp) {
+    if (existing && options?.requestTimestamp && !isSameInteraction) {
       const existingTime = Date.parse(existing.updatedAt);
       const incomingTime = Date.parse(options.requestTimestamp);
       if (

@@ -1,14 +1,29 @@
-import { FIXTURE_IMAGE_PATH, expect, resetQuota, test } from "./fixtures.js";
+import {
+  FIXTURE_IMAGE_PATH,
+  cleanupUser,
+  expect,
+  resetQuota,
+  signInViaAuthDialog,
+  test,
+} from "./fixtures.js";
 
 test.describe("04 - Image Reverse Engineer Regression @smoke", () => {
+  const email = `e2e.re.image.${Date.now()}@example.com`;
+
   test.beforeEach(async ({ request }) => {
     await resetQuota(request);
   });
 
+  test.afterEach(async ({ request }) => {
+    await cleanupUser(request, email);
+  });
+
   test("uploads a reference image, toggles target modality, renders 6-axis breakdown, and loads Composer", async ({
     page,
+    request,
   }) => {
-    await page.goto("/reverse-engineer");
+    await page.goto("/");
+    await signInViaAuthDialog(page, request, email);
 
     // Target modality lives inside Image mode's left pane
     const targetTabs = page.getByRole("tablist", { name: "Target modality" });
@@ -28,6 +43,6 @@ test.describe("04 - Image Reverse Engineer Regression @smoke", () => {
     await expect(page.getByText(/Reconstructed Prompt/i)).toBeVisible();
 
     await page.getByRole("button", { name: /Accept into Composer/i }).click();
-    await expect(page).toHaveURL(/\/$/);
+    await expect(page).toHaveURL(/\/compile$/);
   });
 });

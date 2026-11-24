@@ -57,7 +57,7 @@ describe("Auth UI, Passkey removal, Settings & Placeholder tokens", () => {
         expect(screen.queryByRole("button", { name: /Continue with Google/i })).toBeNull();
         expect(screen.queryByRole("button", { name: /Continue with GitHub/i })).toBeNull();
       });
-      expect(screen.getByText("Sign In to Open Prompt OS")).toBeInTheDocument();
+      expect(screen.getByText("Sign In to use Open Prompt OS for Free")).toBeInTheDocument();
       expect(screen.getByLabelText(/Name \(optional\)/i)).toBeInTheDocument();
       expect(screen.queryByLabelText(/Workspace display name/i)).toBeNull();
       expect(screen.queryByPlaceholderText("Alex Rivera")).not.toBeInTheDocument();

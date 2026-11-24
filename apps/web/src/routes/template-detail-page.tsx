@@ -4,20 +4,32 @@ import { Badge, Button, toast } from "@open-prompt-os/ui-web";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, Copy, Sparkles } from "lucide-react";
 import * as React from "react";
-import { Link, useNavigate, useParams } from "react-router";
+import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { SanitizedPromptRenderer } from "../components/output/output-card.js";
 import { SeoHead } from "../components/seo/seo-head.js";
+import { useAuthSession } from "../hooks/use-auth-session.js";
 import { CARD_HOVER_ANIMATION } from "../hooks/use-card-parallax.js";
 import { copyTextToClipboard } from "../lib/dispatch.js";
 import { orpcClient } from "../lib/orpc.js";
 import { queryKeys } from "../lib/query-client.js";
 import { buildTemplateDetailSeo } from "../lib/seo.js";
 import { trackEvent } from "../lib/telemetry.js";
+import { openAuthDialog } from "../state/auth-dialog-store.js";
 import { composerActions } from "../state/composer-store.js";
 
 export function TemplateDetailPage() {
   const { templateSlug = "" } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuthSession();
+
+  const requireAuth = () => {
+    if (!isAuthenticated) {
+      openAuthDialog({ reason: "action_required", intendedRoute: location.pathname });
+      return false;
+    }
+    return true;
+  };
 
   const detailQuery = useQuery({
     queryKey: queryKeys.templates.detail(templateSlug),
@@ -207,6 +219,7 @@ export function TemplateDetailPage() {
             variant="secondary"
             size="sm"
             onClick={async () => {
+              if (!requireAuth()) return;
               const ok = await copyTextToClipboard(tpl.compiledTemplate);
               if (ok) toast({ title: "Copied template specification" });
             }}
@@ -218,13 +231,14 @@ export function TemplateDetailPage() {
           <Button
             variant="solid"
             onClick={() => {
+              if (!requireAuth()) return;
               composerActions.applyTemplateDraft(tpl.defaultDraft);
               trackEvent("template_used", {
                 slug: tpl.slug,
                 mode: tpl.mode,
                 framework: tpl.framework,
               });
-              navigate("/");
+              navigate("/compile");
             }}
           >
             <Sparkles className="w-4 h-4" />

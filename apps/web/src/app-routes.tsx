@@ -6,12 +6,10 @@ import { SettingsLayout } from "./layouts/settings-layout.js";
 import { capturePostHogException } from "./lib/posthog.js";
 import { ComposerPage } from "./routes/composer-page.js";
 import { NotFoundPage } from "./routes/not-found-page.js";
+import { ReverseEngineerPage } from "./routes/reverse-engineer-page.js";
 
 const ImproveAutopsyPage = React.lazy(() =>
   import("./routes/improve-autopsy-page.js").then((m) => ({ default: m.ImproveAutopsyPage })),
-);
-const ReverseEngineerPage = React.lazy(() =>
-  import("./routes/reverse-engineer-page.js").then((m) => ({ default: m.ReverseEngineerPage })),
 );
 const TemplateGalleryPage = React.lazy(() =>
   import("./routes/template-gallery-page.js").then((m) => ({ default: m.TemplateGalleryPage })),
@@ -102,9 +100,10 @@ export function AppRoutes() {
       <React.Suspense fallback={<SuspenseFallback />}>
         <Routes>
           <Route element={<HybridLayout />}>
-            <Route index element={<ComposerPage />} />
+            <Route index element={<ReverseEngineerPage />} />
+            <Route path="compile" element={<ComposerPage />} />
             <Route path="improve" element={<ImproveAutopsyPage />} />
-            <Route path="reverse-engineer" element={<ReverseEngineerPage />} />
+            <Route path="reverse-engineer" element={<Navigate to="/" replace />} />
             <Route path="templates" element={<TemplateGalleryPage />} />
             <Route path="docs" element={<DocsHubPage />} />
             <Route path="docs/:docSlug" element={<DocsArticlePage />} />

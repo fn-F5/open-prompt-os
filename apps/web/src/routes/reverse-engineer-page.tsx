@@ -1,18 +1,21 @@
 import type { ReverseEngineerImageMime, ReverseEngineerOutput } from "@open-prompt-os/contracts";
 import { Badge, Button, Tabs, Textarea, toast } from "@open-prompt-os/ui-web";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Check, Copy, ImagePlus, Sparkles, Trash2 } from "lucide-react";
+import { ArrowRight, Check, Copy, ImagePlus, ShieldCheck, Sparkles, Trash2 } from "lucide-react";
 import * as React from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { SanitizedPromptRenderer } from "../components/output/output-card.js";
 import { VideoReverseEngineerPanel } from "../components/reverse-engineer/video-reverse-engineer-panel.js";
 import { SeoHead } from "../components/seo/seo-head.js";
+import { HOME_AEO_FAQS } from "../content/docs-catalog.js";
 import { useAuthSession } from "../hooks/use-auth-session.js";
 import { useCardHoverAnimation } from "../hooks/use-card-parallax.js";
 import { copyTextToClipboard } from "../lib/dispatch.js";
 import { OrpcClientError, orpcClient } from "../lib/orpc.js";
+import { capturePostHogEvent } from "../lib/posthog.js";
 import { queryKeys } from "../lib/query-client.js";
 import { STATIC_ROUTE_SEO } from "../lib/seo.js";
+import { trackEvent } from "../lib/telemetry.js";
 import { openAuthDialog } from "../state/auth-dialog-store.js";
 import { composerActions } from "../state/composer-store.js";
 
@@ -66,11 +69,30 @@ async function createThumbnailDataUrl(dataUrl: string): Promise<string | undefin
 }
 
 export function ReverseEngineerPage() {
+  const location = useLocation();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const animateCard = useCardHoverAnimation();
   const { isAuthenticated } = useAuthSession();
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const hasTrackedLandingRef = React.useRef(false);
+
+  const requireAuth = () => {
+    if (!isAuthenticated) {
+      openAuthDialog({ reason: "action_required", intendedRoute: location.pathname });
+      return false;
+    }
+    return true;
+  };
+
+  React.useEffect(() => {
+    if (hasTrackedLandingRef.current) {
+      return;
+    }
+    hasTrackedLandingRef.current = true;
+    trackEvent("landing_page_loaded");
+    capturePostHogEvent("landing_page_loaded");
+  }, []);
 
   const [sourceModality, setSourceModality] = React.useState<"image" | "video">("image");
   const [targetMode, setTargetMode] = React.useState<"image" | "video">("image");
@@ -152,6 +174,7 @@ export function ReverseEngineerPage() {
   };
 
   const handleRun = () => {
+    if (!requireAuth()) return;
     if (!selectedFile) {
       setValidationError("Upload a reference image (PNG, JPEG, or WebP) first.");
       return;
@@ -171,22 +194,43 @@ export function ReverseEngineerPage() {
       ]
     : [];
 
-  const seoMeta = React.useMemo(() => STATIC_ROUTE_SEO.reverseEngineer(), []);
+  const seoMeta = React.useMemo(() => STATIC_ROUTE_SEO.home(HOME_AEO_FAQS), []);
 
   return (
     <div className="space-y-6">
       <SeoHead meta={seoMeta} />
+      {/* Dedicated Hero Section for Anonymous Visitors */}
+      {!isAuthenticated ? (
+        <div className="text-center max-w-4xl mx-auto pt-0 pb-2.5 sm:pt-0.5 sm:pb-5 [@media(max-height:640px)]:pb-2 [@media(max-height:600px)]:pb-1 space-y-1.5 sm:space-y-2.5">
+          <div className="hidden sm:inline-flex [@media(max-height:640px)]:hidden flex-wrap items-center justify-center gap-2 px-3.5 py-1 rounded-full bg-[var(--accent-subtle-bg)] border border-[var(--separator-strong)] font-mono text-xs uppercase tracking-[0.08em] font-normal text-[var(--text-primary)] max-w-full">
+            <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--accent-text)] shrink-0" />
+            <span>The Operating System for Prompts</span>
+          </div>
+
+          <h1 className="text-[19px] sm:text-3xl lg:text-[40px] font-medium tracking-[-0.03em] leading-[1.08] text-balance text-[var(--text-primary)]">
+            Prompts are trade secrets{" "}
+            <span className="text-gradient-brand whitespace-nowrap">creators rarely share</span>
+          </h1>
+
+          <p className="text-xs sm:text-base [@media(max-height:600px)]:hidden text-[var(--text-secondary)] max-w-3xl mx-auto leading-relaxed">
+            Top creators guard the exact wording that gets studio-grade AI results. Drop a rough
+            idea below and hit Compile to generate the same pro-level structure in one click.
+          </p>
+
+          <div className="hidden sm:inline-flex [@media(max-height:640px)]:hidden items-center gap-2 text-xs sm:text-sm text-[var(--success-text)] font-medium">
+            <ShieldCheck className="w-4 h-4" />
+            <span>Privacy by default: We never train on your prompts.</span>
+          </div>
+        </div>
+      ) : null}
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex flex-wrap items-center gap-2 mb-1">
-            <Badge variant="framework">Vision Extractor</Badge>
-            <span className="text-xs text-[var(--text-secondary)]">
-              {sourceModality === "video"
-                ? "Video-to-Prompt Storyboard Reconstruction"
-                : "Image-to-Prompt Reconstruction"}
-            </span>
-          </div>
-          <h1 className="text-2xl font-semibold tracking-tight">Reverse Engineer</h1>
+          {isAuthenticated ? (
+            <h1 className="text-2xl font-semibold tracking-tight">Reverse Engineer</h1>
+          ) : (
+            <h2 className="text-2xl font-semibold tracking-tight">Reverse Engineer</h2>
+          )}
           <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
             {sourceModality === "video"
               ? "Upload a video clip or paste a YouTube link to extract motion, audio, and shot prompts."
@@ -236,6 +280,7 @@ export function ReverseEngineerPage() {
               onDrop={(e) => {
                 e.preventDefault();
                 setIsDragging(false);
+                if (!requireAuth()) return;
                 handleFile(e.dataTransfer.files?.[0]);
               }}
               className={`rounded-xl border-2 border-dashed p-6 text-center transition-colors ${
@@ -289,7 +334,10 @@ export function ReverseEngineerPage() {
                   <Button
                     variant="secondary"
                     size="sm"
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={() => {
+                      if (!requireAuth()) return;
+                      fileInputRef.current?.click();
+                    }}
                   >
                     Choose Image
                   </Button>
@@ -389,6 +437,7 @@ export function ReverseEngineerPage() {
                       variant="solid"
                       size="sm"
                       onClick={async () => {
+                        if (!requireAuth()) return;
                         const ok = await copyTextToClipboard(result.reconstructedPrompt);
                         if (ok) toast({ title: "Copied reconstructed prompt" });
                       }}
@@ -401,12 +450,13 @@ export function ReverseEngineerPage() {
                       variant="secondary"
                       size="sm"
                       onClick={() => {
+                        if (!requireAuth()) return;
                         composerActions.applyTemplateDraft(result.suggestedDraft);
                         toast({
                           title: "Loaded into Composer",
                           description: `Switched Composer to ${result.suggestedDraft.mode} mode.`,
                         });
-                        navigate("/");
+                        navigate("/compile");
                       }}
                     >
                       <Check className="w-3.5 h-3.5" />

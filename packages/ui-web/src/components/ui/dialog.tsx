@@ -9,6 +9,8 @@ export interface DialogProps {
   variant?: "glass" | "solid";
   children: React.ReactNode;
   className?: string;
+  dialogClassName?: string;
+  titleClassName?: string;
 }
 
 export function Dialog({
@@ -19,6 +21,8 @@ export function Dialog({
   variant = "glass",
   children,
   className = "",
+  dialogClassName = "",
+  titleClassName = "",
 }: DialogProps) {
   const dialogRef = React.useRef<HTMLDialogElement>(null);
   const titleId = React.useId();
@@ -65,7 +69,7 @@ export function Dialog({
           onOpenChange(false);
         }
       }}
-      className="m-auto w-[calc(100%-1.5rem)] sm:w-[calc(100%-2rem)] max-w-[440px] max-h-[calc(100dvh-1.5rem)] bg-transparent border-0 p-0 text-[var(--text-primary)] backdrop:bg-black/75"
+      className={`m-auto w-[calc(100%-1.5rem)] sm:w-[calc(100%-2rem)] max-w-[440px] max-h-[calc(100dvh-1.5rem)] bg-transparent border-0 p-0 text-[var(--text-primary)] backdrop:bg-black/75 ${dialogClassName}`}
       {...closedByProps}
     >
       {open ? (
@@ -80,7 +84,7 @@ export function Dialog({
             <div>
               <h2
                 id={titleId}
-                className="text-xl sm:text-2xl font-medium tracking-[-0.03em] text-[var(--text-primary)]"
+                className={`text-xl sm:text-2xl font-medium tracking-[-0.03em] text-[var(--text-primary)] ${titleClassName}`}
               >
                 {title}
               </h2>

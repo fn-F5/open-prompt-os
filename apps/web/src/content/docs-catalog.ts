@@ -116,16 +116,20 @@ export const DOCS_CATALOG: readonly DocArticle[] = [
         table: {
           headers: ["Surface", "Route", "Primary Purpose"],
           rows: [
-            ["Prompt Compiler", "/", "Build structured prompts from scratch with live streaming"],
+            [
+              "Reverse Engineer",
+              "/",
+              "Extract a 6-axis visual prompt from any PNG, JPEG, or WebP image or video clip",
+            ],
+            [
+              "Prompt Compiler",
+              "/compile",
+              "Build structured prompts from scratch with live streaming",
+            ],
             [
               "Improve & Prompt Autopsy",
               "/improve",
               "Optimize drafts or diagnose failed outputs across 8 root causes",
-            ],
-            [
-              "Reverse Engineer",
-              "/reverse-engineer",
-              "Extract a 6-axis visual prompt from any PNG, JPEG, or WebP image",
             ],
             [
               "Template Gallery",
@@ -449,7 +453,7 @@ Provide an Executive Verdict, Failure Mode Matrix, and step-by-step Hardening Pl
     description:
       "Turn any reference image or video clip into a detailed visual/temporal breakdown and copy-pasteable prompt for Imagen, FLUX, Veo, Sora, or Runway.",
     tldrAnswer:
-      "Upload a PNG, JPEG, or WebP image (or an MP4/WebM/MOV clip or public YouTube link) at /reverse-engineer to extract lighting, lens optics, motion choreography, and audio DNA alongside a detailed, copy-pasteable prompt ready to run immediately.",
+      "Upload a PNG, JPEG, or WebP image (or an MP4/WebM/MOV clip or public YouTube link) on / to extract lighting, lens optics, motion choreography, and audio DNA alongside a detailed, copy-pasteable prompt ready to run immediately.",
     readingTimeMinutes: 3,
     updatedAt: "2026-11-15T10:00:00.000Z",
     keywords: [
@@ -479,7 +483,7 @@ Provide an Executive Verdict, Failure Mode Matrix, and step-by-step Hardening Pl
       {
         question: "Can Reverse Engineer output a video motion prompt from a still image?",
         answer:
-          "Yes. Toggle the target modality to 'Video Motion Prompt' on /reverse-engineer before running analysis to extrapolate camera motion and temporal beats from your reference keyframe.",
+          "Yes. Toggle the target modality to 'Video Motion Prompt' on / before running analysis to extrapolate camera motion and temporal beats from your reference keyframe.",
       },
     ],
     relatedTemplateSlugs: [

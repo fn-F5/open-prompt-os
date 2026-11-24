@@ -44,7 +44,7 @@ function renderWithRouter(ui: React.ReactNode, initialEntries: string[], routePa
       <MemoryRouter initialEntries={initialEntries}>
         <Routes>
           <Route path={routePath} element={ui} />
-          <Route path="/" element={<div data-testid="composer-dest">Composer</div>} />
+          <Route path="/compile" element={<div data-testid="composer-dest">Composer</div>} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -83,8 +83,8 @@ describe("Navigation Placement, Docs Hub, SEO Metadata & AEO Assets", () => {
       const primaryNav = screen.getByRole("navigation", { name: "Primary marketing navigation" });
       const desktopLinks = within(primaryNav).getAllByRole("link");
       expect(desktopLinks.map((link) => link.textContent)).toEqual([
-        "Compiler",
         "Reverse Engineer",
+        "Compiler",
         "Improve & Autopsy",
         "Templates",
         "Pricing",
@@ -99,8 +99,8 @@ describe("Navigation Placement, Docs Hub, SEO Metadata & AEO Assets", () => {
       const mobileNav = screen.getByRole("navigation", { name: "Mobile navigation" });
       const mobileLinks = within(mobileNav).getAllByRole("link");
       expect(mobileLinks.map((link) => link.textContent)).toEqual([
-        "Compiler",
         "Reverse Engineer",
+        "Compiler",
         "Improve & Autopsy",
         "Templates",
         "Pricing",
@@ -134,8 +134,8 @@ describe("Navigation Placement, Docs Hub, SEO Metadata & AEO Assets", () => {
       const workspaceNav = screen.getByRole("navigation", { name: "Workspace navigation" });
       const workspaceLinks = within(workspaceNav).getAllByRole("link");
       expect(workspaceLinks.map((link) => link.textContent)).toEqual([
-        "Compiler",
         "Reverse Engineer",
+        "Compiler",
         "Improve & Autopsy",
         "Library",
         "Templates",
@@ -297,22 +297,18 @@ describe("Navigation Placement, Docs Hub, SEO Metadata & AEO Assets", () => {
       expect(readJsonLdPayloads()).toHaveLength(0);
     });
 
-    it("emits Organization, WebSite, SoftwareApplication, and FAQPage JSON-LD on ComposerPage", () => {
-      renderWithRouter(<ComposerPage />, ["/"], "/");
+    it("emits Organization, WebSite, and SoftwareApplication JSON-LD on ComposerPage", () => {
+      renderWithRouter(<ComposerPage />, ["/compile"], "/compile");
 
       expect(document.title).toContain("Open Prompt OS");
       expect(document.head.querySelector('link[rel="canonical"]')?.getAttribute("href")).toBe(
-        "https://openpromptos.com/",
+        "https://openpromptos.com/compile",
       );
       const types = readJsonLdPayloads().map((s) => s["@type"]);
-      expect(types).toEqual(["Organization", "WebSite", "SoftwareApplication", "FAQPage"]);
-
-      const faqSchema = readJsonLdPayloads().find((s) => s["@type"] === "FAQPage");
-      expect(Array.isArray(faqSchema?.mainEntity)).toBe(true);
-      expect((faqSchema?.mainEntity as unknown[]).length).toBe(HOME_AEO_FAQS.length);
+      expect(types).toEqual(["Organization", "WebSite", "SoftwareApplication"]);
     });
 
-    it("emits Organization, WebSite, SoftwareApplication, and HowTo JSON-LD on ImproveAutopsyPage and ReverseEngineerPage", () => {
+    it("emits HowTo JSON-LD on ImproveAutopsyPage and FAQPage JSON-LD on ReverseEngineerPage", () => {
       const improveView = renderWithRouter(<ImproveAutopsyPage />, ["/improve"], "/improve");
       expect(document.head.querySelector('link[rel="canonical"]')?.getAttribute("href")).toBe(
         "https://openpromptos.com/improve",
@@ -325,16 +321,19 @@ describe("Navigation Placement, Docs Hub, SEO Metadata & AEO Assets", () => {
       ]);
       improveView.unmount();
 
-      renderWithRouter(<ReverseEngineerPage />, ["/reverse-engineer"], "/reverse-engineer");
+      renderWithRouter(<ReverseEngineerPage />, ["/"], "/");
       expect(document.head.querySelector('link[rel="canonical"]')?.getAttribute("href")).toBe(
-        "https://openpromptos.com/reverse-engineer",
+        "https://openpromptos.com/",
       );
       expect(readJsonLdPayloads().map((s) => s["@type"])).toEqual([
         "Organization",
         "WebSite",
         "SoftwareApplication",
-        "HowTo",
+        "FAQPage",
       ]);
+      const faqSchema = readJsonLdPayloads().find((s) => s["@type"] === "FAQPage");
+      expect(Array.isArray(faqSchema?.mainEntity)).toBe(true);
+      expect((faqSchema?.mainEntity as unknown[]).length).toBe(HOME_AEO_FAQS.length);
     });
 
     it("emits CollectionPage + ItemList JSON-LD and syncs mode/search query params on TemplateGalleryPage", async () => {
@@ -406,6 +405,18 @@ describe("Navigation Placement, Docs Hub, SEO Metadata & AEO Assets", () => {
 
   describe("3. Docs Hub, Docs Article & Template Detail Experiences", () => {
     it("renders DocsHubPage with search/category filtering, FAQs, and one-click Try in Composer", () => {
+      act(() => {
+        setAuthSessionForTest({
+          id: "u_docs_hub",
+          email: "docs-hub@example.com",
+          name: "Docs Hub User",
+          plan: "free",
+          spaceId: "sp_docs_hub",
+          spaceName: "Docs Space",
+          hasPasskey: false,
+        });
+      });
+
       renderWithRouter(<DocsHubPage />, ["/docs"], "/docs");
 
       expect(screen.getByText("Open Prompt OS Documentation")).toBeInTheDocument();
@@ -439,6 +450,18 @@ describe("Navigation Placement, Docs Hub, SEO Metadata & AEO Assets", () => {
     });
 
     it("renders DocsArticlePage with Direct Answer box, table, code copy, related links, and 404 fallback", async () => {
+      act(() => {
+        setAuthSessionForTest({
+          id: "u_docs_article",
+          email: "docs-article@example.com",
+          name: "Docs Article User",
+          plan: "free",
+          spaceId: "sp_docs_article",
+          spaceName: "Docs Space",
+          hasPasskey: false,
+        });
+      });
+
       const valid = renderWithRouter(
         <DocsArticlePage />,
         ["/docs/prompt-frameworks-costar-rise-care-cot"],

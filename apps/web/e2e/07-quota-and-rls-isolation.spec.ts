@@ -13,38 +13,23 @@ test.describe("07 - Quota Enforcement & PostgreSQL RLS Tenant Isolation @full", 
     await cleanupUser(request, emailB);
   });
 
-  test("enforces guest daily reverse_engineer quota and isolates private libraries across spaces via RLS", async ({
+  test("gates unauthenticated reverse_engineer behind sign-in and isolates private libraries across spaces via RLS", async ({
     browser,
     page,
     request,
   }) => {
-    // 1. Guest runs Video Reverse Engineer 10 times (10/day unified limit) -> 11th run returns QUOTA_EXCEEDED
-    await page.goto("/reverse-engineer");
+    // 1. Unauthenticated Reverse Engineer prompts the user to sign in via AuthDialog
+    await page.goto("/");
     await page.getByRole("tab", { name: "Video", exact: true }).click();
     await page.getByRole("tab", { name: "YouTube Link" }).click();
     await page
       .getByLabel("Public YouTube / Shorts URL")
       .fill("https://www.youtube.com/watch?v=jNQXAC9IVRw");
 
-    for (let run = 1; run <= 10; run += 1) {
-      const streamPromise = page.waitForResponse(
-        (res) =>
-          res.url().includes("/api/prompts/reverse-engineer-video/stream") && res.status() === 200,
-      );
-      await page.getByRole("button", { name: /Reverse Engineer Video/i }).click();
-      await streamPromise;
-      await expect(page.getByText(/Estimated timestamps/i)).toBeVisible({ timeout: 10_000 });
-    }
-
-    // 11th run without resetting quota must be blocked by real Postgres usage_counters
-    // and prompt the guest to sign in via the auth dialog instead of showing a raw error banner
     await page.getByRole("button", { name: /Reverse Engineer Video/i }).click();
-    await expect(page.getByRole("dialog")).toContainText(
-      /Daily Limit Reached|Continue with a Free Workspace/i,
-      {
-        timeout: 10_000,
-      },
-    );
+    await expect(page.getByRole("dialog")).toContainText(/Sign in to continue/i, {
+      timeout: 10_000,
+    });
 
     // 2. RLS Tenant Isolation: Space A saves a secret prompt; Space B cannot see it
     await resetQuota(request);
@@ -52,7 +37,7 @@ test.describe("07 - Quota Enforcement & PostgreSQL RLS Tenant Isolation @full", 
 
     const ctxA = await browser.newContext();
     const pageA = await ctxA.newPage();
-    await pageA.goto("/");
+    await pageA.goto("/compile");
     await signInViaAuthDialog(pageA, request, emailA);
     await pageA.getByRole("textbox").first().fill(`Draft confidential policy for ${secretMarker}`);
     await pageA.getByRole("button", { name: "Compile structured prompt" }).click();

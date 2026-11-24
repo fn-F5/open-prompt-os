@@ -26,6 +26,11 @@ vi.mock("./services/billing-service.js", () => ({
   reconcileCustomerSubscription: (...args: unknown[]) => mockReconcileCustomerSubscription(...args),
 }));
 
+const authHeaders = {
+  "x-user-id": "usr_stream_test",
+  "x-space-id": "spc_stream_test",
+};
+
 function createBaseApp(): Hono<ApiEnv> {
   const app = new Hono<ApiEnv>();
   app.use("*", async (c, next) => {
@@ -67,6 +72,29 @@ describe("Compose SSE Stream invariants", () => {
     },
   };
 
+  it("returns 401 UNAUTHORIZED when unauthenticated before reserving quota", async () => {
+    const composeStream = vi.fn();
+    const app = createBaseApp();
+    registerComposeStream(app, {
+      orchestrator: createStubOrchestrator({ composeStream }),
+      allowRequest: () => true,
+      trustProxy: false,
+    });
+
+    const res = await app.request("http://localhost/api/prompts/compose/stream", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(validPayload),
+    });
+
+    expect(res.status).toBe(401);
+    expect(await res.json()).toMatchObject({
+      error: { code: "UNAUTHORIZED" },
+    });
+    expect(mockReserveQuota).not.toHaveBeenCalled();
+    expect(composeStream).not.toHaveBeenCalled();
+  });
+
   it("never closes silently with HTTP 200: emits event: error and releases quota when stream ends without done", async () => {
     const orchestrator = createStubOrchestrator({
       async *composeStream(): AsyncIterable<ComposeStreamEvent> {
@@ -84,7 +112,7 @@ describe("Compose SSE Stream invariants", () => {
 
     const res = await app.request("http://localhost/api/prompts/compose/stream", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders },
       body: JSON.stringify(validPayload),
     });
 
@@ -123,7 +151,7 @@ describe("Compose SSE Stream invariants", () => {
 
     const res = await app.request("http://localhost/api/prompts/compose/stream", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders },
       body: JSON.stringify(validPayload),
     });
 
@@ -145,7 +173,7 @@ describe("Compose SSE Stream invariants", () => {
 
     const res = await app.request("http://localhost/api/prompts/compose/stream", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders },
       body: JSON.stringify(validPayload),
     });
 
@@ -168,7 +196,7 @@ describe("Compose SSE Stream invariants", () => {
 
     const res = await app.request("http://localhost/api/prompts/compose/stream", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders },
       body: JSON.stringify(validPayload),
     });
 
@@ -188,7 +216,7 @@ describe("Compose SSE Stream invariants", () => {
 
     const res = await app.request("http://localhost/api/prompts/compose/stream", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders },
       body: JSON.stringify({
         interactionId: "int_bad_1",
         draft: { ...validPayload.draft, rawInput: "asdf" },
@@ -206,6 +234,33 @@ describe("Video Reverse Engineer SSE Stream invariants (30s cap & validation)", 
     mockReserveQuota.mockResolvedValue({ allowed: true, reserved: true, remainingDaily: 9 });
     mockReleaseQuota.mockResolvedValue(undefined);
     mockRecordPromptGeneration.mockResolvedValue(undefined);
+  });
+
+  it("returns 401 UNAUTHORIZED when unauthenticated before reserving quota", async () => {
+    const reverseEngineerVideo = vi.fn();
+    const app = createBaseApp();
+    registerVideoReverseEngineerStream(app, {
+      orchestrator: createStubOrchestrator({ reverseEngineerVideo }),
+      trustProxy: false,
+    });
+
+    const res = await app.request("http://localhost/api/prompts/reverse-engineer-video/stream", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        sourceType: "youtube",
+        youtubeUrl: "https://youtu.be/jNQXAC9IVRw",
+        startOffsetSec: 0,
+        endOffsetSec: 10,
+      }),
+    });
+
+    expect(res.status).toBe(401);
+    expect(await res.json()).toMatchObject({
+      error: { code: "UNAUTHORIZED" },
+    });
+    expect(mockReserveQuota).not.toHaveBeenCalled();
+    expect(reverseEngineerVideo).not.toHaveBeenCalled();
   });
 
   it("rejects inverted trim windows on multipart upload (startOffsetSec >= durationSeconds)", async () => {
@@ -226,13 +281,14 @@ describe("Video Reverse Engineer SSE Stream invariants (30s cap & validation)", 
 
     const res = await app.request("http://localhost/api/prompts/reverse-engineer-video/stream", {
       method: "POST",
+      headers: authHeaders,
       body: form,
     });
 
     expect(res.status).toBe(400);
     const json = (await res.json()) as { code: string; message: string };
     expect(json.code).toBe("VALIDATION_ERROR");
-    expect(json.message).toMatch(/End time must be greater than start time/i);
+    expect(json.message).toMatch(/Start time must be less than video duration/i);
     expect(reverseEngineerVideo).not.toHaveBeenCalled();
     expect(mockReserveQuota).not.toHaveBeenCalled();
   });
@@ -251,6 +307,7 @@ describe("Video Reverse Engineer SSE Stream invariants (30s cap & validation)", 
 
     const res = await app.request("http://localhost/api/prompts/reverse-engineer-video/stream", {
       method: "POST",
+      headers: authHeaders,
       body: form,
     });
 
@@ -270,7 +327,7 @@ describe("Video Reverse Engineer SSE Stream invariants (30s cap & validation)", 
     emptyForm.append("file", new File([], "empty.mp4", { type: "video/mp4" }));
     const emptyRes = await app.request(
       "http://localhost/api/prompts/reverse-engineer-video/stream",
-      { method: "POST", body: emptyForm },
+      { method: "POST", headers: authHeaders, body: emptyForm },
     );
     expect(emptyRes.status).toBe(400);
 
@@ -281,12 +338,12 @@ describe("Video Reverse Engineer SSE Stream invariants (30s cap & validation)", 
     );
     const badMimeRes = await app.request(
       "http://localhost/api/prompts/reverse-engineer-video/stream",
-      { method: "POST", body: badMimeForm },
+      { method: "POST", headers: authHeaders, body: badMimeForm },
     );
     expect(badMimeRes.status).toBe(400);
   });
 
-  it("canonicalizes YouTube Shorts URLs, clamps endOffsetSec to 30s, and releases quota on upstream error", async () => {
+  it("canonicalizes YouTube Shorts URLs, defaults endOffsetSec to a 30s sliding window, and releases quota on upstream error", async () => {
     const reverseEngineerVideo = vi
       .fn()
       .mockRejectedValue(new LlmProviderError("provider_error", "raw internal stack trace 503"));
@@ -298,7 +355,7 @@ describe("Video Reverse Engineer SSE Stream invariants (30s cap & validation)", 
 
     const res = await app.request("http://localhost/api/prompts/reverse-engineer-video/stream", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders },
       body: JSON.stringify({
         sourceType: "youtube",
         youtubeUrl: "https://youtube.com/shorts/jNQXAC9IVRw?feature=share",
@@ -314,7 +371,7 @@ describe("Video Reverse Engineer SSE Stream invariants (30s cap & validation)", 
       expect.objectContaining({
         youtubeUrl: "https://www.youtube.com/watch?v=jNQXAC9IVRw",
         startOffsetSec: 5,
-        endOffsetSec: 30,
+        endOffsetSec: 35,
       }),
       expect.anything(),
     );

@@ -60,7 +60,7 @@ export function BillingReturnPage() {
       <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
         Your workspace entitlements and daily limits have been updated.
       </p>
-      <Button variant="primary-inverse" onClick={() => navigate("/")}>
+      <Button variant="primary-inverse" onClick={() => navigate("/compile")}>
         Return to Composer
       </Button>
     </section>

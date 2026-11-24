@@ -100,6 +100,7 @@ Open Prompt OS aims to become the definitive **system of record for prompts**.
    ```sql
    CREATE USER admin WITH PASSWORD '*******';
    ALTER USER admin CREATEDB;
+   ALTER USER admin NOSUPERUSER NOBYPASSRLS;
    CREATE DATABASE open_prompt_os OWNER admin;
    GRANT ALL PRIVILEGES ON DATABASE open_prompt_os TO admin;
    \q

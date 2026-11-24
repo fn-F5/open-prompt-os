@@ -27,6 +27,18 @@ export function registerComposeStream(app: Hono<ApiEnv>, deps: ComposeStreamDeps
       rpcProcedure: "prompts.composeStream",
     });
 
+    if (!actor.userId || !actor.spaceId) {
+      return c.json(
+        {
+          error: {
+            code: "UNAUTHORIZED",
+            message: "Please sign in to compile prompts.",
+          },
+        },
+        401,
+      );
+    }
+
     if (!deps.allowRequest(actor.clientKey)) {
       return c.json({ code: "RATE_LIMITED", message: "Too many requests.", requestId }, 429);
     }
