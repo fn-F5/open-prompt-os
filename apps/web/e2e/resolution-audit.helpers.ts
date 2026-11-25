@@ -858,7 +858,7 @@ export async function inspectPageResolution(
         compileButtonBottom = Math.round(cRect.bottom);
         if (
           checkAboveFold &&
-          window.location.pathname === "/" &&
+          window.location.pathname === "/compile" &&
           window.scrollY === 0 &&
           cRect.bottom > vh
         ) {

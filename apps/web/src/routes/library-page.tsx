@@ -82,7 +82,6 @@ export function LibraryPage() {
         className="rounded-2xl p-8 flat-surface text-center max-w-lg mx-auto my-8 space-y-4"
       >
         <SeoHead meta={noindexMeta} />
-        <Badge variant="framework">Private Prompt Repository</Badge>
         <h1 className="text-2xl font-semibold">Sign in to access My Library</h1>
         <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
           Organize, search, categorize, and share your saved prompts across any model. Your current
@@ -110,8 +109,7 @@ export function LibraryPage() {
       <SeoHead meta={noindexMeta} />
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <Badge variant="framework">Authenticated Workspace</Badge>
-          <h1 className="mt-2 text-2xl sm:text-3xl font-semibold tracking-tight">My Library</h1>
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">My Library</h1>
           <p className="mt-1 text-xs sm:text-sm text-[var(--text-secondary)]">
             {activeTab === "library"
               ? "Your private, RLS-isolated system of record for operational prompts."
@@ -157,7 +155,7 @@ export function LibraryPage() {
                 Compile a prompt in the Composer and click "Save to Library" to build your
                 repository.
               </p>
-              <Button variant="primary-inverse" size="sm" onClick={() => navigate("/")}>
+              <Button variant="primary-inverse" size="sm" onClick={() => navigate("/compile")}>
                 Open Composer
               </Button>
             </div>
@@ -199,7 +197,7 @@ export function LibraryPage() {
                             modelId: item.modelId,
                             framework: item.framework,
                           });
-                          navigate("/");
+                          navigate("/compile");
                         }}
                       >
                         <Sparkles className="w-3.5 h-3.5" />

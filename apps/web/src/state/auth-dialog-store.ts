@@ -6,7 +6,8 @@ export type AuthTriggerReason =
   | "advanced_controls"
   | "quota_limit"
   | "protected_route"
-  | "navbar_signin";
+  | "navbar_signin"
+  | "action_required";
 
 export type AuthDialogMode = "signin" | "signup";
 

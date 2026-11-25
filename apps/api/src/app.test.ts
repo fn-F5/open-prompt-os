@@ -6,6 +6,12 @@ import { loadConfig } from "./config.js";
 import { createRateLimiter } from "./rate-limit.js";
 import { createRuntime } from "./runtime.js";
 
+const testRunId = Date.now();
+const authHeaders = {
+  "x-user-id": `usr_app_${testRunId}`,
+  "x-space-id": `spc_app_${testRunId}`,
+};
+
 const draft = {
   interactionId: "int_test",
   draft: {
@@ -41,7 +47,7 @@ describe("api", () => {
     const app = buildApp(20);
     const response = await app.request("http://localhost/rpc/prompts/compose", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders },
       body: JSON.stringify({
         json: { ...draft, draft: { ...draft.draft, rawInput: "  " } },
       }),
@@ -57,7 +63,7 @@ describe("api", () => {
     const call = () =>
       app.request("http://localhost/rpc/prompts/compose", {
         method: "POST",
-        headers: { "content-type": "application/json", "x-client-key": key },
+        headers: { "content-type": "application/json", "x-client-key": key, ...authHeaders },
         body: JSON.stringify({ json: draft }),
       });
     expect((await call()).status).toBe(200);
@@ -86,7 +92,7 @@ describe("api", () => {
     expect(await health.text()).not.toContain("AIza");
     const failed = await app.request("http://localhost/rpc/prompts/compose", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders },
       body: JSON.stringify({ json: draft }),
     });
     expect(await failed.text()).not.toContain("AIza");
@@ -163,7 +169,7 @@ describe("compose stream", () => {
     const app = buildApp(20, orchestrator);
     const response = await app.request("http://localhost/api/prompts/compose/stream", {
       method: "POST",
-      headers: { "content-type": "application/json", "x-client-key": key },
+      headers: { "content-type": "application/json", "x-client-key": key, ...authHeaders },
       body: JSON.stringify(draft),
     });
     expect(response.headers.get("content-type")).toContain("text/event-stream");
@@ -177,7 +183,7 @@ describe("compose stream", () => {
     const app = buildApp(20);
     const response = await app.request("http://localhost/api/prompts/compose/stream", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders },
       body: JSON.stringify({ ...draft, draft: { ...draft.draft, rawInput: "  " } }),
     });
     expect(response.status).toBe(400);
@@ -209,7 +215,7 @@ describe("compose stream", () => {
 
     const streamRes = await app.request("http://localhost/api/prompts/compose/stream", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders },
       body: JSON.stringify({ ...draft, draft: { ...draft.draft, rawInput: "hi" } }),
     });
     expect(streamRes.status).toBe(400);
@@ -220,7 +226,7 @@ describe("compose stream", () => {
 
     const rpcComposeRes = await app.request("http://localhost/rpc/prompts/compose", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders },
       body: JSON.stringify({
         json: { ...draft, draft: { ...draft.draft, rawInput: "hello" } },
       }),
@@ -230,7 +236,7 @@ describe("compose stream", () => {
 
     const rpcRefineRes = await app.request("http://localhost/rpc/prompts/refine", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders },
       body: JSON.stringify({
         json: { originalPrompt: "asdfghjkl", mode: "improve", targetLength: "balanced" },
       }),
@@ -304,7 +310,7 @@ describe("compose stream", () => {
     const abortKey = `stream_abort_${Date.now()}`;
     const response = await app.request("http://localhost/api/prompts/compose/stream", {
       method: "POST",
-      headers: { "content-type": "application/json", "x-client-key": abortKey },
+      headers: { "content-type": "application/json", "x-client-key": abortKey, ...authHeaders },
       body: JSON.stringify(draft),
       signal: controller.signal,
     });
@@ -470,7 +476,11 @@ describe("video reverse engineer stream", () => {
       "http://localhost/api/prompts/reverse-engineer-video/stream",
       {
         method: "POST",
-        headers: { "content-type": "application/json", "x-client-key": `vid_social_${Date.now()}` },
+        headers: {
+          "content-type": "application/json",
+          "x-client-key": `vid_social_${Date.now()}`,
+          ...authHeaders,
+        },
         body: JSON.stringify({
           sourceType: "youtube",
           youtubeUrl: "https://www.tiktok.com/@creator/video/123456",
@@ -490,7 +500,11 @@ describe("video reverse engineer stream", () => {
       "http://localhost/api/prompts/reverse-engineer-video/stream",
       {
         method: "POST",
-        headers: { "content-type": "application/json", "x-client-key": `vid_trim_${Date.now()}` },
+        headers: {
+          "content-type": "application/json",
+          "x-client-key": `vid_trim_${Date.now()}`,
+          ...authHeaders,
+        },
         body: JSON.stringify({
           sourceType: "youtube",
           youtubeUrl: "https://youtu.be/jNQXAC9IVRw",
@@ -515,7 +529,7 @@ describe("video reverse engineer stream", () => {
       "http://localhost/api/prompts/reverse-engineer-video/stream",
       {
         method: "POST",
-        headers: { "x-client-key": `vid_mime_${Date.now()}` },
+        headers: { "x-client-key": `vid_mime_${Date.now()}`, ...authHeaders },
         body: badForm,
       },
     );
@@ -526,7 +540,7 @@ describe("video reverse engineer stream", () => {
     const okKey = `vid_ok_${Date.now()}`;
     const okRes = await app.request("http://localhost/api/prompts/reverse-engineer-video/stream", {
       method: "POST",
-      headers: { "content-type": "application/json", "x-client-key": okKey },
+      headers: { "content-type": "application/json", "x-client-key": okKey, ...authHeaders },
       body: JSON.stringify({
         sourceType: "youtube",
         youtubeUrl: "https://youtube.com/shorts/jNQXAC9IVRw",

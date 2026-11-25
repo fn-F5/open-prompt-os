@@ -16,7 +16,7 @@ test.describe("05 - Library CRUD & Cross-Context Public Sharing @full", () => {
     page,
     request,
   }) => {
-    await page.goto("/");
+    await page.goto("/compile");
     await signInViaAuthDialog(page, request, email);
 
     const rawInput = page.getByRole("textbox").first();

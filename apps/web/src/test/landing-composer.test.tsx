@@ -20,7 +20,7 @@ import { OrpcClientError, orpcClient, resetOrpcTestState } from "../lib/orpc.js"
 import { createAppQueryClient, shouldRetryQueryError } from "../lib/query-client.js";
 import { clearStorageForTest } from "../lib/storage.js";
 import { sanitizeTelemetryProperties, trackEvent } from "../lib/telemetry.js";
-import { resetAuthDialogStoreForTest } from "../state/auth-dialog-store.js";
+import { getAuthDialogState, resetAuthDialogStoreForTest } from "../state/auth-dialog-store.js";
 import { composerActions } from "../state/composer-store.js";
 
 describe("Open Prompt OS Landing Page & Frontend Plan Verification", () => {
@@ -113,7 +113,7 @@ describe("Open Prompt OS Landing Page & Frontend Plan Verification", () => {
       const qc = createAppQueryClient();
       render(
         <QueryClientProvider client={qc}>
-          <MemoryRouter initialEntries={["/"]}>
+          <MemoryRouter initialEntries={["/compile"]}>
             <AppRoutes />
           </MemoryRouter>
         </QueryClientProvider>,
@@ -250,35 +250,35 @@ describe("Open Prompt OS Landing Page & Frontend Plan Verification", () => {
         </QueryClientProvider>,
       );
 
-      // Product composer is immediately accessible and fills first-screen viewport when anonymous
+      // Home page (Reverse Engineer) is immediately accessible and fills first-screen viewport when anonymous
       const mainWorkspace = document.getElementById("main-workspace");
       expect(mainWorkspace?.className).toContain("min-h-[calc(100dvh-3.5rem)]");
       expect(mainWorkspace?.className).toContain("sm:min-h-[calc(100dvh-4rem)]");
-      const textarea = screen.getByLabelText(/Prompt intent and instructions/i);
-      expect(textarea).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: /^Reverse Engineer$/i })).toBeInTheDocument();
 
-      // Anonymous marketing content is mounted below the composer
+      // Anonymous marketing content is mounted below the workspace on /
       expect(screen.getByTestId("anonymous-marketing-content")).toBeInTheDocument();
       expect(screen.getAllByText(/We never train on your prompts/i).length).toBeGreaterThan(0);
 
-      // Type a prompt and compile as guest
+      // Navigate to Compiler (/compile), type a prompt and click compile while anonymous -> opens sign-in dialog
+      fireEvent.click(screen.getByRole("link", { name: /^Compiler$/i }));
+      const textarea = screen.getByLabelText(/Prompt intent and instructions/i);
+      expect(textarea).toBeInTheDocument();
       fireEvent.change(textarea, {
         target: { value: "Design an idempotent billing webhook worker" },
       });
       const compileBtn = screen.getByRole("button", { name: /Compile structured prompt/i });
       fireEvent.click(compileBtn);
 
-      await waitFor(
-        () => {
-          expect(screen.getByLabelText(/Compiled prompt output/i)).toBeInTheDocument();
-        },
-        { timeout: 4000 },
-      );
+      expect(getAuthDialogState().isOpen).toBe(true);
+      expect(getAuthDialogState().reason).toBe("action_required");
+      expect(screen.queryByLabelText(/Compiled prompt output/i)).toBeNull();
 
-      // Verify guest interaction was persisted to localStorage
-      expect(getGuestInteraction()?.prompt.rawInput).toBe(
-        "Design an idempotent billing webhook worker",
-      );
+      // Return to home (/) so anonymous marketing content is mounted, then authenticate in-place
+      const reverseEngineerLink = screen.getAllByRole("link", { name: /^Reverse Engineer$/i })[0];
+      if (!reverseEngineerLink) throw new Error("Expected Reverse Engineer nav link");
+      fireEvent.click(reverseEngineerLink);
+      expect(screen.getByTestId("anonymous-marketing-content")).toBeInTheDocument();
 
       // Now authenticate in-place
       await act(async () => {
@@ -293,7 +293,7 @@ describe("Open Prompt OS Landing Page & Frontend Plan Verification", () => {
         });
       });
 
-      // Marketing content must be completely unmounted after authentication without redirecting away from composer,
+      // Marketing content must be completely unmounted after authentication without redirecting away,
       // while main workspace keeps full viewport min-height so the footer stays below the fold until scroll
       await waitFor(() => {
         expect(screen.queryByTestId("anonymous-marketing-content")).toBeNull();
@@ -301,17 +301,18 @@ describe("Open Prompt OS Landing Page & Frontend Plan Verification", () => {
         expect(mainWorkspace?.className).toContain("sm:min-h-[calc(100dvh-4rem)]");
       });
 
-      // Guest record is migrated once and cleared from localStorage
-      await waitFor(() => {
-        expect(getGuestInteraction()).toBeNull();
-      });
+      // Navigate back to Compiler and verify authenticated compilation works
+      const compilerNavLink = screen.getAllByRole("link", { name: /^Compiler$/i })[0];
+      if (!compilerNavLink) throw new Error("Expected Compiler nav link");
+      fireEvent.click(compilerNavLink);
+      fireEvent.click(screen.getByRole("button", { name: /Compile structured prompt/i }));
 
-      const history = await orpcClient.prompts.history();
-      expect(
-        history.items.some((i) =>
-          i.rawInput.includes("Design an idempotent billing webhook worker"),
-        ),
-      ).toBe(true);
+      await waitFor(
+        () => {
+          expect(screen.getByLabelText(/Compiled prompt output/i)).toBeInTheDocument();
+        },
+        { timeout: 4000 },
+      );
     });
   });
 });

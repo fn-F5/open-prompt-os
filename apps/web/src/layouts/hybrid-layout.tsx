@@ -201,7 +201,7 @@ export function HybridLayout() {
             <div className="font-semibold text-[var(--text-primary)]">Product</div>
             <ul className="space-y-2.5">
               <li>
-                <Link to="/" className="hover:text-[var(--text-primary)] focus-ring rounded">
+                <Link to="/compile" className="hover:text-[var(--text-primary)] focus-ring rounded">
                   Prompt Compiler
                 </Link>
               </li>
@@ -211,10 +211,7 @@ export function HybridLayout() {
                 </Link>
               </li>
               <li>
-                <Link
-                  to="/reverse-engineer"
-                  className="hover:text-[var(--text-primary)] focus-ring rounded"
-                >
+                <Link to="/" className="hover:text-[var(--text-primary)] focus-ring rounded">
                   Reverse Engineer
                 </Link>
               </li>
@@ -362,7 +359,9 @@ export function HybridLayout() {
       {/* 6. Global Dialogs, Onboarding Tour & Toasts */}
       <AuthDialog />
       <FeedbackDialog />
-      {!isAuthenticated && isIndexRoute ? <AnonymousTour controller={tourController} /> : null}
+      {!isAuthenticated && location.pathname === "/compile" ? (
+        <AnonymousTour controller={tourController} />
+      ) : null}
       <ToastViewport />
     </div>
   );

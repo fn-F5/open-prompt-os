@@ -847,11 +847,16 @@ export function createOrchestrator(options: OrchestratorOptions): PromptOrchestr
       const videoTimeoutMs = Math.max(options.timeoutMs, 120_000);
       ctx.onStage?.("preparing");
 
-      const clampedStartSec = Math.max(0, Math.min(input.startOffsetSec ?? 0, 29));
+      const clampedStartSec = Math.max(0, input.startOffsetSec ?? 0);
       const requestedEndSec =
         input.endOffsetSec ??
-        (input.durationSeconds !== undefined ? Math.min(input.durationSeconds, 30) : 30);
-      const clampedEndSec = Math.max(clampedStartSec + 0.1, Math.min(requestedEndSec, 30));
+        (input.durationSeconds !== undefined
+          ? Math.min(input.durationSeconds, clampedStartSec + 30)
+          : clampedStartSec + 30);
+      const clampedEndSec = Math.max(
+        clampedStartSec + 0.1,
+        Math.min(requestedEndSec, clampedStartSec + 30),
+      );
 
       const videoAttachment =
         input.sourceType === "youtube"

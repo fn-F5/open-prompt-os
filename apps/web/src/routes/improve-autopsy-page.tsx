@@ -24,6 +24,7 @@ import { useLocation, useNavigate } from "react-router";
 import { AuthGate } from "../components/auth/auth-gate.js";
 import { SanitizedPromptRenderer } from "../components/output/output-card.js";
 import { SeoHead } from "../components/seo/seo-head.js";
+import { useAuthSession } from "../hooks/use-auth-session.js";
 import { useAutoResizeTextarea } from "../hooks/use-auto-resize-textarea.js";
 import { useCardHoverAnimation } from "../hooks/use-card-parallax.js";
 import { copyTextToClipboard, dispatchPrompt } from "../lib/dispatch.js";
@@ -93,7 +94,16 @@ export function ImproveAutopsyPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const animateCard = useCardHoverAnimation();
+  const { isAuthenticated } = useAuthSession();
   const preload = (location.state as { preloadPrompt?: string } | null)?.preloadPrompt ?? "";
+
+  const requireAuth = () => {
+    if (!isAuthenticated) {
+      openAuthDialog({ reason: "action_required", intendedRoute: location.pathname });
+      return false;
+    }
+    return true;
+  };
 
   const [mode, setMode] = React.useState<"improve" | "autopsy">("improve");
   const [originalPrompt, setOriginalPrompt] = React.useState(
@@ -206,6 +216,7 @@ export function ImproveAutopsyPage() {
   });
 
   const handleRun = () => {
+    if (!requireAuth()) return;
     if (!originalPrompt.trim()) {
       setValidationError("Enter the original prompt to analyze.");
       return;
@@ -226,12 +237,14 @@ export function ImproveAutopsyPage() {
   };
 
   const toggleSymptom = (symptom: string) => {
+    if (!requireAuth()) return;
     setSelectedSymptoms((prev) =>
       prev.includes(symptom) ? prev.filter((item) => item !== symptom) : [...prev, symptom],
     );
   };
 
   const handleCopy = async (text: string) => {
+    if (!requireAuth()) return;
     const ok = await copyTextToClipboard(text);
     if (ok) {
       setCopied(true);
@@ -248,12 +261,6 @@ export function ImproveAutopsyPage() {
       <SeoHead meta={seoMeta} />
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex flex-wrap items-center gap-2 mb-1">
-            <Badge variant="framework">Diagnostic Engine</Badge>
-            <span className="text-xs text-[var(--text-secondary)]">
-              Structural Optimization & Root-Cause Autopsy
-            </span>
-          </div>
           <h1 className="text-2xl font-semibold tracking-tight">Improve & Prompt Autopsy</h1>
           <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
             Optimize prompt structure or paste a failed model output to diagnose why it drifted.
@@ -286,6 +293,7 @@ export function ImproveAutopsyPage() {
                 key={example.label}
                 type="button"
                 onClick={() => {
+                  if (!requireAuth()) return;
                   setValidationError(null);
                   setOriginalPrompt(example.prompt);
                   setFailedOutput(example.failedOutput);
@@ -301,6 +309,7 @@ export function ImproveAutopsyPage() {
                 key={example.label}
                 type="button"
                 onClick={() => {
+                  if (!requireAuth()) return;
                   setValidationError(null);
                   setOriginalPrompt(example.prompt);
                 }}
@@ -673,6 +682,7 @@ export function ImproveAutopsyPage() {
                       variant="secondary"
                       size="sm"
                       onClick={() => {
+                        if (!requireAuth()) return;
                         setOriginalPrompt(result.optimizedPrompt);
                         setValidationError(null);
                         setMobilePane("input");
@@ -690,12 +700,13 @@ export function ImproveAutopsyPage() {
                       variant="secondary"
                       size="sm"
                       onClick={() => {
+                        if (!requireAuth()) return;
                         composerActions.updateActiveDraft({ rawInput: result.optimizedPrompt });
                         toast({
                           title: "Accepted into Composer",
                           description: "Loaded optimized prompt into your active workspace.",
                         });
-                        navigate("/");
+                        navigate("/compile");
                       }}
                     >
                       <Check className="w-3.5 h-3.5" />
@@ -708,7 +719,10 @@ export function ImproveAutopsyPage() {
                     <Button
                       variant="secondary"
                       size="sm"
-                      onClick={() => dispatchPrompt("chatgpt", result.optimizedPrompt)}
+                      onClick={() => {
+                        if (!requireAuth()) return;
+                        dispatchPrompt("chatgpt", result.optimizedPrompt);
+                      }}
                     >
                       <span>ChatGPT</span>
                       <ExternalLink className="w-3 h-3" />
@@ -716,7 +730,10 @@ export function ImproveAutopsyPage() {
                     <Button
                       variant="secondary"
                       size="sm"
-                      onClick={() => dispatchPrompt("claude", result.optimizedPrompt)}
+                      onClick={() => {
+                        if (!requireAuth()) return;
+                        dispatchPrompt("claude", result.optimizedPrompt);
+                      }}
                     >
                       <span>Claude</span>
                       <ExternalLink className="w-3 h-3" />
@@ -724,7 +741,10 @@ export function ImproveAutopsyPage() {
                     <Button
                       variant="secondary"
                       size="sm"
-                      onClick={() => dispatchPrompt("gemini", result.optimizedPrompt)}
+                      onClick={() => {
+                        if (!requireAuth()) return;
+                        dispatchPrompt("gemini", result.optimizedPrompt);
+                      }}
                     >
                       <span>Gemini</span>
                       <ExternalLink className="w-3 h-3" />

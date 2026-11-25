@@ -1,14 +1,22 @@
-import { expect, resetQuota, test } from "./fixtures.js";
+import { cleanupUser, expect, resetQuota, signInViaAuthDialog, test } from "./fixtures.js";
 
 test.describe("06 - Improve & Prompt Autopsy @full", () => {
+  const email = `e2e.improve.${Date.now()}@example.com`;
+
   test.beforeEach(async ({ request }) => {
     await resetQuota(request);
   });
 
+  test.afterEach(async ({ request }) => {
+    await cleanupUser(request, email);
+  });
+
   test("runs Prompt Autopsy with failed output, renders diagnostics, and accepts optimized prompt into Composer", async ({
     page,
+    request,
   }) => {
     await page.goto("/improve");
+    await signInViaAuthDialog(page, request, email);
 
     // Switch to Prompt Autopsy tab if present
     const autopsyTab = page.getByRole("tab", { name: /Autopsy/i });
@@ -41,6 +49,6 @@ test.describe("06 - Improve & Prompt Autopsy @full", () => {
     const acceptBtn = page.getByRole("button", { name: /Accept into Composer/i });
     await expect(acceptBtn).toBeVisible();
     await acceptBtn.click();
-    await expect(page).toHaveURL(/\/$/);
+    await expect(page).toHaveURL(/\/compile$/);
   });
 });

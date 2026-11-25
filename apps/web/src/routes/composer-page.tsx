@@ -2,9 +2,7 @@ import * as React from "react";
 import { PromptComposer } from "../components/composer/prompt-composer.js";
 import { OutputCard } from "../components/output/output-card.js";
 import { SeoHead } from "../components/seo/seo-head.js";
-import { HOME_AEO_FAQS } from "../content/docs-catalog.js";
 import { useComposePrompt } from "../hooks/use-compose-prompt.js";
-import { capturePostHogEvent } from "../lib/posthog.js";
 import { STATIC_ROUTE_SEO } from "../lib/seo.js";
 import { trackEvent } from "../lib/telemetry.js";
 import { useComposerStore } from "../state/composer-store.js";
@@ -13,17 +11,6 @@ export function ComposerPage() {
   const { activeDraft, completedOutput, completedSourceDraft, streamingBuffer } =
     useComposerStore();
   const composeMutation = useComposePrompt();
-  const seoMeta = React.useMemo(() => STATIC_ROUTE_SEO.home(HOME_AEO_FAQS), []);
-  const hasTrackedLandingRef = React.useRef(false);
-
-  React.useEffect(() => {
-    if (hasTrackedLandingRef.current) {
-      return;
-    }
-    hasTrackedLandingRef.current = true;
-    trackEvent("landing_page_loaded");
-    capturePostHogEvent("landing_page_loaded");
-  }, []);
 
   React.useEffect(() => {
     trackEvent("composer_viewed", { mode: activeDraft.mode });
@@ -38,7 +25,7 @@ export function ComposerPage() {
 
   return (
     <div className="space-y-4">
-      <SeoHead meta={seoMeta} />
+      <SeoHead meta={STATIC_ROUTE_SEO.compile} />
       <PromptComposer
         isPending={composeMutation.isPending}
         onSubmitPrompt={handleSubmit}

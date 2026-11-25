@@ -234,7 +234,7 @@ describe("API Routes & Database Integration", () => {
   });
 
   describe("Billing Status (spaces, subscriptions, usage_counters, plan_limits)", () => {
-    it("returns accurate remaining daily prompts and daily limit for guest", async () => {
+    it("returns zero daily limit and remaining prompts for unauthenticated guest", async () => {
       const res = await app.request("http://localhost/rpc/billing/status", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -252,8 +252,8 @@ describe("API Routes & Database Integration", () => {
       };
       expect(json.plan).toBe("free");
       expect(json.status).toBe("active");
-      expect(json.dailyLimit).toBe(10);
-      expect(json.remainingDailyPrompts).toBeLessThanOrEqual(10);
+      expect(json.dailyLimit).toBe(0);
+      expect(json.remainingDailyPrompts).toBe(0);
       expect(new Date(json.resetAt).getTime()).toBeGreaterThan(Date.now());
     });
 
@@ -411,70 +411,49 @@ describe("API Routes & Database Integration", () => {
     });
 
     it("rejects execution when quota is exhausted with QUOTA_EXCEEDED (403)", async () => {
-      const quotaKey = `exhausted_guest_${Date.now()}`;
-      // Pre-seed 10 calls in DB for this guest key (guest dailyLimit is 10)
+      const quotaSpaceId = `spc_exhausted_${Date.now()}`;
+      const quotaUserId = `usr_exhausted_${Date.now()}`;
+      // Pre-seed 10 calls in DB for this authenticated space (free dailyLimit is 10)
       const today = new Date(
         Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate()),
       );
-      const { hashClientKey } = await import("./auth/session-resolver.js");
-
-      await runAsSystem((tx) =>
-        tx.usageCounter.create({
-          data: {
-            clientKey: hashClientKey(quotaKey),
-            usageDate: today,
-            action: "compose",
-            count: 10,
-          },
-        }),
-      );
-
-      const res = await app.request("http://localhost/rpc/prompts/compose", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-client-key": quotaKey,
-        },
-        body: JSON.stringify({
-          json: {
-            interactionId: "int_quota_test",
-            draft: {
-              rawInput: "Test prompt exceeding quota",
-              mode: "text",
-              modelId: "gpt-4.1",
-              constraints: [],
-              guardrails: [],
-              advanced: {},
-            },
-          },
-        }),
-      });
-
-      expect(res.status).toBe(403);
-      const text = await res.text();
-      expect(text).toContain("QUOTA_EXCEEDED");
-    });
-
-    it("persists anonymous (guest) compose compilations in prompt_generations", async () => {
-      const guestKey = `anon_guest_${Date.now()}`;
-      const { hashClientKey } = await import("./auth/session-resolver.js");
-      const hashedGuestKey = hashClientKey(guestKey);
 
       try {
+        await runAsSystem(async (tx) => {
+          await tx.space.create({
+            data: { id: quotaSpaceId, name: "Quota Test Space", plan: "free" },
+          });
+          await tx.user.create({
+            data: { id: quotaUserId, email: `${quotaUserId}@example.com`, name: "Quota User" },
+          });
+          await tx.spaceMember.create({
+            data: { spaceId: quotaSpaceId, userId: quotaUserId, role: "owner" },
+          });
+          await tx.usageCounter.create({
+            data: {
+              spaceId: quotaSpaceId,
+              usageDate: today,
+              action: "compose",
+              count: 10,
+            },
+          });
+        });
+
         const res = await app.request("http://localhost/rpc/prompts/compose", {
           method: "POST",
           headers: {
             "content-type": "application/json",
-            "x-client-key": guestKey,
+            "x-space-id": quotaSpaceId,
+            "x-user-id": quotaUserId,
           },
           body: JSON.stringify({
             json: {
-              interactionId: `int_guest_${Date.now()}`,
+              interactionId: "int_quota_test",
               draft: {
-                rawInput: "Summarize database indexing strategies for [Workload_Type]",
+                rawInput: "Test prompt exceeding quota",
                 mode: "text",
                 modelId: "gpt-4.1",
-                constraints: ["Keep under 300 words"],
+                constraints: [],
                 guardrails: [],
                 advanced: {},
               },
@@ -482,31 +461,198 @@ describe("API Routes & Database Integration", () => {
           }),
         });
 
-        expect(res.status).toBe(200);
-        const { json } = (await res.json()) as {
-          json: { compiledPrompt: string; remainingDailyPrompts: number };
-        };
-        expect(json.compiledPrompt).toBeDefined();
-        expect(json.remainingDailyPrompts).toBe(9); // guest dailyLimit is 10
-
-        const guestGens = await runAsSystem((tx) =>
-          tx.promptGeneration.findMany({
-            where: { clientKey: hashedGuestKey },
-          }),
-        );
-        expect(guestGens).toHaveLength(1);
-        expect(guestGens[0]?.spaceId).toBeNull();
-        expect(guestGens[0]?.userId).toBeNull();
-        expect(guestGens[0]?.clientKey).toBe(hashedGuestKey);
-        expect(guestGens[0]?.kind).toBe("compose");
-        expect(guestGens[0]?.rawInput).toBe(
-          "Summarize database indexing strategies for [Workload_Type]",
-        );
-        expect(guestGens[0]?.compiledPrompt).toBe(json.compiledPrompt);
+        expect(res.status).toBe(403);
+        const text = await res.text();
+        expect(text).toContain("QUOTA_EXCEEDED");
       } finally {
         await runAsSystem(async (tx) => {
-          await tx.promptGeneration.deleteMany({ where: { clientKey: hashedGuestKey } });
-          await tx.usageCounter.deleteMany({ where: { clientKey: hashedGuestKey } });
+          await tx.usageCounter.deleteMany({ where: { spaceId: quotaSpaceId } });
+          await tx.spaceMember.deleteMany({ where: { spaceId: quotaSpaceId } });
+          await tx.space.deleteMany({ where: { id: quotaSpaceId } });
+          await tx.user.deleteMany({ where: { id: quotaUserId } });
+        });
+      }
+    });
+
+    it("rejects unauthenticated AI RPC calls (compose, refine, reverseEngineer) with UNAUTHORIZED", async () => {
+      const guestKey = `anon_guest_${Date.now()}`;
+      const { hashClientKey } = await import("./auth/session-resolver.js");
+      const hashedGuestKey = hashClientKey(guestKey);
+
+      const composeRes = await app.request("http://localhost/rpc/prompts/compose", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-client-key": guestKey,
+        },
+        body: JSON.stringify({
+          json: {
+            interactionId: `int_guest_${Date.now()}`,
+            draft: {
+              rawInput: "Summarize database indexing strategies for [Workload_Type]",
+              mode: "text",
+              modelId: "gpt-4.1",
+              constraints: ["Keep under 300 words"],
+              guardrails: [],
+              advanced: {},
+            },
+          },
+        }),
+      });
+      expect(composeRes.status).toBe(401);
+      expect(await composeRes.text()).toContain("UNAUTHORIZED");
+
+      const refineRes = await app.request("http://localhost/rpc/prompts/refine", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-client-key": guestKey,
+        },
+        body: JSON.stringify({
+          json: {
+            originalPrompt: "Draft an incident review memo",
+            mode: "improve",
+          },
+        }),
+      });
+      expect(refineRes.status).toBe(401);
+      expect(await refineRes.text()).toContain("UNAUTHORIZED");
+
+      const reverseRes = await app.request("http://localhost/rpc/prompts/reverseEngineer", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-client-key": guestKey,
+        },
+        body: JSON.stringify({
+          json: {
+            imageBase64: "A".repeat(128),
+            mimeType: "image/png",
+            targetMode: "image",
+          },
+        }),
+      });
+      expect(reverseRes.status).toBe(401);
+      expect(await reverseRes.text()).toContain("UNAUTHORIZED");
+
+      const guestGens = await runAsSystem((tx) =>
+        tx.promptGeneration.findMany({
+          where: { clientKey: hashedGuestKey },
+        }),
+      );
+      expect(guestGens).toHaveLength(0);
+    });
+
+    it("rejects unauthenticated stream endpoints with 401 and grants full daily limit after signing in", async () => {
+      const guestKey = `carry_guest_${Date.now()}`;
+      const { hashClientKey } = await import("./auth/session-resolver.js");
+      const hashedGuestKey = hashClientKey(guestKey);
+      const authSpaceId = `spc_auth_flow_${Date.now()}`;
+      const authUserId = `usr_auth_flow_${Date.now()}`;
+
+      try {
+        // 1. Unauthenticated SSE streams return 401 UNAUTHORIZED
+        const composeStreamRes = await app.request("http://localhost/api/prompts/compose/stream", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-client-key": guestKey,
+          },
+          body: JSON.stringify({
+            interactionId: `int_stream_guest_${Date.now()}`,
+            draft: {
+              rawInput: "Explain eventual consistency in distributed caches",
+              mode: "text",
+              modelId: "gpt-4.1",
+              constraints: [],
+              guardrails: [],
+              advanced: {},
+            },
+          }),
+        });
+        expect(composeStreamRes.status).toBe(401);
+        expect(await composeStreamRes.json()).toMatchObject({
+          error: { code: "UNAUTHORIZED" },
+        });
+
+        const videoStreamRes = await app.request(
+          "http://localhost/api/prompts/reverse-engineer-video/stream",
+          {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              "x-client-key": guestKey,
+            },
+            body: JSON.stringify({
+              sourceType: "youtube",
+              youtubeUrl: "https://youtu.be/jNQXAC9IVRw",
+              startOffsetSec: 0,
+              endOffsetSec: 10,
+            }),
+          },
+        );
+        expect(videoStreamRes.status).toBe(401);
+        expect(await videoStreamRes.json()).toMatchObject({
+          error: { code: "UNAUTHORIZED" },
+        });
+
+        // 2. After signing in, billing status grants full 10/10 daily limit
+        const postLoginStatusRes = await app.request("http://localhost/rpc/billing/status", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-client-key": guestKey,
+            "x-space-id": authSpaceId,
+            "x-user-id": authUserId,
+          },
+          body: JSON.stringify({}),
+        });
+        expect(postLoginStatusRes.status).toBe(200);
+        const { json: postLoginStatus } = (await postLoginStatusRes.json()) as {
+          json: { remainingDailyPrompts: number; dailyLimit: number };
+        };
+        expect(postLoginStatus.dailyLimit).toBe(10);
+        expect(postLoginStatus.remainingDailyPrompts).toBe(10);
+
+        // 3. Compile while signed in -> 9/10 remaining
+        const authComposeRes = await app.request("http://localhost/rpc/prompts/compose", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-client-key": guestKey,
+            "x-space-id": authSpaceId,
+            "x-user-id": authUserId,
+          },
+          body: JSON.stringify({
+            json: {
+              interactionId: `int_carry_auth_${Date.now()}`,
+              draft: {
+                rawInput: "Explain read-your-writes consistency",
+                mode: "text",
+                modelId: "gpt-4.1",
+                constraints: [],
+                guardrails: [],
+                advanced: {},
+              },
+            },
+          }),
+        });
+        expect(authComposeRes.status).toBe(200);
+        const { json: authComposeJson } = (await authComposeRes.json()) as {
+          json: { remainingDailyPrompts: number };
+        };
+        expect(authComposeJson.remainingDailyPrompts).toBe(9);
+      } finally {
+        await runAsSystem(async (tx) => {
+          await tx.promptGeneration.deleteMany({
+            where: { OR: [{ clientKey: hashedGuestKey }, { spaceId: authSpaceId }] },
+          });
+          await tx.usageCounter.deleteMany({
+            where: { OR: [{ clientKey: hashedGuestKey }, { spaceId: authSpaceId }] },
+          });
+          await tx.spaceMember.deleteMany({ where: { spaceId: authSpaceId } });
+          await tx.space.deleteMany({ where: { id: authSpaceId } });
+          await tx.user.deleteMany({ where: { id: authUserId } });
         });
       }
     });

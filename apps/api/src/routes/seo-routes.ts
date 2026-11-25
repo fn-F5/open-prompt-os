@@ -14,8 +14,8 @@ function escapeXml(value: string): string {
 
 const STATIC_PUBLIC_PATHS = [
   { path: "/", changefreq: "weekly", priority: "1.0" },
+  { path: "/compile", changefreq: "weekly", priority: "0.9" },
   { path: "/improve", changefreq: "weekly", priority: "0.9" },
-  { path: "/reverse-engineer", changefreq: "weekly", priority: "0.9" },
   { path: "/templates", changefreq: "daily", priority: "0.9" },
   { path: "/docs", changefreq: "weekly", priority: "0.9" },
   { path: "/pricing", changefreq: "monthly", priority: "0.8" },

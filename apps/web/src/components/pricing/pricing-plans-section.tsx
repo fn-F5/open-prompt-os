@@ -146,7 +146,6 @@ export function PricingPlansSection({
     <div className="space-y-8 sm:space-y-10">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="space-y-2.5">
-          <Badge variant="framework">Simple, Fair Pricing</Badge>
           <HeadingTag
             className={
               headingAs === "h1"

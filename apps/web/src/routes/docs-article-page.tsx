@@ -2,19 +2,31 @@ import { DEFAULT_CURATED_TEMPLATES } from "@open-prompt-os/contracts";
 import { Badge, Button, toast } from "@open-prompt-os/ui-web";
 import { ArrowLeft, ArrowRight, CheckCircle2, Copy, Sparkles } from "lucide-react";
 import * as React from "react";
-import { Link, useNavigate, useParams } from "react-router";
+import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { SeoHead } from "../components/seo/seo-head.js";
 import { DOCS_CATALOG, findDocBySlug } from "../content/docs-catalog.js";
+import { useAuthSession } from "../hooks/use-auth-session.js";
 import { useCardHoverAnimation } from "../hooks/use-card-parallax.js";
 import { copyTextToClipboard } from "../lib/dispatch.js";
 import { buildDocArticleSeo } from "../lib/seo.js";
+import { openAuthDialog } from "../state/auth-dialog-store.js";
 import { composerActions } from "../state/composer-store.js";
 
 export function DocsArticlePage() {
   const { docSlug = "" } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const animateCard = useCardHoverAnimation();
+  const { isAuthenticated } = useAuthSession();
   const doc = findDocBySlug(docSlug);
+
+  const requireAuth = () => {
+    if (!isAuthenticated) {
+      openAuthDialog({ reason: "action_required", intendedRoute: location.pathname });
+      return false;
+    }
+    return true;
+  };
 
   if (!doc) {
     return (
@@ -116,6 +128,7 @@ export function DocsArticlePage() {
               variant="solid"
               size="sm"
               onClick={() => {
+                if (!requireAuth()) return;
                 const action = doc.composerAction;
                 if (!action) return;
                 composerActions.setMode(action.mode);
@@ -124,7 +137,7 @@ export function DocsArticlePage() {
                   title: "Loaded guide preset in Composer",
                   description: `Switched to ${action.mode} mode.`,
                 });
-                navigate("/");
+                navigate("/compile");
               }}
             >
               <Sparkles className="w-3.5 h-3.5" />
@@ -214,6 +227,7 @@ export function DocsArticlePage() {
                     variant="ghost"
                     size="sm"
                     onClick={async () => {
+                      if (!requireAuth()) return;
                       const ok = await copyTextToClipboard(section.codeBlock ?? "");
                       if (ok) toast({ title: "Copied specification snippet" });
                     }}

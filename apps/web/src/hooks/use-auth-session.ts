@@ -39,6 +39,15 @@ export function useAuthSession(): AuthSessionState {
     authClient.ensureInitialized();
   }, []);
 
+  const prevAuthRef = React.useRef(snapshot.isAuthenticated);
+  React.useEffect(() => {
+    const wasAuthenticated = prevAuthRef.current;
+    prevAuthRef.current = snapshot.isAuthenticated;
+    if (!wasAuthenticated && snapshot.isAuthenticated) {
+      qc.invalidateQueries({ queryKey: queryKeys.billing.status() });
+    }
+  }, [qc, snapshot.isAuthenticated]);
+
   const signOut = React.useCallback(async () => {
     await authClient.signOut();
     // Clear user-scoped sensitive caches on sign-out without deleting retained guest data (Section 7.1, 18)

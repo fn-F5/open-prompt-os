@@ -24,7 +24,7 @@ test.describe("08 - Templates, History & SEO Endpoints @full", () => {
     // 2. Signed-in Video Reverse Engineer run appears in /history under Reverse Engineer filter
     await page.goto("/");
     await signInViaAuthDialog(page, request, email);
-    await page.goto("/reverse-engineer");
+    await page.goto("/");
     await page.getByRole("tab", { name: "Video", exact: true }).click();
     await page.getByRole("tab", { name: "YouTube Link" }).click();
     await page

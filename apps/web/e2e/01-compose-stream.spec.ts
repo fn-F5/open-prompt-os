@@ -1,14 +1,22 @@
-import { expect, resetQuota, test } from "./fixtures.js";
+import { cleanupUser, expect, resetQuota, signInViaAuthDialog, test } from "./fixtures.js";
 
-test.describe("01 - Guest Compose SSE & Quality Guard @smoke", () => {
+test.describe("01 - Compose SSE & Quality Guard @smoke", () => {
+  const email = `e2e.compose.${Date.now()}@example.com`;
+
   test.beforeEach(async ({ request }) => {
     await resetQuota(request);
   });
 
+  test.afterEach(async ({ request }) => {
+    await cleanupUser(request, email);
+  });
+
   test("rejects low-signal greeting via quality guard and streams a valid compiled prompt", async ({
     page,
+    request,
   }) => {
-    await page.goto("/");
+    await page.goto("/compile");
+    await signInViaAuthDialog(page, request, email);
 
     const rawInput = page.getByRole("textbox").first();
     await expect(rawInput).toBeVisible();

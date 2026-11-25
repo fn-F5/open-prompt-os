@@ -372,6 +372,30 @@ export const STATIC_ROUTE_SEO = {
       buildFaqPageSchema(faqs),
     ],
   }),
+  compile: {
+    title: `Prompt Compiler — Build Structured AI Prompts | ${SITE_NAME}`,
+    description:
+      "Compile structured, model-calibrated prompts for ChatGPT, Claude, Gemini, Imagen, FLUX, and Veo using CO-STAR, RISE, CARE, and Chain-of-Thought frameworks.",
+    canonicalPath: "/compile",
+    ogType: "website",
+    keywords: [
+      "AI prompt compiler",
+      "CO-STAR prompt builder",
+      "RISE prompt framework",
+      "structured prompt builder",
+      "prompt engineering workbench",
+    ],
+    jsonLd: [
+      buildOrganizationSchema(),
+      buildWebSiteSchema(),
+      buildSoftwareApplicationSchema(undefined, {
+        path: "/compile",
+        name: "Open Prompt OS — Prompt Compiler",
+        description:
+          "Guided multi-modal prompt compiler for Text, Image, and Video using CO-STAR, RISE, CARE, and Chain-of-Thought frameworks.",
+      }),
+    ],
+  } satisfies SeoMetadata,
   improve: (origin = getSiteOrigin()): SeoMetadata => ({
     title: `Improve & Prompt Autopsy — Debug Hallucinations & Fix Prompts | ${SITE_NAME}`,
     description:
@@ -414,13 +438,13 @@ export const STATIC_ROUTE_SEO = {
     title: `Reverse Engineer Image to Prompt — 6-Axis Visual Extractor | ${SITE_NAME}`,
     description:
       "Upload any PNG, JPEG, or WebP image to extract lighting, lens optics, style, composition, negative guardrails, and a reusable prompt draft.",
-    canonicalPath: "/reverse-engineer",
+    canonicalPath: "/",
     ogType: "website",
     jsonLd: [
       buildOrganizationSchema(origin),
       buildWebSiteSchema(origin),
       buildSoftwareApplicationSchema(origin, {
-        path: "/reverse-engineer",
+        path: "/",
         name: "Open Prompt OS — Reverse Engineer Image to Prompt",
         description:
           "6-axis visual prompt extractor converting reference images into customizable Image and Video generation prompts.",
@@ -430,7 +454,7 @@ export const STATIC_ROUTE_SEO = {
         name: "How to reverse engineer a reference image into a prompt",
         description:
           "Extract Subject, Style, Lighting, Camera Optics, Mood, and Negative Guardrails from any PNG, JPEG, or WebP image.",
-        path: "/reverse-engineer",
+        path: "/",
         steps: [
           {
             name: "Choose Image or Video Motion Prompt mode",

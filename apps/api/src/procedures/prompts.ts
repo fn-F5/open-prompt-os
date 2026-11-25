@@ -46,11 +46,21 @@ function failure(error: unknown, requestId: string): never {
   });
 }
 
+function assertAuthenticatedActor(actor: ResolvedActor): void {
+  if (!actor.userId || !actor.spaceId) {
+    throw new ORPCError("UNAUTHORIZED", {
+      message: "Please sign in to use this feature.",
+    });
+  }
+}
+
 export async function executeCompose(
   orchestrator: PromptOrchestrator,
   input: ComposePromptInput,
   ctx: OrchestratorContext & { actor: ResolvedActor },
 ): Promise<ComposePromptOutput> {
+  assertAuthenticatedActor(ctx.actor);
+
   try {
     assertMeaningfulPrompt(input.draft.rawInput, {
       supplementalText: extractDraftSupplementalText(input.draft),
@@ -103,6 +113,8 @@ export async function executeRefine(
   input: RefinePromptInput,
   ctx: OrchestratorContext & { actor: ResolvedActor; kind?: "refine" | "autopsy" },
 ): Promise<RefinePromptOutput> {
+  assertAuthenticatedActor(ctx.actor);
+
   try {
     assertMeaningfulPrompt(input.originalPrompt);
   } catch (error) {
@@ -149,6 +161,8 @@ export async function executeReverseEngineer(
   input: ReverseEngineerInput,
   ctx: OrchestratorContext & { actor: ResolvedActor },
 ): Promise<ReverseEngineerOutput> {
+  assertAuthenticatedActor(ctx.actor);
+
   const quota = await reserveQuota(ctx.actor, "reverse_engineer");
   if (!quota.allowed) {
     throw new ORPCError("FORBIDDEN", {

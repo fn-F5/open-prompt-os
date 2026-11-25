@@ -22,7 +22,7 @@ import {
   Upload,
 } from "lucide-react";
 import * as React from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { useAuthSession } from "../../hooks/use-auth-session.js";
 import { useCardHoverAnimation } from "../../hooks/use-card-parallax.js";
 import { copyTextToClipboard } from "../../lib/dispatch.js";
@@ -34,6 +34,8 @@ import { openAuthDialog } from "../../state/auth-dialog-store.js";
 import { composerActions } from "../../state/composer-store.js";
 import { AuthGate } from "../auth/auth-gate.js";
 import { SanitizedPromptRenderer } from "../output/output-card.js";
+
+const MAX_TRIM_START_FALLBACK = 3600;
 
 const ALLOWED_VIDEO_MIMES = new Set<VideoReverseEngineerMime>([
   "video/mp4",
@@ -53,6 +55,7 @@ const GENERATOR_OPTIONS: ReadonlyArray<{
 ];
 
 export function VideoReverseEngineerPanel() {
+  const location = useLocation();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const animateCard = useCardHoverAnimation();
@@ -60,9 +63,18 @@ export function VideoReverseEngineerPanel() {
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const abortRef = React.useRef<AbortController | null>(null);
 
+  const requireAuth = () => {
+    if (!isAuthenticated) {
+      openAuthDialog({ reason: "action_required", intendedRoute: location.pathname });
+      return false;
+    }
+    return true;
+  };
+
   const billingQuery = useQuery({
     queryKey: queryKeys.billing.status(),
     queryFn: () => orpcClient.billing.status(),
+    enabled: isAuthenticated,
   });
 
   const tier = !isAuthenticated
@@ -95,6 +107,24 @@ export function VideoReverseEngineerPanel() {
   const [copiedKey, setCopiedKey] = React.useState<string | null>(null);
   const [savedPromptKey, setSavedPromptKey] = React.useState<string | null>(null);
 
+  const knownUploadDuration =
+    inputMode === "upload" &&
+    selectedFile?.durationSec !== undefined &&
+    Number.isFinite(selectedFile.durationSec) &&
+    selectedFile.durationSec > 0
+      ? selectedFile.durationSec
+      : undefined;
+  const parsedStartNum = Number.parseFloat(startOffsetSec);
+  const parsedStart = Number.isFinite(parsedStartNum) && parsedStartNum >= 0 ? parsedStartNum : 0;
+  const maxAllowedStart =
+    knownUploadDuration !== undefined
+      ? Math.max(0, Math.floor(knownUploadDuration) - 1)
+      : MAX_TRIM_START_FALLBACK;
+  const maxAllowedEnd =
+    knownUploadDuration !== undefined
+      ? Math.min(Math.ceil(knownUploadDuration), parsedStart + limits.maxDurationSec)
+      : parsedStart + limits.maxDurationSec;
+
   React.useEffect(() => {
     return () => {
       if (selectedFile?.previewUrl && typeof URL.revokeObjectURL === "function") {
@@ -108,17 +138,19 @@ export function VideoReverseEngineerPanel() {
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
-      const start = Math.max(
-        0,
-        Math.min(Number.parseFloat(startOffsetSec) || 0, limits.maxDurationSec - 1),
-      );
+      const parsedStartVal = Number.parseFloat(startOffsetSec);
+      const start = Number.isFinite(parsedStartVal) ? Math.max(0, parsedStartVal) : 0;
+      const maxWindowEnd = start + limits.maxDurationSec;
+      const durationCap =
+        inputMode === "upload" && selectedFile?.durationSec ? selectedFile.durationSec : undefined;
+      const defaultEnd =
+        durationCap !== undefined ? Math.min(durationCap, maxWindowEnd) : maxWindowEnd;
       const parsedEnd = Number.parseFloat(endOffsetSec);
-      const rawEnd = Number.isFinite(parsedEnd)
-        ? parsedEnd
-        : inputMode === "upload" && selectedFile?.durationSec
-          ? Math.min(selectedFile.durationSec, limits.maxDurationSec)
-          : limits.maxDurationSec;
-      const end = Math.min(rawEnd, limits.maxDurationSec);
+      const rawEnd = Number.isFinite(parsedEnd) ? parsedEnd : defaultEnd;
+      const end =
+        durationCap !== undefined
+          ? Math.min(rawEnd, maxWindowEnd, durationCap)
+          : Math.min(rawEnd, maxWindowEnd);
 
       if (inputMode === "upload") {
         if (!selectedFile) throw new Error("Upload an MP4, WebM, or MOV video first.");
@@ -248,19 +280,22 @@ export function VideoReverseEngineerPanel() {
   };
 
   const handleRun = () => {
+    if (!requireAuth()) return;
     const start = Number.parseFloat(startOffsetSec);
     const end = endOffsetSec.trim() ? Number.parseFloat(endOffsetSec) : undefined;
 
-    if (!Number.isFinite(start) || start < 0 || start >= limits.maxDurationSec) {
-      setValidationError(`Start time must be between 0 and ${limits.maxDurationSec - 1} seconds.`);
+    if (!Number.isFinite(start) || start < 0) {
+      setValidationError("Start time must be 0 or greater.");
       return;
     }
     if (end !== undefined && (!Number.isFinite(end) || end <= start)) {
       setValidationError("End time must be greater than start time.");
       return;
     }
-    if (end !== undefined && end > limits.maxDurationSec) {
-      setValidationError(`End time cannot exceed the ${limits.maxDurationSec}s hard limit.`);
+    if (end !== undefined && end - start > limits.maxDurationSec) {
+      setValidationError(
+        `Selected segment exceeds the ${limits.maxDurationSec}s limit. Trim Start/End within ${limits.maxDurationSec}s.`,
+      );
       return;
     }
 
@@ -268,6 +303,20 @@ export function VideoReverseEngineerPanel() {
       if (!selectedFile) {
         setValidationError("Upload an MP4, WebM, or MOV clip first.");
         return;
+      }
+      if (selectedFile.durationSec !== undefined) {
+        if (start >= selectedFile.durationSec) {
+          setValidationError(
+            `Start time must be less than the video duration (${selectedFile.durationSec}s).`,
+          );
+          return;
+        }
+        if (end !== undefined && end > Math.ceil(selectedFile.durationSec)) {
+          setValidationError(
+            `End time cannot exceed the video duration (${selectedFile.durationSec}s).`,
+          );
+          return;
+        }
       }
       const effectiveEnd = end ?? selectedFile.durationSec;
       if (effectiveEnd !== undefined && effectiveEnd - start > limits.maxDurationSec) {
@@ -297,6 +346,7 @@ export function VideoReverseEngineerPanel() {
   };
 
   const handleCopy = async (key: string, text: string, label = "Copied to clipboard") => {
+    if (!requireAuth()) return;
     const ok = await copyTextToClipboard(text);
     if (ok) {
       setCopiedKey(key);
@@ -341,6 +391,7 @@ export function VideoReverseEngineerPanel() {
             onDrop={(e) => {
               e.preventDefault();
               setIsDragging(false);
+              if (!requireAuth()) return;
               handleVideoFile(e.dataTransfer.files?.[0]);
             }}
             className={`rounded-xl border-2 border-dashed p-6 text-center transition-colors ${
@@ -370,7 +421,13 @@ export function VideoReverseEngineerPanel() {
                       const dur = Math.round(e.currentTarget.duration * 10) / 10;
                       if (Number.isFinite(dur) && dur > 0) {
                         setSelectedFile((prev) => (prev ? { ...prev, durationSec: dur } : prev));
-                        setEndOffsetSec(String(Math.min(dur, limits.maxDurationSec)));
+                        const nextStart = parsedStart >= dur ? 0 : parsedStart;
+                        if (nextStart !== parsedStart) {
+                          setStartOffsetSec(String(nextStart));
+                        }
+                        setEndOffsetSec(
+                          String(Math.min(Math.ceil(dur), nextStart + limits.maxDurationSec)),
+                        );
                       }
                     }}
                     className="max-h-56 w-full mx-auto rounded-lg bg-black border border-[var(--separator-subtle)]"
@@ -409,7 +466,14 @@ export function VideoReverseEngineerPanel() {
                     analysis
                   </p>
                 </div>
-                <Button variant="secondary" size="sm" onClick={() => fileInputRef.current?.click()}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    if (!requireAuth()) return;
+                    fileInputRef.current?.click();
+                  }}
+                >
                   Choose Video
                 </Button>
               </div>
@@ -453,7 +517,7 @@ export function VideoReverseEngineerPanel() {
               id="video-re-start"
               type="number"
               min={0}
-              max={limits.maxDurationSec - 1}
+              max={maxAllowedStart}
               step={1}
               value={startOffsetSec}
               onChange={(e) => {
@@ -464,8 +528,21 @@ export function VideoReverseEngineerPanel() {
                 }
                 const num = Number.parseFloat(raw);
                 if (!Number.isFinite(num)) return;
-                const clamped = Math.max(0, Math.min(num, limits.maxDurationSec - 1));
-                setStartOffsetSec(String(clamped));
+                const newStart = Math.max(0, Math.min(num, maxAllowedStart));
+                setStartOffsetSec(String(newStart));
+
+                const curEnd = Number.parseFloat(endOffsetSec);
+                if (Number.isFinite(curEnd)) {
+                  const maxUploadEnd =
+                    knownUploadDuration !== undefined
+                      ? Math.ceil(knownUploadDuration)
+                      : newStart + limits.maxDurationSec;
+                  if (curEnd > newStart + limits.maxDurationSec || curEnd <= newStart) {
+                    setEndOffsetSec(
+                      String(Math.min(newStart + limits.maxDurationSec, maxUploadEnd)),
+                    );
+                  }
+                }
               }}
               className="w-full rounded-lg px-2.5 py-1.5 text-xs bg-[var(--surface-2)] text-[var(--text-primary)] border border-[var(--separator-subtle)] focus-ring"
             />
@@ -480,9 +557,10 @@ export function VideoReverseEngineerPanel() {
             <input
               id="video-re-end"
               type="number"
-              min={1}
-              max={limits.maxDurationSec}
+              min={parsedStart + 1}
+              max={maxAllowedEnd}
               step={1}
+              placeholder={`max ${maxAllowedEnd}s`}
               value={endOffsetSec}
               onChange={(e) => {
                 const raw = e.target.value;
@@ -492,11 +570,18 @@ export function VideoReverseEngineerPanel() {
                 }
                 const num = Number.parseFloat(raw);
                 if (!Number.isFinite(num)) return;
-                const clamped = Math.max(1, Math.min(num, limits.maxDurationSec));
+                if (num < 0) {
+                  setEndOffsetSec("0");
+                  return;
+                }
+                const clamped = Math.min(num, maxAllowedEnd);
                 setEndOffsetSec(String(clamped));
               }}
               className="w-full rounded-lg px-2.5 py-1.5 text-xs bg-[var(--surface-2)] text-[var(--text-primary)] border border-[var(--separator-subtle)] focus-ring"
             />
+            <p className="text-[11px] text-[var(--text-secondary)]">
+              Max {maxAllowedEnd}s (up to {limits.maxDurationSec}s clip)
+            </p>
           </div>
           <div className="space-y-1">
             <label
@@ -845,12 +930,13 @@ export function VideoReverseEngineerPanel() {
                   variant="secondary"
                   size="sm"
                   onClick={() => {
+                    if (!requireAuth()) return;
                     composerActions.applyTemplateDraft(result.suggestedDraft);
                     toast({
                       title: "Loaded into Composer",
                       description: "Switched Composer to video mode.",
                     });
-                    navigate("/");
+                    navigate("/compile");
                   }}
                 >
                   <Check className="w-3.5 h-3.5" />

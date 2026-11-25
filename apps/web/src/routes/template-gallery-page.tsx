@@ -5,7 +5,7 @@ import {
 } from "@open-prompt-os/contracts";
 import { Badge, Button, Input, Tabs, toast } from "@open-prompt-os/ui-web";
 import { useQuery } from "@tanstack/react-query";
-import { Search, Sparkles } from "lucide-react";
+import { ArrowUpRight, Search } from "lucide-react";
 import * as React from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { SeoHead } from "../components/seo/seo-head.js";
@@ -84,7 +84,7 @@ export function TemplateGalleryPage() {
       title: `Loaded "${template.title}"`,
       description: "Template parameters and framework applied in composer.",
     });
-    navigate("/");
+    navigate("/compile");
   };
 
   const handleUseTemplate = (template: PromptTemplate) => {
@@ -111,10 +111,7 @@ export function TemplateGalleryPage() {
 
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <Badge variant="framework">Indexable Blueprints</Badge>
-          <h1 className="mt-2 text-2xl sm:text-3xl font-semibold tracking-tight">
-            Template Gallery
-          </h1>
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Template Gallery</h1>
           <p className="mt-1 text-xs sm:text-sm text-[var(--text-secondary)]">
             Curated, permissively licensed operational prompt templates ready for one-click reuse.
           </p>
@@ -170,36 +167,38 @@ export function TemplateGalleryPage() {
             <article
               key={tpl.slug}
               data-animate={CARD_HOVER_ANIMATION.templateGalleryItem}
-              className="rounded-xl p-5 flat-surface flex flex-col justify-between gap-4"
+              className="rounded-xl p-5 flat-surface flex flex-col gap-3"
             >
-              <div className="space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-2 min-w-0">
                   <Badge variant="framework">{tpl.frameworkBadge}</Badge>
                   <Badge variant="neutral">{tpl.mode.toUpperCase()}</Badge>
                 </div>
-
-                <div>
-                  <h2 className="text-base sm:text-lg font-semibold">{tpl.title}</h2>
-                  <p className="mt-1 text-xs sm:text-sm text-[var(--text-secondary)]">
-                    {tpl.useCase}
-                  </p>
-                </div>
-
-                <div className="select-none rounded-xl bg-[var(--surface-2)]/80 border border-[var(--separator-subtle)] border-l-2 border-l-[var(--accent-primary)]/60 p-3.5 space-y-1.5">
-                  <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--text-muted)]">
-                    Blueprint Preview
-                  </div>
-                  <p className="font-mono text-xs leading-relaxed text-[var(--text-secondary)]">
-                    {renderTemplatePreview(tpl.preview)}
-                  </p>
-                </div>
+                <button
+                  type="button"
+                  aria-label={`Use template: ${tpl.title}`}
+                  title="Use template"
+                  onClick={() => handleUseTemplate(tpl)}
+                  className="shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg bg-[var(--accent-subtle-bg)] text-[var(--accent-text)] border border-[var(--separator-subtle)] hover:border-[var(--accent-primary)] hover:bg-[var(--accent-primary)] hover:text-white transition-colors duration-150 cursor-pointer focus-ring"
+                >
+                  <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
+                </button>
               </div>
 
-              <div className="pt-2 border-t border-[var(--separator-subtle)] flex items-center justify-end gap-2">
-                <Button variant="solid" size="sm" onClick={() => handleUseTemplate(tpl)}>
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Use template</span>
-                </Button>
+              <div>
+                <h2 className="text-base sm:text-lg font-semibold">{tpl.title}</h2>
+                <p className="mt-1 text-xs sm:text-sm text-[var(--text-secondary)]">
+                  {tpl.useCase}
+                </p>
+              </div>
+
+              <div className="mt-auto select-none rounded-xl bg-[var(--surface-2)]/80 border border-[var(--separator-subtle)] border-l-2 border-l-[var(--accent-primary)]/60 p-3.5 space-y-1.5">
+                <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--text-muted)]">
+                  Blueprint Preview
+                </div>
+                <p className="font-mono text-xs leading-relaxed text-[var(--text-secondary)]">
+                  {renderTemplatePreview(tpl.preview)}
+                </p>
               </div>
             </article>
           ))}

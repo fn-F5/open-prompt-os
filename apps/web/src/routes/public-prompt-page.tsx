@@ -2,20 +2,32 @@ import { Badge, Button } from "@open-prompt-os/ui-web";
 import { useQuery } from "@tanstack/react-query";
 import { Copy, ExternalLink, Sparkles } from "lucide-react";
 import * as React from "react";
-import { useNavigate, useParams } from "react-router";
+import { useLocation, useNavigate, useParams } from "react-router";
 import { SanitizedPromptRenderer } from "../components/output/output-card.js";
 import { SeoHead } from "../components/seo/seo-head.js";
+import { useAuthSession } from "../hooks/use-auth-session.js";
 import { useCardHoverAnimation } from "../hooks/use-card-parallax.js";
 import { dispatchPrompt } from "../lib/dispatch.js";
 import { orpcClient } from "../lib/orpc.js";
 import { queryKeys } from "../lib/query-client.js";
 import { buildSharedPromptSeo } from "../lib/seo.js";
+import { openAuthDialog } from "../state/auth-dialog-store.js";
 import { composerActions } from "../state/composer-store.js";
 
 export function PublicPromptPage() {
   const { shareId = "" } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const animateCard = useCardHoverAnimation();
+  const { isAuthenticated } = useAuthSession();
+
+  const requireAuth = () => {
+    if (!isAuthenticated) {
+      openAuthDialog({ reason: "action_required", intendedRoute: location.pathname });
+      return false;
+    }
+    return true;
+  };
 
   const sharedQuery = useQuery({
     queryKey: queryKeys.prompts.shared(shareId),
@@ -40,7 +52,7 @@ export function PublicPromptPage() {
           }}
         />
         <h1 className="text-xl font-semibold">Shared prompt not found</h1>
-        <Button variant="primary-inverse" onClick={() => navigate("/")}>
+        <Button variant="primary-inverse" onClick={() => navigate("/compile")}>
           Go to Composer
         </Button>
       </div>
@@ -69,7 +81,10 @@ export function PublicPromptPage() {
           <Button
             variant="primary-inverse"
             size="sm"
-            onClick={() => dispatchPrompt("clipboard", item.compiledPrompt)}
+            onClick={() => {
+              if (!requireAuth()) return;
+              dispatchPrompt("clipboard", item.compiledPrompt);
+            }}
           >
             <Copy className="w-3.5 h-3.5" />
             <span>Copy Specification</span>
@@ -78,9 +93,10 @@ export function PublicPromptPage() {
             variant="secondary"
             size="sm"
             onClick={() => {
+              if (!requireAuth()) return;
               composerActions.setMode(item.mode);
               composerActions.updateActiveDraft({ rawInput: item.rawInput });
-              navigate("/");
+              navigate("/compile");
             }}
           >
             <Sparkles className="w-3.5 h-3.5" />
@@ -91,7 +107,10 @@ export function PublicPromptPage() {
         <Button
           variant="secondary"
           size="sm"
-          onClick={() => dispatchPrompt("chatgpt", item.compiledPrompt)}
+          onClick={() => {
+            if (!requireAuth()) return;
+            dispatchPrompt("chatgpt", item.compiledPrompt);
+          }}
         >
           <span>Open in ChatGPT</span>
           <ExternalLink className="w-3 h-3" />

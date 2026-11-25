@@ -73,7 +73,7 @@ const REASON_COPY: Record<
   },
   quota_limit: {
     title: "Continue with a Free Workspace",
-    description: `You have used today's anonymous runs. Sign in for free to unlock ${FREE_DAILY_LIMIT} daily prompts and keep your current draft.`,
+    description: `Sign in for free to unlock ${FREE_DAILY_LIMIT} daily prompts and keep your current draft.`,
     badge: "Daily Limit Reached",
   },
   protected_route: {
@@ -83,10 +83,15 @@ const REASON_COPY: Record<
     badge: "Protected Workspace",
   },
   navbar_signin: {
-    title: "Sign In to Open Prompt OS",
-    description:
-      "Sync your prompt history, organize templates, and sign in with email or a linked account.",
+    title: "Sign In to use Open Prompt OS for Free",
+    description: "Help you sync prompt history, organize templates to your account.",
     badge: "Workspace Sign-In",
+  },
+  action_required: {
+    title: "Sign in to continue",
+    description:
+      "Sign in or create a free account to run prompts, reverse-engineer media, and save your work.",
+    badge: "Sign In Required",
   },
 };
 
@@ -256,6 +261,8 @@ export function AuthDialog({ turnstileSiteKey }: { turnstileSiteKey?: string | n
       title={copy.title}
       description={copy.description}
       variant="glass"
+      dialogClassName="sm:max-w-[560px]"
+      titleClassName="sm:whitespace-nowrap"
     >
       {step === "email" ? (
         <div className="mb-3">

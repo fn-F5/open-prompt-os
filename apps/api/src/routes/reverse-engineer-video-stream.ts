@@ -87,6 +87,18 @@ export function registerVideoReverseEngineerStream(
       rpcProcedure: "prompts.reverseEngineerVideoStream",
     });
 
+    if (!actor.userId || !actor.spaceId) {
+      return c.json(
+        {
+          error: {
+            code: "UNAUTHORIZED",
+            message: "Please sign in to reverse-engineer videos.",
+          },
+        },
+        401,
+      );
+    }
+
     const limits = await resolveActorLimits(actor);
     const contentType = c.req.header("content-type")?.toLowerCase() ?? "";
 
@@ -187,6 +199,34 @@ export function registerVideoReverseEngineerStream(
         );
       }
 
+      if (
+        parsed.data.durationSeconds !== undefined &&
+        parsed.data.startOffsetSec >= parsed.data.durationSeconds
+      ) {
+        return c.json(
+          {
+            code: "VALIDATION_ERROR",
+            message: "Start time must be less than video duration.",
+            requestId,
+          },
+          400,
+        );
+      }
+      if (
+        parsed.data.durationSeconds !== undefined &&
+        parsed.data.endOffsetSec !== undefined &&
+        parsed.data.endOffsetSec > parsed.data.durationSeconds
+      ) {
+        return c.json(
+          {
+            code: "VALIDATION_ERROR",
+            message: "End time cannot exceed video duration.",
+            requestId,
+          },
+          400,
+        );
+      }
+
       const rawEffectiveEnd = parsed.data.endOffsetSec ?? parsed.data.durationSeconds;
       if (rawEffectiveEnd !== undefined && rawEffectiveEnd <= parsed.data.startOffsetSec) {
         return c.json(
@@ -200,8 +240,7 @@ export function registerVideoReverseEngineerStream(
       }
       if (
         rawEffectiveEnd !== undefined &&
-        (rawEffectiveEnd > limits.maxDurationSec ||
-          rawEffectiveEnd - parsed.data.startOffsetSec > limits.maxDurationSec)
+        rawEffectiveEnd - parsed.data.startOffsetSec > limits.maxDurationSec
       ) {
         return c.json(
           {
@@ -214,8 +253,9 @@ export function registerVideoReverseEngineerStream(
       }
 
       const effectiveEnd = Math.min(
-        rawEffectiveEnd ?? limits.maxDurationSec,
-        limits.maxDurationSec,
+        rawEffectiveEnd ?? parsed.data.startOffsetSec + limits.maxDurationSec,
+        parsed.data.startOffsetSec + limits.maxDurationSec,
+        ...(parsed.data.durationSeconds !== undefined ? [parsed.data.durationSeconds] : []),
       );
       inputPayload = {
         ...parsed.data,
@@ -245,12 +285,8 @@ export function registerVideoReverseEngineerStream(
       }
 
       const effectiveEnd =
-        parsed.data.endOffsetSec ??
-        Math.min(parsed.data.startOffsetSec + limits.maxDurationSec, limits.maxDurationSec);
-      if (
-        effectiveEnd > limits.maxDurationSec ||
-        effectiveEnd - parsed.data.startOffsetSec > limits.maxDurationSec
-      ) {
+        parsed.data.endOffsetSec ?? parsed.data.startOffsetSec + limits.maxDurationSec;
+      if (effectiveEnd - parsed.data.startOffsetSec > limits.maxDurationSec) {
         return c.json(
           {
             code: "VALIDATION_ERROR",

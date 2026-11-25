@@ -29,9 +29,10 @@ describe("Modern Web Guidance fixes", () => {
     composerActions.rehydrateFromStorage();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     vi.useRealTimers();
     vi.restoreAllMocks();
+    await authClient.signOut();
   });
 
   describe("1. GuidedParameters IME composition guard", () => {
@@ -730,6 +731,18 @@ describe("Modern Web Guidance fixes", () => {
 
   describe("11. PromptComposer Advanced controls & GuidedParameters visibility", () => {
     it("renders Advanced button to switch frameworks and reveals GuidedParameters when typing", () => {
+      act(() => {
+        setAuthSessionForTest({
+          id: "u_adv_controls",
+          email: "adv@example.com",
+          name: "Advanced User",
+          plan: "free",
+          spaceId: "sp_adv",
+          spaceName: "Advanced Space",
+          hasPasskey: false,
+        });
+      });
+
       const qc = createAppQueryClient();
 
       render(
@@ -807,6 +820,18 @@ describe("Modern Web Guidance fixes", () => {
 
   describe("13. Pre-LLM prompt quality guard in PromptComposer", () => {
     it("rejects greetings and single-word low-signal prompts inline without submitting", () => {
+      act(() => {
+        setAuthSessionForTest({
+          id: "u_quality_guard",
+          email: "quality@example.com",
+          name: "Quality Guard User",
+          plan: "free",
+          spaceId: "sp_quality",
+          spaceName: "Quality Space",
+          hasPasskey: false,
+        });
+      });
+
       const qc = createAppQueryClient();
       const onSubmit = vi.fn();
 

@@ -1,11 +1,13 @@
 import { Badge, Button, Input } from "@open-prompt-os/ui-web";
 import { ArrowRight, BookOpen, Compass, Search, Sparkles } from "lucide-react";
 import * as React from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { SeoHead } from "../components/seo/seo-head.js";
 import { DOCS_CATALOG, type DocArticle, HOME_AEO_FAQS } from "../content/docs-catalog.js";
+import { useAuthSession } from "../hooks/use-auth-session.js";
 import { useCardHoverAnimation } from "../hooks/use-card-parallax.js";
 import { STATIC_ROUTE_SEO } from "../lib/seo.js";
+import { openAuthDialog } from "../state/auth-dialog-store.js";
 import { composerActions } from "../state/composer-store.js";
 
 const CATEGORIES: ReadonlyArray<"All" | DocArticle["category"]> = [
@@ -18,10 +20,20 @@ const CATEGORIES: ReadonlyArray<"All" | DocArticle["category"]> = [
 ];
 
 export function DocsHubPage() {
+  const location = useLocation();
   const navigate = useNavigate();
   const animateCard = useCardHoverAnimation();
+  const { isAuthenticated } = useAuthSession();
   const [category, setCategory] = React.useState<"All" | DocArticle["category"]>("All");
   const [query, setQuery] = React.useState("");
+
+  const requireAuth = () => {
+    if (!isAuthenticated) {
+      openAuthDialog({ reason: "action_required", intendedRoute: location.pathname });
+      return false;
+    }
+    return true;
+  };
 
   const filteredDocs = React.useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -71,7 +83,14 @@ export function DocsHubPage() {
               <BookOpen className="w-3.5 h-3.5" />
               <span>llms.txt</span>
             </a>
-            <Button variant="solid" size="sm" onClick={() => navigate("/")}>
+            <Button
+              variant="solid"
+              size="sm"
+              onClick={() => {
+                if (!requireAuth()) return;
+                navigate("/compile");
+              }}
+            >
               <Sparkles className="w-3.5 h-3.5" />
               <span>Open Composer</span>
             </Button>
@@ -182,11 +201,12 @@ export function DocsHubPage() {
                     variant="secondary"
                     size="sm"
                     onClick={() => {
+                      if (!requireAuth()) return;
                       const action = doc.composerAction;
                       if (!action) return;
                       composerActions.setMode(action.mode);
                       composerActions.updateActiveDraft(action.draft);
-                      navigate("/");
+                      navigate("/compile");
                     }}
                   >
                     <Compass className="w-3.5 h-3.5" />

@@ -1,14 +1,22 @@
-import { expect, resetQuota, test } from "./fixtures.js";
+import { cleanupUser, expect, resetQuota, signInViaAuthDialog, test } from "./fixtures.js";
 
 test.describe("10 - Video 30s Trim Enforcement & Graceful Error Recovery @full", () => {
+  const email = `e2e.trim.${Date.now()}@example.com`;
+
   test.beforeEach(async ({ request }) => {
     await resetQuota(request);
   });
 
-  test("enforces 0-29s / 1-30s trim clamping, rejects inverted ranges, sends exact trim offsets, and recovers cleanly from SSE errors", async ({
+  test.afterEach(async ({ request }) => {
+    await cleanupUser(request, email);
+  });
+
+  test("enforces sliding 30s trim window clamping, rejects inverted ranges, sends exact trim offsets, and recovers cleanly from SSE errors", async ({
     page,
+    request,
   }) => {
-    await page.goto("/reverse-engineer");
+    await page.goto("/");
+    await signInViaAuthDialog(page, request, email);
     await page.getByRole("tab", { name: "Video", exact: true }).click();
     await page.getByRole("tab", { name: "YouTube Link" }).click();
 
@@ -17,11 +25,17 @@ test.describe("10 - Video 30s Trim Enforcement & Graceful Error Recovery @full",
     const endInput = page.getByLabel("End (sec)");
     const submitBtn = page.getByRole("button", { name: /Reverse Engineer Video/i });
 
-    // 1. UI clamps out-of-range inputs to the 30s hard cap (Start max 29, End max 30)
+    // 1. UI allows sliding start offsets and clamps End to Start + 30s (e.g. 45 -> max 75)
     await startInput.fill("45");
-    await expect(startInput).toHaveValue("29");
+    await expect(startInput).toHaveValue("45");
     await endInput.fill("99");
-    await expect(endInput).toHaveValue("30");
+    await expect(endInput).toHaveValue("75");
+
+    // Shorter clip window beyond 30s (e.g. 40 -> 46) works cleanly without premature clamping
+    await startInput.fill("40");
+    await expect(startInput).toHaveValue("40");
+    await endInput.fill("46");
+    await expect(endInput).toHaveValue("46");
 
     // 2. Inverted range (Start >= End) is blocked with a clear validation alert
     await urlInput.fill("https://www.youtube.com/watch?v=jNQXAC9IVRw");

@@ -310,29 +310,38 @@ export const VideoReverseEngineerInputSchema = z
     youtubeUrl: z.string().url().max(500).optional(),
     mimeType: VideoReverseEngineerMimeSchema.optional(),
     durationSeconds: z.number().positive().max(3600).optional(),
-    startOffsetSec: z
-      .number()
-      .min(0)
-      .max(
-        VIDEO_REVERSE_ENGINEER_MAX_DURATION_SEC - 1,
-        `Start time must be less than ${VIDEO_REVERSE_ENGINEER_MAX_DURATION_SEC}s.`,
-      )
-      .default(0),
-    endOffsetSec: z
-      .number()
-      .positive()
-      .max(
-        VIDEO_REVERSE_ENGINEER_MAX_DURATION_SEC,
-        `End time cannot exceed the ${VIDEO_REVERSE_ENGINEER_MAX_DURATION_SEC}s limit.`,
-      )
-      .optional(),
+    startOffsetSec: z.number().min(0).max(3600).default(0),
+    endOffsetSec: z.number().positive().max(3600).optional(),
     targetGenerator: VideoGeneratorTargetSchema.default("veo"),
     focusNotes: z.string().max(500).optional(),
   })
   .refine((v) => v.endOffsetSec === undefined || v.endOffsetSec > v.startOffsetSec, {
     message: "End time must be greater than start time.",
     path: ["endOffsetSec"],
-  });
+  })
+  .refine(
+    (v) =>
+      v.endOffsetSec === undefined ||
+      v.endOffsetSec - v.startOffsetSec <= VIDEO_REVERSE_ENGINEER_MAX_DURATION_SEC,
+    {
+      message: `Selected clip segment cannot exceed the ${VIDEO_REVERSE_ENGINEER_MAX_DURATION_SEC}s limit.`,
+      path: ["endOffsetSec"],
+    },
+  )
+  .refine((v) => v.durationSeconds === undefined || v.startOffsetSec < v.durationSeconds, {
+    message: "Start time must be less than video duration.",
+    path: ["startOffsetSec"],
+  })
+  .refine(
+    (v) =>
+      v.durationSeconds === undefined ||
+      v.endOffsetSec === undefined ||
+      v.endOffsetSec <= v.durationSeconds,
+    {
+      message: "End time cannot exceed video duration.",
+      path: ["endOffsetSec"],
+    },
+  );
 export type VideoReverseEngineerInput = z.infer<typeof VideoReverseEngineerInputSchema>;
 
 export const VideoReverseEngineerOutputSchema = z.object({

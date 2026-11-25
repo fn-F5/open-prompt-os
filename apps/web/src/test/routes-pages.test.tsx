@@ -30,7 +30,8 @@ function renderRoute(ui: React.ReactNode, initialEntries: string[] = ["/"], rout
       <MemoryRouter initialEntries={initialEntries}>
         <Routes>
           <Route path={routePath} element={ui} />
-          <Route path="/" element={<div data-testid="composer-dest">Composer</div>} />
+          <Route path="/" element={<div data-testid="home-dest">Home</div>} />
+          <Route path="/compile" element={<div data-testid="composer-dest">Composer</div>} />
           <Route path="/billing/return" element={<BillingReturnPage />} />
         </Routes>
       </MemoryRouter>
@@ -234,7 +235,7 @@ describe("Web Route Pages & AuthGate", () => {
 
       await waitFor(() => {
         expect(signOutSpy).toHaveBeenCalledTimes(1);
-        expect(screen.getByTestId("composer-dest")).toBeInTheDocument();
+        expect(screen.getByTestId("home-dest")).toBeInTheDocument();
       });
     });
 
@@ -355,6 +356,18 @@ describe("Web Route Pages & AuthGate", () => {
     });
 
     it("renders TemplateDetailPage for valid slug and not-found fallback for missing slug", async () => {
+      act(() => {
+        setAuthSessionForTest({
+          id: "u_tpl_detail",
+          email: "tpl-detail@example.com",
+          name: "Template Detail User",
+          plan: "free",
+          spaceId: "sp_tpl_detail",
+          spaceName: "Template Space",
+          hasPasskey: false,
+        });
+      });
+
       const templates = await orpcClient.templates.list();
       const first = templates[0];
       expect(first).toBeDefined();
@@ -449,6 +462,18 @@ describe("Web Route Pages & AuthGate", () => {
 
   describe("ImproveAutopsyPage", () => {
     it("validates inputs and renders diagnostic findings after running Optimize Prompt", async () => {
+      act(() => {
+        setAuthSessionForTest({
+          id: "u_improve",
+          email: "improve@example.com",
+          name: "Improve User",
+          plan: "free",
+          spaceId: "sp_improve",
+          spaceName: "Improve Space",
+          hasPasskey: false,
+        });
+      });
+
       renderRoute(<ImproveAutopsyPage />, ["/improve"], "/improve");
 
       const promptInput = screen.getByPlaceholderText(
@@ -479,6 +504,18 @@ describe("Web Route Pages & AuthGate", () => {
     });
 
     it("loads one-click Autopsy examples, renders health score delta, and toggles Before/After Diff", async () => {
+      act(() => {
+        setAuthSessionForTest({
+          id: "u_autopsy",
+          email: "autopsy@example.com",
+          name: "Autopsy User",
+          plan: "free",
+          spaceId: "sp_autopsy",
+          spaceName: "Autopsy Space",
+          hasPasskey: false,
+        });
+      });
+
       renderRoute(<ImproveAutopsyPage />, ["/improve"], "/improve");
 
       fireEvent.click(screen.getByRole("tab", { name: /Prompt Autopsy/i }));
@@ -499,7 +536,19 @@ describe("Web Route Pages & AuthGate", () => {
 
   describe("ReverseEngineerPage", () => {
     it("validates missing upload, processes an image, and loads draft into Composer", async () => {
-      renderRoute(<ReverseEngineerPage />, ["/reverse-engineer"], "/reverse-engineer");
+      act(() => {
+        setAuthSessionForTest({
+          id: "u_re_img",
+          email: "re-img@example.com",
+          name: "Reverse Engineer Image User",
+          plan: "free",
+          spaceId: "sp_re_img",
+          spaceName: "Reverse Engineer Space",
+          hasPasskey: false,
+        });
+      });
+
+      renderRoute(<ReverseEngineerPage />, ["/"], "/");
 
       fireEvent.click(screen.getByRole("button", { name: /Reverse Engineer Image/i }));
       expect(screen.getByRole("alert")).toHaveTextContent(/Upload a reference image/i);
@@ -531,7 +580,19 @@ describe("Web Route Pages & AuthGate", () => {
     });
 
     it("switches to Video mode, validates social URLs, analyzes a YouTube clip, and loads draft into Composer", async () => {
-      renderRoute(<ReverseEngineerPage />, ["/reverse-engineer"], "/reverse-engineer");
+      act(() => {
+        setAuthSessionForTest({
+          id: "u_re_vid",
+          email: "re-vid@example.com",
+          name: "Reverse Engineer Video User",
+          plan: "free",
+          spaceId: "sp_re_vid",
+          spaceName: "Reverse Engineer Space",
+          hasPasskey: false,
+        });
+      });
+
+      renderRoute(<ReverseEngineerPage />, ["/"], "/");
 
       fireEvent.click(screen.getByRole("tab", { name: "Video" }));
 

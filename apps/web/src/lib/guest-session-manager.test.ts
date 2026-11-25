@@ -49,6 +49,30 @@ describe("guest-session-manager", () => {
     expect(getGuestInteraction()?.prompt.rawInput).toBe("Updated prompt input");
   });
 
+  it("saves completed response for the same interactionId even when requestTimestamp predates initial draft updatedAt", () => {
+    const requestTimestamp = new Date().toISOString();
+    vi.advanceTimersByTime(5);
+    const initial = saveGuestInteraction(SAMPLE_DRAFT, null, {
+      interactionId: "int_same_1",
+      requestTimestamp,
+    });
+    expect(initial?.response).toBeNull();
+
+    vi.advanceTimersByTime(1500);
+    const completed = saveGuestInteraction(
+      SAMPLE_DRAFT,
+      { compiledPrompt: "Full compiled output", detectedVariables: [] },
+      {
+        interactionId: "int_same_1",
+        requestTimestamp,
+      },
+    );
+
+    expect(completed?.interactionId).toBe("int_same_1");
+    expect(completed?.response?.compiledPrompt).toBe("Full compiled output");
+    expect(getGuestInteraction()?.response?.compiledPrompt).toBe("Full compiled output");
+  });
+
   it("ignores stale out-of-order responses whose requestTimestamp precedes the saved record", () => {
     const newer = saveGuestInteraction(
       { ...SAMPLE_DRAFT, rawInput: "Newer prompt" },

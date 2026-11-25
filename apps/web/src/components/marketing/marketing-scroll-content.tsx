@@ -16,10 +16,12 @@ import {
   Wrench,
 } from "lucide-react";
 import * as React from "react";
-import { Link } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { HOME_AEO_FAQS } from "../../content/docs-catalog.js";
+import { useAuthSession } from "../../hooks/use-auth-session.js";
 import { CARD_HOVER_ANIMATION } from "../../hooks/use-card-parallax.js";
 import { trackEvent } from "../../lib/telemetry.js";
+import { openAuthDialog } from "../../state/auth-dialog-store.js";
 import { composerActions } from "../../state/composer-store.js";
 import { PricingPlansSection } from "../pricing/pricing-plans-section.js";
 
@@ -167,6 +169,9 @@ const USE_CASE_SHOWCASE: ReadonlyArray<{
 ];
 
 export function MarketingScrollContent() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuthSession();
   const [selectedUseCase, setSelectedUseCase] = React.useState<ComposerMode>("text");
   const activeShowcase =
     USE_CASE_SHOWCASE.find((u) => u.mode === selectedUseCase) ?? USE_CASE_SHOWCASE[0];
@@ -403,10 +408,10 @@ export function MarketingScrollContent() {
             <span className="inline-flex items-center justify-center w-10 h-10 rounded-[10px] bg-[var(--success-subtle-bg)] text-[var(--success-text)] border border-[var(--separator-subtle)]">
               <Sparkles className="w-5 h-5" />
             </span>
-            <h3 className="text-lg font-medium tracking-[-0.02em]">Instant Free Use</h3>
+            <h3 className="text-lg font-medium tracking-[-0.02em]">Free Workspace</h3>
             <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed">
-              Start right on this page without an account. Your latest work saves in your browser
-              and syncs when you sign up.
+              Create a free account in seconds with email or OAuth. Your prompts, history, and
+              templates sync automatically across devices.
             </p>
           </article>
 
@@ -494,8 +499,13 @@ export function MarketingScrollContent() {
                 size="md"
                 className="max-w-full text-xs sm:text-sm px-3.5 sm:px-5"
                 onClick={() => {
+                  if (!isAuthenticated) {
+                    openAuthDialog({ reason: "action_required", intendedRoute: location.pathname });
+                    return;
+                  }
                   composerActions.setMode(activeShowcase.mode);
                   composerActions.updateActiveDraft({ rawInput: activeShowcase.rawInput });
+                  navigate("/compile");
                   window.scrollTo({ top: 0, behavior: "smooth" });
                 }}
               >
