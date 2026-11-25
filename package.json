@@ -11,6 +11,7 @@
     "db:rls": "pnpm --filter @open-prompt-os/db db:rls",
     "db:seed": "pnpm --filter @open-prompt-os/db db:seed",
     "build": "turbo run build",
+    "vercel-build": "node scripts/vercel-build.mjs",
     "test": "turbo run test",
     "test:e2e": "pnpm --filter @open-prompt-os/web test:e2e",
     "test:e2e:smoke": "pnpm --filter @open-prompt-os/web test:e2e:smoke",

@@ -3,17 +3,33 @@
   "globalPassThroughEnv": [
     "NODE_ENV",
     "DATABASE_URL",
+    "DIRECT_URL",
     "POSTGRES_HOST",
     "POSTGRES_PORT",
     "POSTGRES_USER",
     "POSTGRES_PASSWORD",
     "POSTGRES_DB",
+    "POSTGRES_DATABASE",
+    "POSTGRES_URL",
+    "POSTGRES_PRISMA_URL",
+    "POSTGRES_URL_NON_POOLING",
+    "OPOS_POSTGRES_URL",
+    "OPOS_POSTGRES_PRISMA_URL",
+    "OPOS_POSTGRES_URL_NON_POOLING",
+    "OPOS_POSTGRES_USER",
+    "OPOS_POSTGRES_PASSWORD",
+    "OPOS_POSTGRES_HOST",
+    "OPOS_POSTGRES_DATABASE",
     "BETTER_AUTH_SECRET",
-    "BETTER_AUTH_URL"
+    "BETTER_AUTH_URL",
+    "VERCEL",
+    "VERCEL_ENV",
+    "VERCEL_URL"
   ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
+      "env": ["VITE_*", "POSTHOG_KEY", "POSTHOG_HOST"],
       "outputs": ["dist/**"]
     },
     "typecheck": {

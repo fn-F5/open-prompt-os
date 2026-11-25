@@ -6,7 +6,19 @@
  * POSTGRES_* values when needed, so CLI and runtime resolve the same URL.
  */
 import { defineConfig } from "prisma/config";
-import { resolveDatabaseUrl } from "./src/database-url.js";
+import { resolveDirectDatabaseUrl } from "./src/database-url.js";
+
+function resolveDatasourceUrl(): string {
+  try {
+    return resolveDirectDatabaseUrl();
+  } catch (err) {
+    // `prisma generate` does not connect to a database; allow Preview/CI builds without DB credentials.
+    if (process.argv.includes("generate")) {
+      return "postgresql://placeholder:placeholder@localhost:5432/placeholder";
+    }
+    throw err;
+  }
+}
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
@@ -15,6 +27,6 @@ export default defineConfig({
     seed: "tsx prisma/seed.ts",
   },
   datasource: {
-    url: resolveDatabaseUrl(),
+    url: resolveDatasourceUrl(),
   },
 });
