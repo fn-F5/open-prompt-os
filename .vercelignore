@@ -1,0 +1,8 @@
+.env
+.env.*
+!.env.example
+api.log
+reports/
+.turbo/
+.stryker-tmp/
+coverage/

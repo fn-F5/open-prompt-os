@@ -21,3 +21,9 @@ packages/db/src/generated/
 .claude/
 .windsurf/
 skills-lock.json
+
+# Vercel local state and pulled env files
+.vercel
+.env.local
+.env.vercel*
+api/_bundle.mjs

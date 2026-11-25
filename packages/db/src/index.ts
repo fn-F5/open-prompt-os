@@ -1,9 +1,9 @@
 import { PrismaPg } from "@prisma/adapter-pg";
-import { resolveDatabaseUrl } from "./database-url.js";
+import { buildPgPoolConfig, resolveDatabaseUrl } from "./database-url.js";
 import { PrismaClient } from "./generated/prisma/client.js";
 
 export * from "./generated/prisma/client.js";
-export { resolveDatabaseUrl } from "./database-url.js";
+export { buildPgPoolConfig, resolveDatabaseUrl, resolveDirectDatabaseUrl } from "./database-url.js";
 
 export type DbLogHandler = (event: string, data: Record<string, unknown>) => void;
 
@@ -16,7 +16,7 @@ export function setDbLogger(handler: DbLogHandler | null): void {
 
 const INSERT_OPERATIONS = new Set(["create", "createMany", "createManyAndReturn", "upsert"]);
 
-const adapter = new PrismaPg({ connectionString: resolveDatabaseUrl() });
+const adapter = new PrismaPg(buildPgPoolConfig(resolveDatabaseUrl()));
 const basePrisma = new PrismaClient({ adapter });
 
 export const prisma = basePrisma.$extends({
@@ -49,6 +49,8 @@ export const prisma = basePrisma.$extends({
 
 export type Tx = Parameters<Parameters<PrismaClient["$transaction"]>[0]>[0];
 
+const TX_OPTIONS = { maxWait: 10_000, timeout: 15_000 } as const;
+
 /** Runs `fn` in a transaction scoped by RLS to a space (and optionally a guest client key). */
 export function runAsTenant<T>(
   ctx: { spaceId?: string; userId?: string; clientKey?: string },
@@ -60,7 +62,7 @@ export function runAsTenant<T>(
                                 set_config('app.client_key', ${ctx.clientKey ?? ""}, true),
                                 set_config('app.is_system', 'false', true)`;
     return fn(tx);
-  });
+  }, TX_OPTIONS);
 }
 
 /** Runs `fn` with system-level privileges that bypass tenant isolation (e.g. background workers, probes). */
@@ -70,5 +72,5 @@ export function runAsSystem<T>(fn: (tx: Tx) => Promise<T>): Promise<T> {
                                 set_config('app.space_id', '', true),
                                 set_config('app.client_key', '', true)`;
     return fn(tx);
-  });
+  }, TX_OPTIONS);
 }
