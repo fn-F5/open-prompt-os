@@ -8,6 +8,8 @@ import type { DocArticle, DocFaqItem } from "../content/docs-catalog.js";
 export const DEFAULT_SITE_URL = "https://openpromptos.com";
 export const SITE_NAME = "Open Prompt OS";
 export const DEFAULT_OG_IMAGE_PATH = "/og-default.svg";
+/** Raster fallback for social cards: X/Twitter, Facebook, LinkedIn, and Slack do not render SVG. */
+export const SOCIAL_OG_IMAGE_PATH = "/og-default.png";
 
 export interface SeoMetadata {
   readonly title: string;

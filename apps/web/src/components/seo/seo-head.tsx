@@ -1,7 +1,7 @@
 import * as React from "react";
 import {
-  DEFAULT_OG_IMAGE_PATH,
   SITE_NAME,
+  SOCIAL_OG_IMAGE_PATH,
   type SeoMetadata,
   buildCanonicalUrl,
   getSiteOrigin,
@@ -49,7 +49,7 @@ export function SeoHead({ meta }: { readonly meta: SeoMetadata }) {
       ? meta.ogImage.startsWith("http")
         ? meta.ogImage
         : buildCanonicalUrl(meta.ogImage, origin)
-      : buildCanonicalUrl(DEFAULT_OG_IMAGE_PATH, origin);
+      : buildCanonicalUrl(SOCIAL_OG_IMAGE_PATH, origin);
     const robotsValue = meta.noindex
       ? "noindex, nofollow"
       : "index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1";

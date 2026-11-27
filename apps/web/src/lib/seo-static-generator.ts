@@ -5,9 +5,9 @@ import {
 } from "@open-prompt-os/contracts";
 import { DOCS_CATALOG, type DocArticle, HOME_AEO_FAQS } from "../content/docs-catalog.js";
 import {
-  DEFAULT_OG_IMAGE_PATH,
   DEFAULT_SITE_URL,
   SITE_NAME,
+  SOCIAL_OG_IMAGE_PATH,
   STATIC_ROUTE_SEO,
   type SeoMetadata,
   buildCanonicalUrl,
@@ -270,7 +270,7 @@ export function injectSeoIntoHtml(
 ): string {
   const { meta, staticBodyHtml } = spec;
   const canonicalUrl = buildCanonicalUrl(meta.canonicalPath, origin);
-  const ogImageUrl = buildCanonicalUrl(meta.ogImage ?? DEFAULT_OG_IMAGE_PATH, origin);
+  const ogImageUrl = buildCanonicalUrl(meta.ogImage ?? SOCIAL_OG_IMAGE_PATH, origin);
   const robotsValue = meta.noindex
     ? "noindex, nofollow"
     : "index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1";
