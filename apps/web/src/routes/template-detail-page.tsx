@@ -23,14 +23,6 @@ export function TemplateDetailPage() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuthSession();
 
-  const requireAuth = () => {
-    if (!isAuthenticated) {
-      openAuthDialog({ reason: "action_required", intendedRoute: location.pathname });
-      return false;
-    }
-    return true;
-  };
-
   const detailQuery = useQuery({
     queryKey: queryKeys.templates.detail(templateSlug),
     queryFn: () => orpcClient.templates.getBySlug({ slug: templateSlug }),
@@ -219,7 +211,6 @@ export function TemplateDetailPage() {
             variant="secondary"
             size="sm"
             onClick={async () => {
-              if (!requireAuth()) return;
               const ok = await copyTextToClipboard(tpl.compiledTemplate);
               if (ok) toast({ title: "Copied template specification" });
             }}
@@ -231,7 +222,10 @@ export function TemplateDetailPage() {
           <Button
             variant="solid"
             onClick={() => {
-              if (!requireAuth()) return;
+              if (!isAuthenticated) {
+                openAuthDialog({ reason: "action_required", intendedRoute: location.pathname });
+                return;
+              }
               composerActions.applyTemplateDraft(tpl.defaultDraft);
               trackEvent("template_used", {
                 slug: tpl.slug,

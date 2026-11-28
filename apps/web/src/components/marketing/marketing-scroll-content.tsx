@@ -16,12 +16,10 @@ import {
   Wrench,
 } from "lucide-react";
 import * as React from "react";
-import { Link, useLocation, useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { HOME_AEO_FAQS } from "../../content/docs-catalog.js";
-import { useAuthSession } from "../../hooks/use-auth-session.js";
 import { CARD_HOVER_ANIMATION } from "../../hooks/use-card-parallax.js";
 import { trackEvent } from "../../lib/telemetry.js";
-import { openAuthDialog } from "../../state/auth-dialog-store.js";
 import { composerActions } from "../../state/composer-store.js";
 import { PricingPlansSection } from "../pricing/pricing-plans-section.js";
 
@@ -169,9 +167,7 @@ const USE_CASE_SHOWCASE: ReadonlyArray<{
 ];
 
 export function MarketingScrollContent() {
-  const location = useLocation();
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuthSession();
   const [selectedUseCase, setSelectedUseCase] = React.useState<ComposerMode>("text");
   const activeShowcase =
     USE_CASE_SHOWCASE.find((u) => u.mode === selectedUseCase) ?? USE_CASE_SHOWCASE[0];
@@ -499,10 +495,6 @@ export function MarketingScrollContent() {
                 size="md"
                 className="max-w-full text-xs sm:text-sm px-3.5 sm:px-5"
                 onClick={() => {
-                  if (!isAuthenticated) {
-                    openAuthDialog({ reason: "action_required", intendedRoute: location.pathname });
-                    return;
-                  }
                   composerActions.setMode(activeShowcase.mode);
                   composerActions.updateActiveDraft({ rawInput: activeShowcase.rawInput });
                   navigate("/compile");

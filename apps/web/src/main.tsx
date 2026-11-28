@@ -11,10 +11,12 @@ import * as React from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
 import { AppRoutes } from "./app-routes.js";
+import { captureFirstTouchAttribution } from "./lib/acquisition.js";
 import { installClickAnalytics } from "./lib/click-tracker.js";
 import { initPostHog } from "./lib/posthog.js";
 import { queryClient } from "./lib/query-client.js";
 
+captureFirstTouchAttribution();
 initPostHog();
 installClickAnalytics();
 

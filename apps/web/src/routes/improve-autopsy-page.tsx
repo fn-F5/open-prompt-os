@@ -237,14 +237,12 @@ export function ImproveAutopsyPage() {
   };
 
   const toggleSymptom = (symptom: string) => {
-    if (!requireAuth()) return;
     setSelectedSymptoms((prev) =>
       prev.includes(symptom) ? prev.filter((item) => item !== symptom) : [...prev, symptom],
     );
   };
 
   const handleCopy = async (text: string) => {
-    if (!requireAuth()) return;
     const ok = await copyTextToClipboard(text);
     if (ok) {
       setCopied(true);
@@ -293,7 +291,6 @@ export function ImproveAutopsyPage() {
                 key={example.label}
                 type="button"
                 onClick={() => {
-                  if (!requireAuth()) return;
                   setValidationError(null);
                   setOriginalPrompt(example.prompt);
                   setFailedOutput(example.failedOutput);
@@ -309,7 +306,6 @@ export function ImproveAutopsyPage() {
                 key={example.label}
                 type="button"
                 onClick={() => {
-                  if (!requireAuth()) return;
                   setValidationError(null);
                   setOriginalPrompt(example.prompt);
                 }}
@@ -682,7 +678,6 @@ export function ImproveAutopsyPage() {
                       variant="secondary"
                       size="sm"
                       onClick={() => {
-                        if (!requireAuth()) return;
                         setOriginalPrompt(result.optimizedPrompt);
                         setValidationError(null);
                         setMobilePane("input");
@@ -700,7 +695,6 @@ export function ImproveAutopsyPage() {
                       variant="secondary"
                       size="sm"
                       onClick={() => {
-                        if (!requireAuth()) return;
                         composerActions.updateActiveDraft({ rawInput: result.optimizedPrompt });
                         toast({
                           title: "Accepted into Composer",
@@ -720,7 +714,6 @@ export function ImproveAutopsyPage() {
                       variant="secondary"
                       size="sm"
                       onClick={() => {
-                        if (!requireAuth()) return;
                         dispatchPrompt("chatgpt", result.optimizedPrompt);
                       }}
                     >
@@ -731,7 +724,6 @@ export function ImproveAutopsyPage() {
                       variant="secondary"
                       size="sm"
                       onClick={() => {
-                        if (!requireAuth()) return;
                         dispatchPrompt("claude", result.optimizedPrompt);
                       }}
                     >
@@ -742,7 +734,6 @@ export function ImproveAutopsyPage() {
                       variant="secondary"
                       size="sm"
                       onClick={() => {
-                        if (!requireAuth()) return;
                         dispatchPrompt("gemini", result.optimizedPrompt);
                       }}
                     >

@@ -1,13 +1,43 @@
 import posthog from "posthog-js";
+import { getFirstTouchAttribution, toPostHogSetOnceProperties } from "./acquisition.js";
 import { sanitizeTelemetryProperties } from "./telemetry.js";
 
 const DEFAULT_POSTHOG_HOST = "https://us.i.posthog.com";
 
 let isInitialized = false;
+let currentIdentifiedUserId: string | null = null;
+let currentIdentifiedSignature: string | null = null;
 
 export interface PostHogConfig {
   readonly apiKey: string;
   readonly apiHost: string;
+}
+
+export interface PostHogIdentityUser {
+  readonly id: string;
+  readonly spaceId?: string;
+  readonly plan?: string;
+  readonly hasPasskey?: boolean;
+}
+
+function sortDefinedEntries(
+  properties: Record<string, string | number | boolean | null | undefined>,
+): Array<[string, string | number | boolean | null]> {
+  return Object.entries(properties)
+    .filter((entry): entry is [string, string | number | boolean | null] => entry[1] !== undefined)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+}
+
+function buildIdentitySignature(
+  distinctId: string,
+  setProperties: Record<string, string | number | boolean | null | undefined>,
+  setOnceProperties: Record<string, string | number | boolean | null | undefined> = {},
+): string {
+  return JSON.stringify([
+    distinctId,
+    sortDefinedEntries(setProperties),
+    sortDefinedEntries(setOnceProperties),
+  ]);
 }
 
 export function resolvePostHogConfig(): PostHogConfig | null {
@@ -74,6 +104,7 @@ export function capturePostHogException(
 export function identifyPostHogUser(
   distinctId: string,
   properties: Record<string, unknown> = {},
+  setOnceProperties?: Record<string, unknown>,
 ): boolean {
   const trimmedId = distinctId.trim();
   if (!trimmedId) {
@@ -83,11 +114,62 @@ export function identifyPostHogUser(
     return false;
   }
 
-  posthog.identify(trimmedId, sanitizeTelemetryProperties(properties));
+  const sanitizedProps: Record<string, string | number | boolean | null | undefined> = {
+    ...sanitizeTelemetryProperties(properties),
+    db_user_id: trimmedId,
+  };
+  const storedFirstTouch = getFirstTouchAttribution();
+  const rawSetOnce: Record<string, unknown> = {
+    ...(storedFirstTouch ? toPostHogSetOnceProperties(storedFirstTouch) : {}),
+    ...(setOnceProperties ?? {}),
+  };
+  const sanitizedSetOnceRaw = sanitizeTelemetryProperties(rawSetOnce);
+  const sanitizedSetOnce: Record<string, string | number | boolean | null> = {};
+  for (const [key, value] of Object.entries(sanitizedSetOnceRaw)) {
+    if (value !== undefined) {
+      sanitizedSetOnce[key] = value;
+    }
+  }
+
+  const signature = buildIdentitySignature(trimmedId, sanitizedProps, sanitizedSetOnce);
+  if (currentIdentifiedUserId === trimmedId && currentIdentifiedSignature === signature) {
+    return true;
+  }
+
+  if (Object.keys(sanitizedSetOnce).length > 0) {
+    posthog.identify(trimmedId, sanitizedProps, sanitizedSetOnce);
+  } else {
+    posthog.identify(trimmedId, sanitizedProps);
+  }
+  currentIdentifiedUserId = trimmedId;
+  currentIdentifiedSignature = signature;
   return true;
 }
 
+export function syncPostHogIdentity(
+  user: PostHogIdentityUser | null,
+  setOnceProperties?: Record<string, unknown>,
+): boolean {
+  if (user?.id) {
+    return identifyPostHogUser(
+      user.id,
+      {
+        ...(user.spaceId ? { space_id: user.spaceId } : {}),
+        ...(user.plan ? { plan: user.plan } : {}),
+        ...(typeof user.hasPasskey === "boolean" ? { has_passkey: user.hasPasskey } : {}),
+      },
+      setOnceProperties,
+    );
+  }
+  if (currentIdentifiedUserId !== null) {
+    return resetPostHogUser();
+  }
+  return false;
+}
+
 export function resetPostHogUser(): boolean {
+  currentIdentifiedUserId = null;
+  currentIdentifiedSignature = null;
   if (!isInitialized) {
     return false;
   }
@@ -98,4 +180,6 @@ export function resetPostHogUser(): boolean {
 
 export function resetPostHogForTest(): void {
   isInitialized = false;
+  currentIdentifiedUserId = null;
+  currentIdentifiedSignature = null;
 }

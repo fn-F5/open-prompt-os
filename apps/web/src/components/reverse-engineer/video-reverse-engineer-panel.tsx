@@ -346,7 +346,6 @@ export function VideoReverseEngineerPanel() {
   };
 
   const handleCopy = async (key: string, text: string, label = "Copied to clipboard") => {
-    if (!requireAuth()) return;
     const ok = await copyTextToClipboard(text);
     if (ok) {
       setCopiedKey(key);
@@ -391,7 +390,6 @@ export function VideoReverseEngineerPanel() {
             onDrop={(e) => {
               e.preventDefault();
               setIsDragging(false);
-              if (!requireAuth()) return;
               handleVideoFile(e.dataTransfer.files?.[0]);
             }}
             className={`rounded-xl border-2 border-dashed p-6 text-center transition-colors ${
@@ -470,7 +468,6 @@ export function VideoReverseEngineerPanel() {
                   variant="secondary"
                   size="sm"
                   onClick={() => {
-                    if (!requireAuth()) return;
                     fileInputRef.current?.click();
                   }}
                 >
@@ -930,7 +927,6 @@ export function VideoReverseEngineerPanel() {
                   variant="secondary"
                   size="sm"
                   onClick={() => {
-                    if (!requireAuth()) return;
                     composerActions.applyTemplateDraft(result.suggestedDraft);
                     toast({
                       title: "Loaded into Composer",

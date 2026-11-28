@@ -8,6 +8,7 @@ import { resolveActor } from "../auth/session-resolver.js";
 import type { TrustProxyMode } from "../client-key.js";
 import { toUserFacingServerError } from "../errors.js";
 import { enrichRequestContext, logger } from "../logger.js";
+import type { ApiErrorTracker } from "../posthog.js";
 import { recordPromptGeneration, releaseQuota, reserveQuota } from "../services/usage-quota.js";
 
 export interface ComposeStreamDeps {
@@ -15,6 +16,7 @@ export interface ComposeStreamDeps {
   allowRequest: (key: string) => boolean;
   trustProxy: TrustProxyMode;
   auth?: Auth;
+  errorTracker?: ApiErrorTracker;
 }
 
 export function registerComposeStream(app: Hono<ApiEnv>, deps: ComposeStreamDeps): void {
@@ -116,6 +118,22 @@ export function registerComposeStream(app: Hono<ApiEnv>, deps: ComposeStreamDeps
                 latencyMs,
               });
 
+              if (actor.userId) {
+                deps.errorTracker?.captureEvent?.({
+                  distinctId: actor.userId,
+                  event: "api:prompt_compose",
+                  properties: {
+                    space_id: actor.spaceId,
+                    mode: parsed.data.draft.mode,
+                    framework: parsed.data.draft.framework ?? "costar",
+                    model_id: parsed.data.draft.modelId,
+                    provider_id: event.output.providerId,
+                    latency_ms: latencyMs,
+                    streaming: true,
+                  },
+                });
+              }
+
               event.output.remainingDailyPrompts = quota.remainingDaily;
               completed = true;
 
@@ -139,6 +157,15 @@ export function registerComposeStream(app: Hono<ApiEnv>, deps: ComposeStreamDeps
             event: "prompt.stream_failed",
             requestId,
             err: error,
+          });
+          deps.errorTracker?.captureException(error, {
+            distinctId: actor.userId,
+            spaceId: actor.spaceId,
+            requestId,
+            path: c.req.path,
+            method: c.req.method,
+            status: 500,
+            source: "prompt.stream_failed",
           });
           const safe = toUserFacingServerError(error);
           try {
