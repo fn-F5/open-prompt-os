@@ -1,0 +1,61 @@
+name: Auto-Merge Feature PRs
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
+      - ready_for_review
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  enable-auto-merge:
+    name: Enable Auto-Merge
+    if: >-
+      !github.event.pull_request.draft &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (
+        startsWith(github.event.pull_request.head.ref, 'feat/') ||
+        startsWith(github.event.pull_request.head.ref, 'feature/') ||
+        startsWith(github.event.pull_request.head.ref, 'fix/')
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Enable auto-merge on PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          auto_merge=$(gh pr view "$PR_NUMBER" -R "$GH_REPO" --json autoMergeRequest --jq '.autoMergeRequest != null')
+          if [ "$auto_merge" = "true" ]; then
+            echo "Auto-merge is already enabled on PR #$PR_NUMBER."
+            exit 0
+          fi
+
+          if gh pr merge "$PR_NUMBER" -R "$GH_REPO" --auto --merge; then
+            echo "Auto-merge enabled on PR #$PR_NUMBER."
+            exit 0
+          fi
+
+          merge_state=$(gh pr view "$PR_NUMBER" -R "$GH_REPO" --json mergeStateStatus --jq '.mergeStateStatus')
+          if [ "$merge_state" = "CLEAN" ]; then
+            echo "PR #$PR_NUMBER already satisfies all checks (state: CLEAN); merging now."
+            gh pr merge "$PR_NUMBER" -R "$GH_REPO" --merge
+            exit 0
+          fi
+
+          echo "Failed to enable auto-merge on PR #$PR_NUMBER (mergeStateStatus: $merge_state)." >&2
+          exit 1
