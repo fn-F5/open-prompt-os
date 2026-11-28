@@ -1,6 +1,7 @@
 import type { AuthenticatedUser } from "@open-prompt-os/contracts";
 import { createAuthClient } from "better-auth/client";
 import { emailOTPClient } from "better-auth/client/plugins";
+import { resetPostHogUser, syncPostHogIdentity } from "./posthog.js";
 
 export interface AuthSessionSnapshot {
   readonly isAuthenticated: boolean;
@@ -108,6 +109,7 @@ function applyUser(value: unknown) {
     isLoading: false,
     user,
   };
+  syncPostHogIdentity(user);
   notifyListeners();
 }
 
@@ -230,6 +232,7 @@ export const authClient = {
       await betterAuth.signOut();
     }
     currentSnapshot = { isAuthenticated: false, isLoading: false, user: null };
+    resetPostHogUser();
     notifyListeners();
   },
 };
@@ -240,5 +243,6 @@ export function setAuthSessionForTest(user: AuthenticatedUser | null): void {
     isLoading: false,
     user,
   };
+  syncPostHogIdentity(user);
   notifyListeners();
 }

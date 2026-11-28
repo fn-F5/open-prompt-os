@@ -15,8 +15,9 @@ import { useCardParallax } from "../hooks/use-card-parallax.js";
 import { useGuestHydration } from "../hooks/use-guest-hydration.js";
 import { useIdleTour } from "../hooks/use-idle-tour.js";
 import { useReducedEffects } from "../hooks/use-reduced-effects.js";
+import { getFirstTouchAttribution, toFirstTouchEventProperties } from "../lib/acquisition.js";
 import { trackAnalyticsEvent } from "../lib/analytics-events.js";
-import { identifyPostHogUser, resetPostHogUser } from "../lib/posthog.js";
+import { syncPostHogIdentity } from "../lib/posthog.js";
 import { flushPendingSignupReferral } from "../lib/signup-referral.js";
 import { openAuthDialog, useAuthDialogStore } from "../state/auth-dialog-store.js";
 import { useComposerStore } from "../state/composer-store.js";
@@ -29,7 +30,6 @@ export function HybridLayout() {
   const { prefersReducedMotion, shouldReduceEffects } = useReducedEffects();
   const location = useLocation();
   const lastTrackedPathRef = React.useRef<string | null>(null);
-  const identifiedUserIdRef = React.useRef<string | null>(null);
 
   // Trigger post-authentication guest interaction migration
   useGuestHydration();
@@ -37,25 +37,28 @@ export function HybridLayout() {
   // Identify authenticated user in PostHog with internal UUID (no PII)
   React.useEffect(() => {
     if (isLoading) return;
-    if (isAuthenticated && user?.id) {
-      if (identifiedUserIdRef.current !== user.id) {
-        identifyPostHogUser(user.id);
-        identifiedUserIdRef.current = user.id;
-      }
-    } else if (identifiedUserIdRef.current !== null) {
-      resetPostHogUser();
-      identifiedUserIdRef.current = null;
-    }
-  }, [isAuthenticated, isLoading, user?.id]);
+    syncPostHogIdentity(
+      isAuthenticated && user?.id
+        ? {
+            id: user.id,
+            spaceId: user.spaceId,
+            plan: user.plan,
+            hasPasskey: user.hasPasskey,
+          }
+        : null,
+    );
+  }, [isAuthenticated, isLoading, user?.id, user?.spaceId, user?.plan, user?.hasPasskey]);
 
   // Track route views across SPA navigation
   React.useEffect(() => {
     if (isLoading) return;
     if (lastTrackedPathRef.current === location.pathname) return;
     lastTrackedPathRef.current = location.pathname;
+    const firstTouch = getFirstTouchAttribution();
     trackAnalyticsEvent("navigation:route_view", {
       route_path: location.pathname,
       is_authenticated: isAuthenticated,
+      ...(firstTouch ? toFirstTouchEventProperties(firstTouch) : {}),
     });
   }, [isAuthenticated, isLoading, location.pathname]);
 

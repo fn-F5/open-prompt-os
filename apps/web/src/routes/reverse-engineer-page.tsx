@@ -10,6 +10,7 @@ import { SeoHead } from "../components/seo/seo-head.js";
 import { HOME_AEO_FAQS } from "../content/docs-catalog.js";
 import { useAuthSession } from "../hooks/use-auth-session.js";
 import { useCardHoverAnimation } from "../hooks/use-card-parallax.js";
+import { getFirstTouchAttribution, toFirstTouchEventProperties } from "../lib/acquisition.js";
 import { copyTextToClipboard } from "../lib/dispatch.js";
 import { OrpcClientError, orpcClient } from "../lib/orpc.js";
 import { capturePostHogEvent } from "../lib/posthog.js";
@@ -90,8 +91,12 @@ export function ReverseEngineerPage() {
       return;
     }
     hasTrackedLandingRef.current = true;
+    const firstTouch = getFirstTouchAttribution();
     trackEvent("landing_page_loaded");
-    capturePostHogEvent("landing_page_loaded");
+    capturePostHogEvent(
+      "landing_page_loaded",
+      firstTouch ? toFirstTouchEventProperties(firstTouch) : undefined,
+    );
   }, []);
 
   const [sourceModality, setSourceModality] = React.useState<"image" | "video">("image");
@@ -280,7 +285,6 @@ export function ReverseEngineerPage() {
               onDrop={(e) => {
                 e.preventDefault();
                 setIsDragging(false);
-                if (!requireAuth()) return;
                 handleFile(e.dataTransfer.files?.[0]);
               }}
               className={`rounded-xl border-2 border-dashed p-6 text-center transition-colors ${
@@ -335,7 +339,6 @@ export function ReverseEngineerPage() {
                     variant="secondary"
                     size="sm"
                     onClick={() => {
-                      if (!requireAuth()) return;
                       fileInputRef.current?.click();
                     }}
                   >
@@ -437,7 +440,6 @@ export function ReverseEngineerPage() {
                       variant="solid"
                       size="sm"
                       onClick={async () => {
-                        if (!requireAuth()) return;
                         const ok = await copyTextToClipboard(result.reconstructedPrompt);
                         if (ok) toast({ title: "Copied reconstructed prompt" });
                       }}
@@ -450,7 +452,6 @@ export function ReverseEngineerPage() {
                       variant="secondary"
                       size="sm"
                       onClick={() => {
-                        if (!requireAuth()) return;
                         composerActions.applyTemplateDraft(result.suggestedDraft);
                         toast({
                           title: "Loaded into Composer",

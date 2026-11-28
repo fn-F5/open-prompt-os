@@ -14,12 +14,14 @@ import { type ResolvedActor, resolveActor } from "../auth/session-resolver.js";
 import type { TrustProxyMode } from "../client-key.js";
 import { toUserFacingServerError } from "../errors.js";
 import { enrichRequestContext, logger } from "../logger.js";
+import type { ApiErrorTracker } from "../posthog.js";
 import { recordPromptGeneration, releaseQuota, reserveQuota } from "../services/usage-quota.js";
 
 export interface VideoReverseEngineerStreamDeps {
   orchestrator: PromptOrchestrator;
   trustProxy: TrustProxyMode;
   auth?: Auth;
+  errorTracker?: ApiErrorTracker;
 }
 
 const STAGE_MESSAGES = {
@@ -364,6 +366,21 @@ export function registerVideoReverseEngineerStream(
             latencyMs,
           });
 
+          if (actor.userId) {
+            deps.errorTracker?.captureEvent?.({
+              distinctId: actor.userId,
+              event: "api:reverse_engineer_video",
+              properties: {
+                space_id: actor.spaceId,
+                source_type: inputPayload.sourceType,
+                target_generator: inputPayload.targetGenerator,
+                model_id: output.modelId,
+                provider_id: output.providerId,
+                latency_ms: latencyMs,
+              },
+            });
+          }
+
           output.remainingDailyRuns = quota.remainingDaily;
           sendEvent("done", output);
         } catch (error) {
@@ -374,6 +391,15 @@ export function registerVideoReverseEngineerStream(
             event: "prompt.video_reverse_engineer_failed",
             requestId,
             err: error,
+          });
+          deps.errorTracker?.captureException(error, {
+            distinctId: actor.userId,
+            spaceId: actor.spaceId,
+            requestId,
+            path: c.req.path,
+            method: c.req.method,
+            status: 500,
+            source: "prompt.video_reverse_engineer_failed",
           });
           const safe = toUserFacingServerError(error);
           sendEvent("error", { code: safe.code, message: safe.message, requestId });

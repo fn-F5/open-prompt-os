@@ -2,32 +2,20 @@ import { Badge, Button } from "@open-prompt-os/ui-web";
 import { useQuery } from "@tanstack/react-query";
 import { Copy, ExternalLink, Sparkles } from "lucide-react";
 import * as React from "react";
-import { useLocation, useNavigate, useParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import { SanitizedPromptRenderer } from "../components/output/output-card.js";
 import { SeoHead } from "../components/seo/seo-head.js";
-import { useAuthSession } from "../hooks/use-auth-session.js";
 import { useCardHoverAnimation } from "../hooks/use-card-parallax.js";
 import { dispatchPrompt } from "../lib/dispatch.js";
 import { orpcClient } from "../lib/orpc.js";
 import { queryKeys } from "../lib/query-client.js";
 import { buildSharedPromptSeo } from "../lib/seo.js";
-import { openAuthDialog } from "../state/auth-dialog-store.js";
 import { composerActions } from "../state/composer-store.js";
 
 export function PublicPromptPage() {
   const { shareId = "" } = useParams();
-  const location = useLocation();
   const navigate = useNavigate();
   const animateCard = useCardHoverAnimation();
-  const { isAuthenticated } = useAuthSession();
-
-  const requireAuth = () => {
-    if (!isAuthenticated) {
-      openAuthDialog({ reason: "action_required", intendedRoute: location.pathname });
-      return false;
-    }
-    return true;
-  };
 
   const sharedQuery = useQuery({
     queryKey: queryKeys.prompts.shared(shareId),
@@ -82,7 +70,6 @@ export function PublicPromptPage() {
             variant="primary-inverse"
             size="sm"
             onClick={() => {
-              if (!requireAuth()) return;
               dispatchPrompt("clipboard", item.compiledPrompt);
             }}
           >
@@ -93,7 +80,6 @@ export function PublicPromptPage() {
             variant="secondary"
             size="sm"
             onClick={() => {
-              if (!requireAuth()) return;
               composerActions.setMode(item.mode);
               composerActions.updateActiveDraft({ rawInput: item.rawInput });
               navigate("/compile");
@@ -108,7 +94,6 @@ export function PublicPromptPage() {
           variant="secondary"
           size="sm"
           onClick={() => {
-            if (!requireAuth()) return;
             dispatchPrompt("chatgpt", item.compiledPrompt);
           }}
         >

@@ -2,7 +2,9 @@ import {
   type RecordSignupAttributionInput,
   RecordSignupAttributionInputSchema,
 } from "@open-prompt-os/contracts";
+import { authClient } from "./auth-client.js";
 import { orpcClient } from "./orpc.js";
+import { syncPostHogIdentity } from "./posthog.js";
 import { trackEvent } from "./telemetry.js";
 
 export const PENDING_REFERRAL_STORAGE_KEY = "open-prompt-os:pending-referral";
@@ -45,6 +47,14 @@ export async function recordSignupReferral(input: RecordSignupAttributionInput):
       trackEvent("signup_attribution_recorded", {
         referralSource: result.referralSource,
       });
+      if (result.referralSource) {
+        const user = authClient.getSession().user;
+        if (user) {
+          syncPostHogIdentity(user, {
+            self_reported_referral_source: result.referralSource,
+          });
+        }
+      }
     }
   } catch {
     // Never fail authentication due to optional attribution persistence

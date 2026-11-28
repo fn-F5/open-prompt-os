@@ -85,7 +85,7 @@ export function buildSoftwareApplicationSchema(
     url: buildCanonicalUrl(options?.path ?? "/", origin),
     description:
       options?.description ??
-      "Freemium prompt engineering workbench for compiling structured CO-STAR, RISE, CARE, and Chain-of-Thought prompts, running Prompt Autopsy diagnostics, and reverse-engineering images into prompts.",
+      "AI prompt builder, prompt generator, image-to-prompt and video-to-prompt reverse engineer, and Prompt Autopsy optimizer for ChatGPT, Claude, Gemini, Imagen, FLUX, and Veo.",
     offers: {
       "@type": "Offer",
       price: "0",
@@ -93,10 +93,11 @@ export function buildSoftwareApplicationSchema(
       description: "Instant free access with no sign-up required",
     },
     featureList: [
-      "Guided Multi-Modal Prompt Compiler (Text, Image, Video)",
+      "Guided AI Prompt Builder & Generator (Text, Image, Video)",
       "CO-STAR, RISE, CARE, and Chain-of-Thought Frameworks",
-      "Prompt Autopsy 8-Category Root-Cause Diagnostics",
+      "Prompt Autopsy Optimizer & 8-Category Root-Cause Diagnostics",
       "6-Axis Image-to-Prompt Reverse Engineering",
+      "Video & YouTube-to-Prompt Reverse Engineering",
       "One-Click Send to ChatGPT, Claude, and Gemini",
       "Zero Model Training Privacy Guarantee",
     ],
@@ -259,11 +260,21 @@ export function buildTemplateGallerySeo(
   origin = getSiteOrigin(),
 ): SeoMetadata {
   return {
-    title: `AI Prompt Template Gallery — CO-STAR, RISE, CARE & Video Blueprints | ${SITE_NAME}`,
+    title: `AI Prompt Templates & Library — Ready Blueprints | ${SITE_NAME}`,
     description:
-      "Browse curated, permissively licensed prompt blueprints for Engineering, Product, SQL, Marketing, Studio Image, and 24fps Cinema Video.",
+      "Browse curated AI prompt templates for ChatGPT, Claude, Gemini, FLUX, and Veo—engineering specs, SQL, marketing, studio photography, and 24fps video.",
     canonicalPath: "/templates",
     ogType: "website",
+    keywords: [
+      "AI prompt templates",
+      "prompt library",
+      "ChatGPT prompt templates",
+      "Claude system prompt templates",
+      "CO-STAR prompt examples",
+      "AI video prompt templates",
+      "FLUX image prompt templates",
+      "reusable prompt templates",
+    ],
     jsonLd: [
       {
         "@context": "https://schema.org",
@@ -298,9 +309,15 @@ export function buildPricingSeo(origin = getSiteOrigin()): SeoMetadata {
   return {
     title: `Pricing Plans — Free, Pro & Team Prompt Engineering | ${SITE_NAME}`,
     description:
-      "Start compiling structured prompts for free with no sign-up. Upgrade to Pro or Team for higher daily capacity, Prompt Autopsy, and shared workspaces.",
+      "Start using our AI prompt builder, image & video-to-prompt extractor, and Prompt Autopsy for free. Upgrade to Pro or Team for higher daily capacity.",
     canonicalPath: "/pricing",
     ogType: "website",
+    keywords: [
+      "AI prompt builder pricing",
+      "prompt generator plans",
+      "private AI prompt tool",
+      "zero training prompt tool",
+    ],
     jsonLd: [
       {
         "@context": "https://schema.org",
@@ -355,15 +372,22 @@ export function buildSharedPromptSeo(item: SavedPromptItem, origin = getSiteOrig
 
 export const STATIC_ROUTE_SEO = {
   home: (faqs: readonly DocFaqItem[], origin = getSiteOrigin()): SeoMetadata => ({
-    title: "Open Prompt OS — Write AI Prompts That Work on the First Try",
+    title: "Open Prompt OS — Prompts Are Trade Secrets Creators Rarely Share",
     description:
-      "Turn rough ideas into structured AI prompts for ChatGPT, Claude, Gemini, Imagen, FLUX, and Veo with Prompt Autopsy and Image Reverse Engineering.",
+      "Top creators guard the exact wording behind studio-grade AI results. Image-to-prompt, video-to-prompt & AI prompt builder for ChatGPT, Claude, Gemini & Veo.",
     canonicalPath: "/",
     ogType: "website",
     keywords: [
+      "image to prompt",
+      "image to prompt generator",
+      "video to prompt",
+      "video to prompt generator",
+      "YouTube to prompt",
+      "AI prompt generator",
+      "AI prompt builder",
       "prompt engineering tool",
-      "AI prompt compiler",
       "CO-STAR prompt builder",
+      "prompt optimizer",
       "prompt autopsy",
       "reverse engineer image prompt",
     ],
@@ -375,17 +399,22 @@ export const STATIC_ROUTE_SEO = {
     ],
   }),
   compile: {
-    title: `Prompt Compiler — Build Structured AI Prompts | ${SITE_NAME}`,
+    title: `AI Prompt Generator & Builder (Prompt Compiler) | ${SITE_NAME}`,
     description:
-      "Compile structured, model-calibrated prompts for ChatGPT, Claude, Gemini, Imagen, FLUX, and Veo using CO-STAR, RISE, CARE, and Chain-of-Thought frameworks.",
+      "Structured AI prompt generator and builder for ChatGPT, Claude, Gemini, Imagen, FLUX & Veo using CO-STAR, RISE, CARE, and Chain-of-Thought frameworks.",
     canonicalPath: "/compile",
     ogType: "website",
     keywords: [
-      "AI prompt compiler",
-      "CO-STAR prompt builder",
-      "RISE prompt framework",
+      "AI prompt generator",
+      "AI prompt builder",
+      "ChatGPT prompt generator",
+      "Claude prompt builder",
+      "Gemini prompt generator",
       "structured prompt builder",
-      "prompt engineering workbench",
+      "CO-STAR prompt generator",
+      "RISE prompt framework",
+      "system prompt builder",
+      "AI prompt compiler",
     ],
     jsonLd: [
       buildOrganizationSchema(),
@@ -394,16 +423,27 @@ export const STATIC_ROUTE_SEO = {
         path: "/compile",
         name: "Open Prompt OS — Prompt Compiler",
         description:
-          "Guided multi-modal prompt compiler for Text, Image, and Video using CO-STAR, RISE, CARE, and Chain-of-Thought frameworks.",
+          "Guided multi-modal AI prompt generator and builder for Text, Image, and Video using CO-STAR, RISE, CARE, and Chain-of-Thought frameworks.",
       }),
     ],
   } satisfies SeoMetadata,
   improve: (origin = getSiteOrigin()): SeoMetadata => ({
-    title: `Improve & Prompt Autopsy — Debug Hallucinations & Fix Prompts | ${SITE_NAME}`,
+    title: `AI Prompt Optimizer & Improver — Prompt Autopsy | ${SITE_NAME}`,
     description:
-      "Paste any prompt and failed AI response to run Prompt Autopsy across 8 diagnostic categories and generate a structured, anti-hallucination prompt.",
+      "Improve, rewrite, and debug AI prompts with Prompt Autopsy. Diagnose hallucinations across 8 failure categories and generate a copy-ready optimized prompt.",
     canonicalPath: "/improve",
     ogType: "website",
+    keywords: [
+      "AI prompt improver",
+      "prompt optimizer",
+      "prompt enhancer",
+      "prompt rewriter",
+      "prompt debugger",
+      "prompt analyzer",
+      "fix AI hallucinations",
+      "improve ChatGPT prompt",
+      "prompt autopsy",
+    ],
     jsonLd: [
       buildOrganizationSchema(origin),
       buildWebSiteSchema(origin),
@@ -437,11 +477,20 @@ export const STATIC_ROUTE_SEO = {
     ],
   }),
   reverseEngineer: (origin = getSiteOrigin()): SeoMetadata => ({
-    title: `Reverse Engineer Image to Prompt — 6-Axis Visual Extractor | ${SITE_NAME}`,
+    title: `Image & Video to Prompt Generator | ${SITE_NAME}`,
     description:
-      "Upload any PNG, JPEG, or WebP image to extract lighting, lens optics, style, composition, negative guardrails, and a reusable prompt draft.",
+      "Extract copy-ready prompts from any image, video clip, or YouTube link—lighting, lens optics, motion, style, and guardrails for Imagen, FLUX & Veo.",
     canonicalPath: "/",
     ogType: "website",
+    keywords: [
+      "image to prompt",
+      "image to prompt generator",
+      "video to prompt",
+      "video to prompt generator",
+      "YouTube to prompt",
+      "extract prompt from image",
+      "reverse engineer AI prompt",
+    ],
     jsonLd: [
       buildOrganizationSchema(origin),
       buildWebSiteSchema(origin),
@@ -480,6 +529,14 @@ export const STATIC_ROUTE_SEO = {
       "Guides, framework comparisons (CO-STAR, RISE, CARE, Chain-of-Thought), Prompt Autopsy tutorials, and Answer-First references for Open Prompt OS.",
     canonicalPath: "/docs",
     ogType: "website",
+    keywords: [
+      "prompt engineering guide",
+      "AI prompt builder guide",
+      "CO-STAR vs RISE",
+      "image to prompt guide",
+      "video to prompt guide",
+      "prompt autopsy tutorial",
+    ],
     jsonLd: [
       {
         "@context": "https://schema.org",

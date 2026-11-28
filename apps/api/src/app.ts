@@ -18,6 +18,7 @@ import { toUserFacingServerError } from "./errors.js";
 import {
   createLogger,
   enrichRequestContext,
+  getRequestContext,
   parseTraceparent,
   resolveRequestId,
   runWithRequestContext,
@@ -53,6 +54,7 @@ export function createApp(options: AppOptions) {
     orchestrator: options.orchestrator,
     billingProvider,
     webOrigins: options.webOrigins,
+    errorTracker: options.errorTracker,
   });
   const rpc = new RPCHandler(router);
   const appLogger = createLogger({ sink: options.log });
@@ -248,12 +250,14 @@ export function createApp(options: AppOptions) {
     allowRequest: () => true,
     trustProxy: options.trustProxy,
     auth: options.auth,
+    errorTracker: options.errorTracker,
   });
 
   registerVideoReverseEngineerStream(app, {
     orchestrator: options.orchestrator,
     trustProxy: options.trustProxy,
     auth: options.auth,
+    errorTracker: options.errorTracker,
   });
 
   if (options.e2eHarness) {
@@ -323,6 +327,8 @@ export function createApp(options: AppOptions) {
           `oRPC server error (${response.status}): ${redactSecrets(errorText.slice(0, 500))}`,
         ),
         {
+          distinctId: actor.userId,
+          spaceId: actor.spaceId,
           requestId,
           path: c.req.path,
           method: c.req.method,
@@ -353,12 +359,15 @@ export function createApp(options: AppOptions) {
 
   app.onError((error, c) => {
     const requestId = c.get("requestId");
+    const reqCtx = getRequestContext();
     appLogger.error("Unhandled HTTP exception", {
       event: "http.unhandled_error",
       path: c.req.path,
       err: error,
     });
     options.errorTracker?.captureException(error, {
+      distinctId: reqCtx?.userId,
+      spaceId: reqCtx?.spaceId,
       requestId,
       path: c.req.path,
       method: c.req.method,
